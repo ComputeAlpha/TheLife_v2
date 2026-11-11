@@ -1,0 +1,24 @@
+name: skill_sessions
+schema: SkillSession
+noun: skill session
+path: /skills/sessions
+scope: skills
+tag: Skills
+description: A study session on a book (page range) or course (section and timeline positions).
+fields:
+  resource_id: {$ref: Id}
+  started_at: {$ref: Timestamp}
+  ended_at: {$ref: Timestamp}
+  page_from: {type: [integer, "null"], minimum: 1}
+  page_to: {type: [integer, "null"], minimum: 1}
+  section_id: {type: [string, "null"], format: uuid}
+  pos_from_s: {type: [integer, "null"], minimum: 0}
+  pos_to_s: {type: [integer, "null"], minimum: 0}
+  notes: {$ref: Notes}
+  source: {type: string, enum: [manual, detection, agent], default: manual}
+required: [resource_id, started_at, ended_at]
+filters:
+  resource_id: {$ref: Id}
+  from: {$ref: Timestamp}
+  to: {$ref: Timestamp}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

@@ -1,0 +1,146 @@
+name: devices
+schema: Device
+noun: device
+path: /devices
+scope: devices
+tag: Devices
+description: Collector devices. Registering one returns its device token once (backend_lld.md §6.1, collector_lld.md §8).
+exposure: [rest]
+principals: [user]
+fields:
+  name: {$ref: Text200}
+  platform: {type: string, enum: [linux-x11]}
+readonly:
+  hostname: {type: [string, "null"], maxLength: 255}
+  collector_version: {type: [string, "null"], maxLength: 64}
+  last_seen_at: {type: [string, "null"], format: date-time}
+  revoked_at: {type: [string, "null"], format: date-time}
+required: [name, platform]
+ops:
+  list: {}
+  get: {}
+extra_schemas:
+  DeviceWithToken:
+    type: object
+    required: [device, token]
+    properties:
+      device: {$ref: Device}
+      token: {type: string, description: "tld_ device token; shown once."}
+  DeviceConfig:
+    type: object
+    description: Collector configuration. The collector clamps every value to its own local bounds.
+    required: [enabled, capture_interval_s, jitter_pct, capture_monitors, capture_max_px, idle_threshold_s,
+               process_interval_s]
+    properties:
+      enabled: {type: boolean}
+      capture_interval_s: {type: integer, minimum: 60}
+      jitter_pct: {type: integer, minimum: 0, maximum: 50}
+      capture_monitors: {type: string, enum: [all, active]}
+      capture_max_px: {type: integer, minimum: 640, maximum: 2560}
+      idle_threshold_s: {type: integer, minimum: 30, maximum: 1800}
+      process_interval_s: {type: integer, minimum: 15}
+actions:
+  - name: register
+    method: post
+    path: /devices
+    effect: create
+    summary: Register a collector device and issue its token
+    status: 201
+    body: DeviceCreate
+    returns: DeviceWithToken
+  - name: revoke
+    method: delete
+    path: /devices/{id}
+    effect: delete
+    summary: Revoke a device and its token
+    target: true
+    status: 204
+    params: {id: {$ref: Id}}
+  - name: self_config
+    method: get
+    path: /devices/self/config
+    effect: read
+    principals: [device]
+    scopes: ["devices:self"]
+    stage: 4
+    summary: Collector configuration for the calling device (poll with If-None-Match)
+    returns: DeviceConfig
+  - name: self_heartbeat
+    method: post
+    path: /devices/self/heartbeat
+    effect: update
+    principals: [device]
+    scopes: ["devices:self"]
+    stage: 4
+    status: 204
+    summary: Collector liveness report
+    body:
+      type: object
+      additionalProperties: false
+      required: [version, queue_depth, x_ok]
+      properties:
+        version: {type: string, maxLength: 64}
+        queue_depth: {type: integer, minimum: 0}
+        paused_until: {type: [string, "null"], format: date-time}
+        x_ok: {type: boolean}
+        last_capture_at: {type: [string, "null"], format: date-time}
+        last_error: {type: [string, "null"], maxLength: 500}
+  - name: self_rotate_token
+    method: post
+    path: /devices/self/token:rotate
+    effect: update
+    principals: [device]
+    scopes: ["devices:self"]
+    stage: 4
+    summary: Issue a new device token; the old one stays valid for 5 minutes
+    returns:
+      type: object
+      required: [token, previous_expires_at]
+      properties:
+        token: {type: string}
+        previous_expires_at: {$ref: Timestamp}
+  - name: self_notifications
+    method: get
+    path: /devices/self/notifications
+    effect: read
+    principals: [device]
+    scopes: ["notifications:read"]
+    stage: 2
+    summary: Long-poll for desktop notifications (returns an empty list on timeout); data only, no URLs
+    query:
+      wait: {type: integer, minimum: 0, maximum: 55, default: 55}
+    returns:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, title, body, urgency]
+            properties:
+              id: {$ref: Id}
+              title: {type: string, maxLength: 80}
+              body: {type: string, maxLength: 400}
+              urgency: {type: string, enum: [low, normal, critical]}
+              action: {type: [string, "null"], enum: [open_chat, open_approval, null]}
+              ref_id: {type: [string, "null"], format: uuid}
+  - name: self_ack_notification
+    method: post
+    path: /devices/self/notifications/{id}:ack
+    effect: update
+    principals: [device]
+    scopes: ["notifications:read"]
+    stage: 2
+    status: 204
+    summary: Report that a notification was shown and whether it was clicked
+    params: {id: {$ref: Id}}
+    body:
+      type: object
+      additionalProperties: false
+      required: [shown_at, clicked]
+      properties:
+        shown_at: {$ref: Timestamp}
+        clicked: {type: boolean}

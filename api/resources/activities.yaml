@@ -1,0 +1,26 @@
+name: activities
+schema: Activity
+noun: activity
+plural_noun: activities
+path: /activities
+scope: activities
+tag: Activities
+description: Things the user did, logged manually, through chat, by the agent, or confirmed from detections.
+fields:
+  area: {$ref: Area}
+  category: {type: [string, "null"], maxLength: 80}
+  title: {$ref: Text200}
+  started_at: {$ref: Timestamp}
+  ended_at: {$ref: Timestamp}
+  source: {type: string, enum: [manual, detection, agent], default: manual}
+  detection_id: {type: [string, "null"], format: uuid}
+  link_type: {type: [string, "null"], enum: [task, goal, skill_resource, project, deliverable, entertainment_item, null]}
+  link_id: {type: [string, "null"], format: uuid}
+  notes: {$ref: Notes}
+required: [area, title, started_at, ended_at]
+filters:
+  from: {$ref: Timestamp}
+  to: {$ref: Timestamp}
+  area: {$ref: Area}
+  source: {type: string, enum: [manual, detection, agent]}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

@@ -69,9 +69,14 @@ class ILlmProvider {
 ### 3.2 Capability fallbacks
 | Missing capability | Fallback |
 |---|---|
-| Native structured output | Schema in the prompt → parse → validate (valijson) → one repair call with the validation errors → fail as `InvalidOutput` |
+| Native structured output (**missing on glm-5.3-flash:cloud**: `response_format` and `format` are ignored, see `spikes/llm/REPORT.md`) | **Tool-as-output:** a single `submit_<schema>` tool → validate (valijson) → one repair turn with the validation errors → schema-in-prompt with the same validation → fail as `InvalidOutput` |
 | Native tool calling | JSON "action" protocol in the prompt, same validation path **(only if the spike shows it is needed)** |
 | Vision | Vision jobs pause; process detections continue |
+
+**Spike-driven rules (Stage 0):**
+- Never send `reasoning_effort: "none"`: on this model it pushes the reasoning into `content`. Use `low` for jobs and the default for agent turns. `message.reasoning` is kept only in debug capture.
+- A `200` with empty content and no tool calls, or a `finish_reason` outside `stop | tool_calls | length`, is `InvalidOutput` (observed: `finish_reason: "load"` for an invalid request).
+- Error bodies are parsed as JSON whatever the `Content-Type` (a 404 arrives as `text/html` with a JSON body).
 
 ### 3.3 Error taxonomy
 Every provider error is classified into exactly one class. The classification uses HTTP status, headers and **body patterns recorded during the Stage 0 spike** (stored as test fixtures, so the classifier is tested against real responses).
@@ -80,6 +85,7 @@ Every provider error is classified into exactly one class. The classification us
 |---|---|---|
 | `Transient` | 5xx, connection reset, timeout | Retry 3× with full-jitter backoff (1 s → 20 s), then fail the call |
 | `RateLimited` | 429 with short `Retry-After`, or "too many requests" | Wait `Retry-After` (≤ 60 s) for interactive work; reschedule background work |
+| `Unclassified` | any non-2xx not matching a known pattern | Fail the call; **fixture-capture mode** stores the redacted body on first sight, so a real weekly-limit body becomes a test fixture the first time it occurs |
 | `QuotaExhausted{scope, resets_at}` | 429/402/403 with a body matching a usage-limit pattern (hourly / session / **weekly**) | Provider state change (§3.4). Never retried blindly |
 | `ContextTooLong` | 400 + context-length message | ContextBuilder compacts (§6.3) and retries once |
 | `AuthFailed` | 401/403 without a quota pattern | Provider → `disabled`, alert the admin, no retries |
@@ -201,7 +207,7 @@ run_turn(input):
 |---|---|---|---|
 | Working | last 2 day-conversations of the channel, verbatim | — | in `messages`, permanent |
 | Episodic | per-day summary per channel (~600 tokens), weekly rollup (~300), monthly rollup (~300) | jobs `memory.compress_day` (after day close), `memory.rollup_week`, `memory.rollup_month` | days: ≥ 14 kept (prompt uses ≥ 7), weeks: 12, months: indefinitely |
-| Semantic | embeddings of messages, activities, notes, day summaries | job `embeddings.upsert` (bge-m3, 1024-d) | 3-month retrieval window, older rows kept but not searched by default |
+| Semantic | embeddings of messages, activities, notes, day summaries | job `embeddings.upsert` → `thelife-embedder` over a Unix socket (`backend_lld.md` §2.1; bge-m3 fp16, 1024-d) | 3-month retrieval window, older rows kept but not searched by default |
 | Long-term registry | graph of short facts (§6.4) | agent tools + job `registry.extract` | until superseded or forgotten |
 
 **Day close** happens at `day_start_hour` local time. The conversation for that channel and day is closed; a new message opens a new one.

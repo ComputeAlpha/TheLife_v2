@@ -1,0 +1,91 @@
+name: auth
+tag: Auth
+description: Login, session and the current user's profile. Accounts are created by an admin only (no signup).
+exposure: [rest]
+principals: [user]
+extra_schemas:
+  User:
+    type: object
+    additionalProperties: false
+    required: [id, email, display_name, timezone, day_start_hour, role]
+    properties:
+      id: {$ref: Id}
+      email: {type: string, format: email}
+      display_name: {$ref: Text200}
+      timezone: {type: string, description: IANA timezone, for example Asia/Kolkata.}
+      day_start_hour: {type: integer, minimum: 0, maximum: 12}
+      role: {type: string, enum: [user, tenant_admin]}
+      workdays:
+        type: array
+        items: {type: string, enum: [MO, TU, WE, TH, FR, SA, SU]}
+  Session:
+    type: object
+    required: [token, expires_at, user]
+    properties:
+      token: {type: string, description: "tlu_ session token; shown once."}
+      expires_at: {$ref: Timestamp}
+      user: {$ref: User}
+actions:
+  - name: login
+    tool: false
+    public: true
+    method: post
+    path: /auth/login
+    effect: create
+    summary: Exchange email and password for a session token
+    extra_responses: {429: TooManyRequests}
+    body:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: {type: string, format: email, maxLength: 320}
+        password: {type: string, minLength: 1, maxLength: 1024}
+    returns: Session
+  - name: logout
+    tool: false
+    method: post
+    path: /auth/logout
+    effect: delete
+    summary: Revoke the current session token
+    status: 204
+  - name: me
+    tool: false
+    method: get
+    path: /me
+    effect: read
+    summary: Current user
+    returns: User
+  - name: update_me
+    tool: false
+    method: patch
+    path: /me
+    effect: update
+    summary: Update profile settings (timezone, day start hour, workdays, display name)
+    content_type: application/merge-patch+json
+    body:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name: {$ref: Text200}
+        timezone: {type: string}
+        day_start_hour: {type: integer, minimum: 0, maximum: 12}
+        workdays:
+          type: array
+          items: {type: string, enum: [MO, TU, WE, TH, FR, SA, SU]}
+    returns: User
+  - name: change_password
+    tool: false
+    method: post
+    path: /me/password
+    effect: update
+    summary: Change password; revokes all other sessions
+    status: 204
+    body:
+      type: object
+      additionalProperties: false
+      required: [current_password, new_password]
+      properties:
+        current_password: {type: string, minLength: 1, maxLength: 1024}
+        new_password: {type: string, minLength: 12, maxLength: 1024}

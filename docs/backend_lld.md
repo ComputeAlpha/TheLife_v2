@@ -10,7 +10,9 @@ Scope: Stage 0 and Stage 1 in detail, with the Stage 2–4 seams (tool registry,
 ```
 TheLife_v2/
   api/
-    openapi.yaml              # source of truth for the public API (OpenAPI 3.1)
+    common.yaml, resources/   # source of truth: shared types + one file per resource (docs/tool_registry.md)
+    generated/                # openapi.yaml, tools.json, agent_tools.json (generated, committed, CI-checked)
+    tools/                    # contractgen.py, validate.py
   backend/
     CMakeLists.txt
     vcpkg.json
@@ -52,7 +54,14 @@ TheLife_v2/
 | Migrations | **dbmate (decided)**: plain SQL, one static binary, no ORM coupling |
 | CI | GitHub Actions: build, unit, integration (service container), isolation, contract tests |
 
-Async model: Drogon C++20 coroutines (`drogon::Task<>`, `co_await` on DB and HTTP clients) throughout. No blocking calls on event-loop threads. The future embedding call runs on a dedicated thread pool.
+Async model: Drogon C++20 coroutines (`drogon::Task<>`, `co_await` on DB and HTTP clients) throughout. No blocking calls on event-loop threads.
+
+### 2.1 Embedding service (decided 2026-11-12, see `spikes/embed/REPORT.md`)
+- A separate process, **`thelife-embedder`**, owns the GPU. The backend talks to it over a **Unix domain socket** (`$XDG_RUNTIME_DIR/thelife/embedder.sock`, mode 0660, owner-only directory), so a CUDA fault or OOM cannot take down the API and the backend binary carries no CUDA dependency.
+- Protocol **(proposed)**: HTTP/1.1 over the socket (Drogon on both sides), `POST /v1/embed {texts[], max_tokens}` → `{model, model_version, dim, vectors[][]}`, `GET /v1/health` → provider (`cuda` required), model version, GPU memory. Batches ≤ 8, ≤ 512 tokens per text (chunking is the caller's job).
+- Runtime: the official **ONNX Runtime 1.26.0 linux-x64-gpu (CUDA 12)** prebuilt release, fetched by CMake with a pinned SHA-256, and the fp16 attention-fused bge-m3 from `spikes/embed/convert_fp16.py`. Tokenization: vcpkg `sentencepiece` with the XLM-R id mapping and whitespace normalization.
+- Startup fails unless `CUDAExecutionProvider` is active (guards against the silent CPU fallback found in the spike). A `--cpu` flag exists for development machines without a GPU and logs loudly.
+- The backend treats the embedder as optional: if it is down, `embeddings.upsert` jobs back off and retrieval falls back to recency plus keyword. Tests use a fake embedder that serves deterministic vectors on a temp socket.
 
 ## 3. Request Lifecycle
 
@@ -320,7 +329,7 @@ struct ToolDef {
 3. Allow → run handler in a TenantTx and write an `agent_actions` row for non-user principals (Stage 1 records only principal and tool; the full audit arrives in Stage 2).
 4. RequireApproval / Propose → persist the action and return `202 {approval_id | proposal_id}`.
 
-REST controllers are thin: map path/query/body to `args`, call `invoke`, map the result to an HTTP response. OpenAPI request bodies and tool `input_schema` come from the same JSON Schema files (`api/schemas/*.json`, referenced by both the OpenAPI file and registry registration). That is how "one tool registry" stays honest.
+REST controllers are thin: map path/query/body to `args`, call `invoke`, map the result to an HTTP response. OpenAPI, the registry manifest and the agent tool definitions are all generated from one source (`api/common.yaml` + `api/resources/*.yaml` → `api/generated/*` via `api/tools/contractgen.py`, checked in CI). Details: `docs/tool_registry.md`.
 
 ## 9. Security Details
 

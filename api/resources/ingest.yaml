@@ -1,0 +1,83 @@
+name: ingest
+tag: Ingest
+description: Collector uploads (backend_lld.md §7.2, collector_lld.md §7). Device tokens only; Idempotency-Key required.
+exposure: [rest]
+principals: [device]
+stage: 4
+extra_schemas:
+  Observation:
+    type: object
+    additionalProperties: false
+    required: [client_seq, captured_at, kind, payload]
+    properties:
+      client_seq: {type: integer, minimum: 0}
+      captured_at: {$ref: Timestamp}
+      kind: {type: string, enum: [window, idle, process_snapshot, capture_meta, gap, session]}
+      payload: {type: object, description: Validated per kind against api/schemas/observation.<kind> (collector_lld.md §10).}
+  CaptureContext:
+    type: object
+    additionalProperties: false
+    required: [captured_at, monitors, active_monitor]
+    properties:
+      captured_at: {$ref: Timestamp}
+      monitors:
+        type: array
+        maxItems: 8
+        items:
+          type: object
+          required: [index, width, height]
+          properties:
+            index: {type: integer, minimum: 0}
+            width: {type: integer, minimum: 1}
+            height: {type: integer, minimum: 1}
+      active_monitor: {type: integer, minimum: 0}
+      window: {type: [object, "null"]}
+      idle_ms: {type: integer, minimum: 0}
+      processes: {type: array, maxItems: 200, items: {type: object}}
+actions:
+  - name: observations
+    method: post
+    path: /ingest/observations
+    effect: create
+    scopes: ["ingest:write"]
+    idempotency_required: true
+    summary: Upload a batch of observations (idempotent per device and client_seq)
+    extra_responses: {429: TooManyRequests, 503: ServiceUnavailable}
+    body:
+      type: object
+      additionalProperties: false
+      required: [observations]
+      properties:
+        observations: {type: array, minItems: 1, maxItems: 500, items: {$ref: Observation}}
+    returns:
+      type: object
+      required: [accepted, duplicates]
+      properties:
+        accepted: {type: array, items: {type: integer}}
+        duplicates: {type: array, items: {type: integer}}
+  - name: captures
+    method: post
+    path: /ingest/captures
+    effect: create
+    scopes: ["ingest:write"]
+    idempotency_required: true
+    status: 202
+    content_type: multipart/form-data
+    summary: Upload one capture (JSON context part + one JPEG per monitor). Held in memory only and discarded after
+      the vision call; 503 when the in-memory queue is full (the collector then drops the capture).
+    extra_responses: {429: TooManyRequests, 503: ServiceUnavailable}
+    body:
+      type: object
+      required: [context, images]
+      properties:
+        context: {$ref: CaptureContext}
+        images:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: {type: string, contentMediaType: image/jpeg, maxLength: 8388608}
+    returns:
+      type: object
+      required: [capture_id]
+      properties:
+        capture_id: {$ref: Id}

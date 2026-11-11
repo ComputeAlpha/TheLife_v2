@@ -1,0 +1,39 @@
+name: system
+tag: System
+description: Liveness and readiness probes (not under /api/v1).
+exposure: [rest]
+principals: [user]
+actions:
+  - name: healthz
+    tool: false
+    public: true
+    absolute: true
+    method: get
+    path: /healthz
+    effect: read
+    summary: Liveness probe
+    returns:
+      type: object
+      required: [status, version]
+      properties:
+        status: {type: string, enum: [ok]}
+        version: {type: string}
+  - name: readyz
+    tool: false
+    public: true
+    absolute: true
+    method: get
+    path: /readyz
+    effect: read
+    summary: Readiness probe (database reachable and at the expected schema version)
+    extra_responses: {503: ServiceUnavailable}
+    returns:
+      type: object
+      required: [status, checks, schema_version]
+      properties:
+        status: {type: string, enum: [ready, not_ready]}
+        checks:
+          type: object
+          properties:
+            database: {type: string}
+        schema_version: {type: string}

@@ -1,0 +1,55 @@
+name: events
+schema: CalendarEvent
+noun: calendar event
+path: /events
+scope: calendar
+tag: Calendar
+description: Calendar events and planned time blocks. category routine.<kind> fixes a routine occurrence;
+  day_profile.<name> on an all-day event overrides the day profile (agent_lld.md §4.4, scoring_lld.md §3).
+fields:
+  title: {$ref: Text200}
+  notes: {$ref: Notes}
+  starts_at: {$ref: Timestamp}
+  ends_at: {$ref: Timestamp}
+  all_day: {type: boolean, default: false}
+  rrule: {type: [string, "null"], maxLength: 500}
+  location: {type: [string, "null"], maxLength: 200}
+  area: {type: [string, "null"], enum: [work, skill, fitness, personal, entertainment, other, null]}
+  category: {type: [string, "null"], maxLength: 80, pattern: "^[a-z0-9_.-]+$"}
+  link_type: {type: [string, "null"], enum: [task, goal, plan, skill_resource, project, deliverable, entertainment_item, null]}
+  link_id: {type: [string, "null"], format: uuid}
+required: [title, starts_at, ends_at]
+filters:
+  from: {$ref: Timestamp}
+  to: {$ref: Timestamp}
+  area: {$ref: Area}
+  category: {type: string, maxLength: 80}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}
+extra_schemas:
+  CalendarEntry:
+    type: object
+    required: [kind, id, title, starts_at, ends_at, all_day]
+    properties:
+      kind: {type: string, enum: [event, task_occurrence, entertainment_slot, skill_session]}
+      id: {$ref: Id}
+      title: {type: string}
+      starts_at: {$ref: Timestamp}
+      ends_at: {$ref: Timestamp}
+      all_day: {type: boolean}
+      area: {type: [string, "null"]}
+      status: {type: [string, "null"]}
+      occurs_on: {type: [string, "null"], format: date}
+actions:
+  - name: calendar.view
+    method: get
+    path: /calendar
+    effect: read
+    summary: Merged calendar of events, task occurrences, entertainment slots and skill sessions
+    query:
+      from: {$ref: Timestamp}
+      to: {$ref: Timestamp}
+    returns:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: CalendarEntry}}

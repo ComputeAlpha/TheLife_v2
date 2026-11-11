@@ -1,0 +1,20 @@
+name: plans
+schema: Plan
+noun: plan
+path: /plans
+scope: planning
+tag: Plans
+description: Plans for a period, optionally serving a goal.
+fields:
+  goal_id: {type: [string, "null"], format: uuid}
+  title: {$ref: Text200}
+  body: {$ref: Notes}
+  period_start: {$ref: LocalDate}
+  period_end: {$ref: LocalDate}
+  status: {type: string, enum: [draft, active, done, abandoned], default: active}
+required: [title, period_start, period_end]
+filters:
+  goal_id: {$ref: Id}
+  status: {type: string, enum: [draft, active, done, abandoned]}
+  active_on: {$ref: LocalDate, description: Plans whose period contains this day.}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

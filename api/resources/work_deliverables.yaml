@@ -1,0 +1,21 @@
+name: work_deliverables
+schema: WorkDeliverable
+noun: deliverable
+path: /work/deliverables
+scope: work
+tag: Work
+description: Dated deliverables of a project; milestones due on a day count in plan adherence.
+fields:
+  project_id: {$ref: Id}
+  title: {$ref: Text200}
+  description: {$ref: Notes}
+  due_at: {type: [string, "null"], format: date-time}
+  status: {type: string, enum: [open, in_progress, delivered, cancelled], default: open}
+readonly:
+  delivered_at: {type: [string, "null"], format: date-time}
+required: [project_id, title]
+filters:
+  project_id: {$ref: Id}
+  status: {type: string, enum: [open, in_progress, delivered, cancelled]}
+  due_before: {$ref: Timestamp}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

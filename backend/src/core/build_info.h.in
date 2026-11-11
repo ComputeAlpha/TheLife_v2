@@ -1,0 +1,6 @@
+#pragma once
+
+namespace thelife::build {
+inline constexpr const char* kVersion = "@PROJECT_VERSION@";
+inline constexpr const char* kSchemaVersion = "@THELIFE_SCHEMA_VERSION@";
+}  // namespace thelife::build

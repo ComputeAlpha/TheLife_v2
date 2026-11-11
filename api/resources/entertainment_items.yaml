@@ -1,0 +1,17 @@
+name: entertainment_items
+schema: EntertainmentItem
+noun: entertainment item
+path: /entertainment/items
+scope: entertainment
+tag: Entertainment
+description: Games, movies and series the user wants to enjoy. Tracked and scheduled; never limited (scoring_lld.md §6).
+fields:
+  kind: {type: string, enum: [game, movie, series]}
+  title: {$ref: Text200}
+  meta: {type: [object, "null"], description: Free-form details (platform, seasons, runtime).}
+  status: {type: string, enum: [wishlist, playing, watching, paused, finished, dropped], default: wishlist}
+required: [kind, title]
+filters:
+  kind: {type: string, enum: [game, movie, series]}
+  status: {type: string, enum: [wishlist, playing, watching, paused, finished, dropped]}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

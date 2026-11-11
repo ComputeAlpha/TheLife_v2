@@ -1,0 +1,4 @@
+# Contract tooling (CI and local). Install: python3 -m venv build/contracts-venv && build/contracts-venv/bin/pip install -r api/tools/requirements.txt
+pyyaml==6.0.2
+openapi-spec-validator==0.7.2
+jsonschema==4.23.0

@@ -1,0 +1,49 @@
+name: api_keys
+schema: ApiKey
+noun: API key
+path: /api-keys
+scope: api_keys
+tag: API keys
+description: Scoped keys for external apps and MCP clients. Writes made with a key become proposals for MCP clients.
+exposure: [rest]
+principals: [user]
+fields:
+  name: {$ref: Text200}
+  scopes:
+    type: array
+    minItems: 1
+    uniqueItems: true
+    items: {$ref: Scope}
+  expires_at: {type: [string, "null"], format: date-time}
+readonly:
+  token_prefix: {type: string, description: First 8 characters, for identification.}
+  last_used_at: {type: [string, "null"], format: date-time}
+  revoked_at: {type: [string, "null"], format: date-time}
+required: [name, scopes]
+ops:
+  list: {}
+  get: {}
+extra_schemas:
+  ApiKeyWithToken:
+    type: object
+    required: [api_key, token]
+    properties:
+      api_key: {$ref: ApiKey}
+      token: {type: string, description: "tlk_ API key; shown once."}
+actions:
+  - name: issue
+    method: post
+    path: /api-keys
+    effect: create
+    summary: Create an API key
+    status: 201
+    body: ApiKeyCreate
+    returns: ApiKeyWithToken
+  - name: revoke
+    method: delete
+    path: /api-keys/{id}
+    effect: delete
+    summary: Revoke an API key
+    target: true
+    status: 204
+    params: {id: {$ref: Id}}
