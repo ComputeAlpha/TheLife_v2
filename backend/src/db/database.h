@@ -13,8 +13,8 @@ struct Readiness {
   std::string detail;  // short reason, safe to expose (no credentials)
 };
 
-// Process-wide connection pool. Stage 0 only exposes readiness; TenantTx arrives in Stage 1
-// (backend_lld.md §3), and all queries will go through it.
+// Process-wide connection pool. Tenant data is only reachable through TenantTx
+// (backend_lld.md §3).
 class Database {
  public:
   // Empty conninfo → no database configured (service still starts; /readyz reports not ready).
@@ -24,6 +24,9 @@ class Database {
   static Database& instance();
 
   bool configured() const { return client_ != nullptr; }
+  // Raw pool. Only db/ and auth/ (pre-tenant lookups via auth.* functions) may use it; tenant data goes through
+  // TenantTx. Enforced by a source lint test.
+  const drogon::orm::DbClientPtr& client() const { return client_; }
   drogon::Task<Readiness> checkReady(const std::string& expectedSchemaVersion) const;
 
  private:

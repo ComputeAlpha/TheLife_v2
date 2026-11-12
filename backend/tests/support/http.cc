@@ -4,6 +4,12 @@
 #include <json/reader.h>
 #include <trantor/net/EventLoopThread.h>
 
+#include <map>
+
+#include <json/writer.h>
+
+#include <algorithm>
+#include <cctype>
 #include <memory>
 
 namespace thelife::test {
@@ -26,21 +32,47 @@ void splitUrl(const std::string& url, std::string& origin, std::string& path) {
 }
 }  // namespace
 
-HttpResult httpGet(const std::string& url, double timeoutSec) {
+HttpResult send(const Request& r) {
   std::string origin, path;
-  splitUrl(url, origin, path);
+  splitUrl(r.url, origin, path);
   auto client = drogon::HttpClient::newHttpClient(origin, clientLoop());
   auto req = drogon::HttpRequest::newHttpRequest();
-  req->setMethod(drogon::Get);
-  req->setPath(path);
+  static const std::map<std::string, drogon::HttpMethod> kMethods{
+      {"GET", drogon::Get}, {"POST", drogon::Post}, {"PUT", drogon::Put}, {"PATCH", drogon::Patch},
+      {"DELETE", drogon::Delete}, {"OPTIONS", drogon::Options}, {"HEAD", drogon::Head}};
+  req->setMethod(kMethods.at(r.method));
+  const auto q = path.find('?');
+  req->setPath(q == std::string::npos ? path : path.substr(0, q));
+  if (q != std::string::npos) {
+    // "a=1&b=2" → query parameters (tests use plain values without percent-encoding).
+    std::string query = path.substr(q + 1);
+    size_t start = 0;
+    while (start <= query.size()) {
+      const auto amp = query.find('&', start);
+      const auto pair = query.substr(start, amp == std::string::npos ? std::string::npos : amp - start);
+      if (!pair.empty()) {
+        const auto eq = pair.find('=');
+        req->setParameter(pair.substr(0, eq), eq == std::string::npos ? "" : pair.substr(eq + 1));
+      }
+      if (amp == std::string::npos) break;
+      start = amp + 1;
+    }
+  }
+  if (!r.bearer.empty()) req->addHeader("Authorization", "Bearer " + r.bearer);
+  for (const auto& [k, v] : r.headers) req->addHeader(k, v);
+  if (!r.body.empty() || r.method == "POST" || r.method == "PATCH" || r.method == "PUT") {
+    req->setBody(r.body);
+    req->setContentTypeString(r.contentType);
+  }
 
   HttpResult out;
-  auto [result, resp] = client->sendRequest(req, timeoutSec);
+  auto [result, resp] = client->sendRequest(req, r.timeoutSec);
   if (result != drogon::ReqResult::Ok || !resp) return out;
 
   out.status = static_cast<int>(resp->statusCode());
   out.contentType = std::string(resp->getHeader("content-type"));
   out.body = std::string(resp->body());
+  for (const auto& [k, v] : resp->headers()) out.headers.emplace_back(k, v);
   Json::CharReaderBuilder builder;
   std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
   std::string errs;
@@ -48,6 +80,37 @@ HttpResult httpGet(const std::string& url, double timeoutSec) {
     out.json = Json::Value();
   }
   return out;
+}
+
+HttpResult httpGet(const std::string& url, double timeoutSec) {
+  Request r;
+  r.url = url;
+  r.timeoutSec = timeoutSec;
+  return send(r);
+}
+
+HttpResult sendJson(const std::string& method, const std::string& url, const Json::Value& body,
+                    const std::string& bearer, const std::string& contentType) {
+  Json::StreamWriterBuilder w;
+  w["indentation"] = "";
+  Request r;
+  r.method = method;
+  r.url = url;
+  r.bearer = bearer;
+  r.body = Json::writeString(w, body);
+  r.contentType = contentType;
+  return send(r);
+}
+
+std::string HttpResult::header(const std::string& name) const {
+  auto lower = [](std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    return s;
+  };
+  for (const auto& [k, v] : headers) {
+    if (lower(k) == lower(name)) return v;
+  }
+  return {};
 }
 
 }  // namespace thelife::test

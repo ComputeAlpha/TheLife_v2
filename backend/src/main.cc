@@ -6,7 +6,11 @@
 #include "core/build_info.h"
 #include "core/env.h"
 #include "db/database.h"
+#include "http/auth_routes.h"
 #include "http/health.h"
+#include "http/rest_adapter.h"
+#include "modules/modules.h"
+#include "tools/registry.h"
 
 int main() {
   try {
@@ -19,6 +23,10 @@ int main() {
     thelife::db::Database::init(thelife::env::get("THELIFE_DB_URL"), static_cast<std::size_t>(dbConns),
                                 static_cast<double>(dbTimeout));
     thelife::http::registerHealthRoutes();
+    thelife::http::registerAuthRoutes();
+    auto& registry = thelife::tools::registry();
+    thelife::modules::bindAll(registry);
+    thelife::http::registerToolRoutes();
 
     LOG_INFO << "thelife-backend " << thelife::build::kVersion << " listening on " << addr << ":" << port;
     drogon::app()

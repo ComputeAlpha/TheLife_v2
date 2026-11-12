@@ -93,11 +93,11 @@ Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `met
   - every update or delete without `If-Match` answers 428
   - schemathesis checks responses against `openapi.yaml`
 
-## 6. Agent Tool Budget (decision needed before Stage 2)
+## 6. Agent Tool Budget (decided 2026-11-12: tool groups with on-demand loading)
 
 The full agent surface is **81 tools ≈ 11k tokens** per call (measured from `agent_tools.json`). That is too large to send on every turn, and tool-choice accuracy drops with that many options.
 
-Proposal **(proposed)**: **tool groups with on-demand loading**.
+**Decision: tool groups with on-demand loading.** The generator gains `agent_group` and emits a groups index in Stage 2.
 - Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`, `admin`).
 - Every turn sends `core`, about 15 tools / 2.5k tokens:
   - capture: `activities.create`, `tasks.create`, `tasks.update`, `reminders.create`, `skill_sessions.create`
@@ -107,7 +107,7 @@ Proposal **(proposed)**: **tool groups with on-demand loading**.
 - When the agent calls `agent.load_tools("work")`, the next loop iteration includes that group's tools for the rest of the turn.
 - Trigger preambles preload the groups they need (the weekly review preloads `planning` and `detections`).
 
-Alternative: generic `records.list|get|create|update(type, …)` tools with per-type schemas loaded on demand. This costs fewer tokens, but the model has to fill a free-form `fields` object, which validates worse.
+Rejected alternative: generic `records.list|get|create|update(type, …)` tools with per-type schemas loaded on demand. This costs fewer tokens, but the model has to fill a free-form `fields` object, which validates worse.
 
 ## 7. Change Rules
 
