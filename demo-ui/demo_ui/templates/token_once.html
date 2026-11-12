@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "_fields.html" import value %}
+{% block title %}Copy the token{% endblock %}
+{% block body %}
+{% set record = created.get('device') or created.get('api_key') or {} %}
+<section class="card">
+  <h1>Copy this token now</h1>
+  <p>It is shown <strong>once</strong>. The server keeps only its hash and this page is not cached; if you lose it,
+     revoke {{ r.label|lower }} entry <em>{{ r.title_of(record) }}</em> and create another.</p>
+  <textarea class="mono token" rows="2" readonly>{{ created.token }}</textarea>
+  {% if record.id %}<p><a class="btn" href="{{ url_for('resource_get', prefix=r.prefix, id=record.id) }}">I have copied it</a></p>{% endif %}
+</section>
+{% endblock %}

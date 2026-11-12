@@ -4,6 +4,9 @@
 #include <drogon/orm/Exception.h>
 
 #include <algorithm>
+#include <map>
+#include <regex>
+#include <set>
 
 #include "auth/authenticator.h"
 #include "core/errors.h"
@@ -11,6 +14,43 @@
 #include "core/json.h"
 
 namespace thelife::http {
+
+namespace {
+
+const char* methodName(drogon::HttpMethod m) {
+  switch (m) {
+    case drogon::Get: return "GET";
+    case drogon::Post: return "POST";
+    case drogon::Put: return "PUT";
+    case drogon::Patch: return "PATCH";
+    case drogon::Delete: return "DELETE";
+    case drogon::Head: return "HEAD";
+    case drogon::Options: return "OPTIONS";
+    default: return "";
+  }
+}
+
+// Methods registered per path pattern, for 405 responses with an Allow header (RFC 9110 §15.5.6).
+// Filled during startup only, before the event loops run, so it needs no lock.
+struct PathMethods {
+  std::regex pattern;
+  std::set<std::string> methods;
+};
+
+std::map<std::string, PathMethods>& routeTable() {
+  static std::map<std::string, PathMethods> table;
+  return table;
+}
+
+std::regex patternFor(const std::string& path) {
+  static const std::regex special(R"([.^$|()\[\]*+?\\])");
+  static const std::regex placeholder(R"(\\\{[^}]*\\\}|\{[^}]*\})");
+  const auto escaped = std::regex_replace(path, special, R"(\$&)");
+  // ":" is excluded so /x/{id} does not also claim the action URLs /x/{id}:verb.
+  return std::regex(std::regex_replace(escaped, placeholder, "[^/:]+"));
+}
+
+}  // namespace
 
 Json::Value RequestContext::jsonBody(std::initializer_list<const char*> contentTypes) const {
   const std::string ct(req->getHeader("content-type"));
@@ -34,6 +74,9 @@ std::string RequestContext::clientIp() const { return req->getPeerAddr().toIp();
 
 void addRoute(const std::string& path, drogon::HttpMethod method, Access access, RouteHandler handler,
               std::vector<auth::PrincipalKind> allowedKinds) {
+  auto& entry = routeTable()[path];
+  if (entry.methods.empty()) entry.pattern = patternFor(path);
+  entry.methods.insert(methodName(method));
   drogon::app().registerHandler(
       path,
       [handler = std::move(handler), access, allowedKinds = std::move(allowedKinds)](
@@ -116,6 +159,33 @@ std::optional<int> BodyReader::integer(const char* key, int min, int max, bool r
         {{std::string("/") + key, "must be between " + std::to_string(min) + " and " + std::to_string(max)}});
   }
   return i;
+}
+
+void installMethodNotAllowed() {
+  drogon::app().registerPreRoutingAdvice([](const drogon::HttpRequestPtr& req, drogon::AdviceCallback&& respond,
+                                            drogon::AdviceChainCallback&& next) {
+    const std::string method(req->methodString());
+    if (method == "HEAD" || method == "OPTIONS") return next();  // Drogon's own handling
+    std::set<std::string> allowed;
+    bool matched = false;
+    for (const auto& [path, entry] : routeTable()) {
+      if (!std::regex_match(req->path(), entry.pattern)) continue;
+      matched = true;
+      if (entry.methods.count(method)) return next();
+      allowed.insert(entry.methods.begin(), entry.methods.end());
+    }
+    if (!matched) return next();  // unknown path: Drogon's 404
+    std::string allow;
+    for (const auto& m : allowed) allow += (allow.empty() ? "" : ", ") + m;
+    const auto requestId = ids::newUuidV7();
+    auto resp = problemResponse(ApiError{405, "method-not-allowed", "Method not allowed",
+                                         method + " is not supported here. Allowed: " + allow + "."},
+                                requestId);
+    resp->addHeader("Allow", allow);
+    resp->addHeader("X-Request-Id", requestId);
+    resp->addHeader("Cache-Control", "no-store");
+    respond(resp);
+  });
 }
 
 }  // namespace thelife::http

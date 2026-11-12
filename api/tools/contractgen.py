@@ -46,11 +46,26 @@ class ContractError(Exception):
 
 
 # ------------------------------------------------------------------ loading
+def reject_bare_nulls(node, where):
+    """An unquoted comma inside a flow mapping ({description: a, b}) silently becomes an extra key with a
+    null value; no source value is legitimately null, so any null is treated as that mistake."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if v is None:
+                raise SystemExit(f"{where}/{k}: null value (quote strings that contain commas)")
+            reject_bare_nulls(v, f"{where}/{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            reject_bare_nulls(v, f"{where}/{i}")
+
+
 def load_sources():
     common = yaml.safe_load((API / "common.yaml").read_text())
+    reject_bare_nulls(common, "common.yaml")
     resources = []
     for f in sorted((API / "resources").glob("*.yaml")):
         doc = yaml.safe_load(f.read_text())
+        reject_bare_nulls(doc, f.name)
         doc["_file"] = f.name
         resources.append(doc)
     return common, resources
@@ -268,7 +283,9 @@ class Model:
                                      "schema": to_openapi(qschema)})
         if spec.get("if_match"):
             op["parameters"].append({"$ref": "#/components/parameters/IfMatch"})
-        if spec["method"].lower() == "post":
+        returns_secret = "token" in inline({"$ref": spec["returns"]} if isinstance(spec.get("returns"), str)
+                                           else (spec.get("returns") or {}), self.schemas).get("properties", {})
+        if spec["method"].lower() == "post" and not returns_secret:  # secrets are never stored for replay
             op["parameters"].append({"$ref": "#/components/parameters/" + (
                 "IdempotencyKeyRequired" if spec.get("idempotency_required") else "IdempotencyKey")})
         if not op["parameters"]:
@@ -294,8 +311,14 @@ class Model:
                 op["responses"][code] = {"$ref": f"#/components/responses/{ref}"}
         if spec.get("target") or params:
             op["responses"]["404"] = {"$ref": "#/components/responses/NotFound"}
-        if body_schema is not None or query:
+        if body_schema is not None:
+            op["responses"]["400"] = {"$ref": "#/components/responses/BadRequest"}
+            op["responses"]["415"] = {"$ref": "#/components/responses/UnsupportedMediaType"}
+        if body_schema is not None or query or params or spec.get("if_match") or op.get("parameters"):
             op["responses"]["422"] = {"$ref": "#/components/responses/ValidationFailed"}
+        if spec["effect"] != "read" and not spec.get("public"):
+            # unique values (23505) and state rules (TL409) on any write
+            op["responses"]["409"] = {"$ref": "#/components/responses/Conflict"}
         if spec.get("if_match"):
             op["responses"]["412"] = {"$ref": "#/components/responses/PreconditionFailed"}
             op["responses"]["428"] = {"$ref": "#/components/responses/PreconditionRequired"}
@@ -307,6 +330,10 @@ class Model:
 
     # --- checks
     def validate(self):
+        grantable = sorted({sc for t in self.tools if "api_key" in t["principals"] for sc in t["scopes"]})
+        declared = sorted(self.schemas.get("Scope", {}).get("enum", []))
+        if declared != grantable:
+            raise ContractError(f"common.yaml Scope enum must list exactly the scopes of api_key tools: {grantable}")
         names = [t["name"] for t in self.tools]
         dupes = {n for n in names if names.count(n) > 1}
         if dupes:

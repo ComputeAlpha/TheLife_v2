@@ -10,8 +10,8 @@ fields:
   title: {$ref: Text200}
   author: {type: [string, "null"], maxLength: 200}
   url: {type: [string, "null"], format: uri, maxLength: 2000}
-  total_pages: {type: [integer, "null"], minimum: 1}
-  total_duration_s: {type: [integer, "null"], minimum: 1}
+  total_pages: {type: [integer, "null"], minimum: 1, maximum: 100000}
+  total_duration_s: {type: [integer, "null"], minimum: 1, maximum: 3600000}
   goal_id: {type: [string, "null"], format: uuid}
   status: {type: string, enum: [planned, active, paused, done, dropped], default: planned}
 readonly:

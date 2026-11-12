@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block body %}
+<section class="card narrow">
+  <h1>TheLife <small>demo</small></h1>
+  <form method="post" action="{{ url_for('login') }}">
+    <input type="hidden" name="csrf" value="{{ login_csrf }}">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <label class="field"><span class="name">Email</span>
+      <input type="email" name="email" value="{{ email }}" autocomplete="username" required autofocus></label>
+    <label class="field"><span class="name">Password</span>
+      <input type="password" name="password" autocomplete="current-password" required></label>
+    <button>Sign in</button>
+  </form>
+  <p class="muted">Accounts are created with <code>thelife-admin</code>; there is no sign-up.</p>
+</section>
+{% endblock %}

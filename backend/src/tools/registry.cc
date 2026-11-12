@@ -1,5 +1,7 @@
 #include "tools/registry.h"
 
+#include <cmath>
+
 #include <drogon/orm/Exception.h>
 
 #include <stdexcept>
@@ -38,12 +40,24 @@ std::optional<ApiError> mapDbError(const drogon::orm::DrogonDbException& e) {
     return start == std::string::npos || end == std::string::npos ? std::string()
                                                                   : msg.substr(start + 1, end - start - 1);
   };
+  // Errors raised by our own SQL functions and triggers (SQLSTATE class TL) carry a client-safe message.
+  if (state.size() == 5 && state.compare(0, 2, "TL") == 0) {
+    std::string text = msg;
+    if (text.rfind("ERROR:", 0) == 0) text.erase(0, 6);
+    text.erase(0, text.find_first_not_of(" \t"));
+    if (const auto nl = text.find('\n'); nl != std::string::npos) text.erase(nl);
+    if (state == "TL404") return ApiError::notFound(text);
+    if (state == "TL409") return ApiError::conflict(text);
+    return ApiError::validation({{"", text}});
+  }
   if (state == "23502") {
     const auto c = column("column");
     return ApiError::validation({{"/" + c, "is required"}});
   }
-  if (state == "23514" || state == "22P02" || state == "22007" || state == "22008" || state == "22003" ||
-      state == "22023" || state == "2202E") {
+  // Class 22 (data exception): input the schema allowed but Postgres cannot represent. Never a server error.
+  if (state == "22009") return ApiError::validation({{"", "a timestamp's UTC offset must be within ±15:59"}});
+  if (state == "22P05") return ApiError::validation({{"", "text must not contain NUL (\\u0000) characters"}});
+  if (state == "23514" || state.compare(0, 2, "22") == 0) {
     return ApiError::validation({{"", "a value is out of range or inconsistent with related fields"}});
   }
   if (state == "23503") return ApiError::validation({{"", "references an item that does not exist"}});
@@ -57,6 +71,17 @@ std::string requestHash(const std::string& tool, const Json::Value& args, std::o
 }
 
 }  // namespace
+
+// JSON Schema counts 8246.0 as an integer; Postgres does not. Integral reals become integers before
+// validation, so every layer below sees one representation.
+static void normalizeNumbers(Json::Value& v) {
+  if (v.isObject() || v.isArray()) {
+    for (auto& child : v) normalizeNumbers(child);
+  } else if (v.type() == Json::realValue) {
+    const double d = v.asDouble();
+    if (std::trunc(d) == d && std::abs(d) < 9.0e15) v = Json::Value(static_cast<Json::Int64>(d));
+  }
+}
 
 void validateArgs(const SchemaValidator& v, const Json::Value& args) {
   auto errs = v.validate(args);
@@ -101,11 +126,18 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
   }
 
   // 2. arguments
+  normalizeNumbers(args);
   validateArgs(*binding.validator, args);
   std::optional<int> expectedVersion;
   if (args.isMember("expected_version")) {
     expectedVersion = args["expected_version"].asInt();
     args.removeMember("expected_version");
+  }
+
+  // Responses carrying a freshly issued secret (device token, API key) are never stored for replay: the
+  // idempotency store would otherwise hold the plaintext token for 24 h.
+  if (opts.idempotencyKey && def.outputSchema["properties"].isMember("token")) {
+    throw ApiError::validation({{"Idempotency-Key", "is not supported for operations that issue a secret"}});
   }
 
   auto tx = co_await db::TenantTx::begin(principal);
@@ -165,11 +197,13 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
   result.status = def.rest ? def.rest->successStatus : 200;
 
   if (opts.idempotencyKey) {
-    co_await tx.exec(
-        "UPDATE idempotency_keys SET status_code = $4, response = $5::jsonb "
-        "WHERE tenant_id = $1 AND principal_id = $2 AND key = $3",
-        principal.tenantId, principal.actorId(), *opts.idempotencyKey, result.status,
-        result.value.isNull() ? std::optional<std::string>() : std::optional<std::string>(json::compact(result.value)));
+    const std::vector<std::optional<std::string>> params{
+        principal.tenantId, principal.actorId(), *opts.idempotencyKey, std::to_string(result.status),
+        result.value.isNull() ? std::nullopt : std::optional<std::string>(json::compact(result.value))};
+    co_await tx.execParams(
+        "UPDATE idempotency_keys SET status_code = $4::int, response = $5::jsonb "
+        "WHERE tenant_id = $1::uuid AND principal_id = $2::uuid AND key = $3",
+        params);
   }
   co_await tx.commit();
   co_return result;

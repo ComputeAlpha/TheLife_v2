@@ -22,10 +22,10 @@ void withTenant(const std::string& tenantId, Fn fn) {
 }
 
 std::vector<std::string> tenantTables() {
-  // Every public table that carries tenant_id, plus tenants itself.
+  // Every public table and view (views must be security_invoker so the tables' policies apply).
   const auto r = appDb()->execSqlSync(
       "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
-      "WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname <> 'schema_migrations' ORDER BY 1");
+      "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'v') AND c.relname <> 'schema_migrations' ORDER BY 1");
   std::vector<std::string> out;
   for (const auto& row : r) out.push_back(row[0].as<std::string>());
   return out;
@@ -143,6 +143,61 @@ TEST_F(Isolation, ImmutableResourceColumnsAreGuarded) {
   });
 }
 
+TEST_F(Isolation, DetectionsAreAppendOnlyForTheAppRole) {
+  auto a = createTenantWithUser();
+  const auto insert = [&](auto& tx, const std::string& extra) {
+    const auto id = thelife::ids::newUuidV7();
+    tx.execSqlSync("INSERT INTO detections (id, tenant_id, created_by_kind, source, started_at, ended_at, area, "
+                   "category, summary" + std::string(extra.empty() ? "" : ", supersedes_id") + ") "
+                   "VALUES ($1, $2, 'user', 'external', now(), now(), 'work', 'c', 's'" +
+                   (extra.empty() ? "" : ", '" + extra + "'") + ")",
+                   id, a.tenantId);
+    return id;
+  };
+  auto expectDenied = [&](const std::string& sqlTemplate) {
+    withTenant(a.tenantId, [&](auto& tx) {
+      const auto id = insert(tx, "");
+      std::string sql = sqlTemplate;
+      for (auto p = sql.find("$ID"); p != std::string::npos; p = sql.find("$ID")) sql.replace(p, 3, id);
+      EXPECT_THROW(tx.execSqlSync(sql), drogon::orm::DrogonDbException) << sql;
+    });
+  };
+  expectDenied("UPDATE detections SET summary = 'rewritten' WHERE id = '$ID'");
+  expectDenied("UPDATE detections SET status = 'confirmed' WHERE id = '$ID'");
+  expectDenied("DELETE FROM detections WHERE id = '$ID'");
+  expectDenied("INSERT INTO detection_events (id, tenant_id, detection_id, actor_kind, from_status, to_status) "
+               "SELECT gen_random_uuid(), tenant_id, id, 'user', 'detected', 'confirmed' FROM detections "
+               "WHERE id = '$ID'");
+  // supersedes_id is reserved for claims
+  withTenant(a.tenantId, [&](auto& tx) {
+    const auto first = insert(tx, "");
+    EXPECT_THROW(insert(tx, first), drogon::orm::DrogonDbException);
+  });
+  // the sanctioned path changes status and always leaves an event
+  withTenant(a.tenantId, [&](auto& tx) {
+    tx.execSqlSync("SELECT set_config('app.principal_kind', 'user', true)");
+    const auto id = insert(tx, "");
+    const auto r = tx.execSqlSync("SELECT (app.detection_transition($1, 'confirm', NULL)).status", id);
+    EXPECT_EQ(r[0][0].template as<std::string>(), "confirmed");
+    const auto ev = tx.execSqlSync("SELECT count(*) FROM detection_events WHERE detection_id = $1", id);
+    EXPECT_EQ(ev[0][0].template as<int64_t>(), 1);
+  });
+  // and cannot reach another tenant's detection
+  auto b = createTenantWithUser();
+  const auto foreign = thelife::ids::newUuidV7();
+  {
+    auto tx = appDb()->newTransaction();  // committed when released
+    tx->execSqlSync("SELECT set_config('app.tenant_id', $1, true)", b.tenantId);
+    tx->execSqlSync("INSERT INTO detections (id, tenant_id, created_by_kind, source, started_at, ended_at, area, "
+                    "category, summary) VALUES ($1, $2, 'user', 'external', now(), now(), 'work', 'c', 's')",
+                    foreign, b.tenantId);
+  }
+  withTenant(a.tenantId, [&](auto& tx) {
+    EXPECT_THROW(tx.execSqlSync("SELECT app.detection_transition($1, 'confirm', NULL)", foreign),
+                 drogon::orm::DrogonDbException);
+  });
+}
+
 }  // namespace
 
 // Every contract-bound resource maps 1:1 onto its table: each writable and output field is a column
@@ -174,3 +229,4 @@ TEST_F(Isolation, ContractFieldsMatchTableColumns) {
   }
 }
 }  // namespace
+

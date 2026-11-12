@@ -1,5 +1,5 @@
 {
-  "contract_version": "f72c4748a8b5ca4c",
+  "contract_version": "b406aaf14407b666",
   "tools": [
     {
       "name": "activities.create",
@@ -1248,8 +1248,7 @@
           },
           "token_prefix": {
             "type": "string",
-            "description": "First 8 characters",
-            "for identification.": null
+            "description": "First 8 characters, for identification."
           },
           "last_used_at": {
             "type": [
@@ -1276,7 +1275,25 @@
             "uniqueItems": true,
             "items": {
               "type": "string",
-              "pattern": "^[a-z_]+:(read|write)$"
+              "description": "A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys may call.",
+              "enum": [
+                "activities:read",
+                "activities:write",
+                "calendar:read",
+                "calendar:write",
+                "detections:read",
+                "detections:write",
+                "entertainment:read",
+                "entertainment:write",
+                "planning:read",
+                "planning:write",
+                "skills:read",
+                "skills:write",
+                "tasks:read",
+                "tasks:write",
+                "work:read",
+                "work:write"
+              ]
             }
           },
           "expires_at": {
@@ -1343,7 +1360,25 @@
             "uniqueItems": true,
             "items": {
               "type": "string",
-              "pattern": "^[a-z_]+:(read|write)$"
+              "description": "A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys may call.",
+              "enum": [
+                "activities:read",
+                "activities:write",
+                "calendar:read",
+                "calendar:write",
+                "detections:read",
+                "detections:write",
+                "entertainment:read",
+                "entertainment:write",
+                "planning:read",
+                "planning:write",
+                "skills:read",
+                "skills:write",
+                "tasks:read",
+                "tasks:write",
+                "work:read",
+                "work:write"
+              ]
             }
           },
           "expires_at": {
@@ -1440,8 +1475,7 @@
               },
               "token_prefix": {
                 "type": "string",
-                "description": "First 8 characters",
-                "for identification.": null
+                "description": "First 8 characters, for identification."
               },
               "last_used_at": {
                 "type": [
@@ -1468,7 +1502,25 @@
                 "uniqueItems": true,
                 "items": {
                   "type": "string",
-                  "pattern": "^[a-z_]+:(read|write)$"
+                  "description": "A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys may call.",
+                  "enum": [
+                    "activities:read",
+                    "activities:write",
+                    "calendar:read",
+                    "calendar:write",
+                    "detections:read",
+                    "detections:write",
+                    "entertainment:read",
+                    "entertainment:write",
+                    "planning:read",
+                    "planning:write",
+                    "skills:read",
+                    "skills:write",
+                    "tasks:read",
+                    "tasks:write",
+                    "work:read",
+                    "work:write"
+                  ]
                 }
               },
               "expires_at": {
@@ -1631,8 +1683,7 @@
                 },
                 "token_prefix": {
                   "type": "string",
-                  "description": "First 8 characters",
-                  "for identification.": null
+                  "description": "First 8 characters, for identification."
                 },
                 "last_used_at": {
                   "type": [
@@ -1659,7 +1710,25 @@
                   "uniqueItems": true,
                   "items": {
                     "type": "string",
-                    "pattern": "^[a-z_]+:(read|write)$"
+                    "description": "A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys may call.",
+                    "enum": [
+                      "activities:read",
+                      "activities:write",
+                      "calendar:read",
+                      "calendar:write",
+                      "detections:read",
+                      "detections:write",
+                      "entertainment:read",
+                      "entertainment:write",
+                      "planning:read",
+                      "planning:write",
+                      "skills:read",
+                      "skills:write",
+                      "tasks:read",
+                      "tasks:write",
+                      "work:read",
+                      "work:write"
+                    ]
                   }
                 },
                 "expires_at": {
@@ -1787,11 +1856,13 @@
         "properties": {
           "from": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Window start. Defaults to now."
           },
           "to": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Window end (exclusive). Defaults to from + 7 days; at most 62 days after from."
           }
         },
         "additionalProperties": false
@@ -1799,7 +1870,8 @@
       "output_schema": {
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "truncated"
         ],
         "properties": {
           "items": {
@@ -1863,7 +1935,13 @@
                   "format": "date"
                 }
               }
-            }
+            },
+            "maxItems": 2000,
+            "description": "Sorted by starts_at."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the window held more than 2000 entries and only the earliest 2000 are returned; ask for a shorter window."
           }
         }
       },
@@ -2097,9 +2175,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -2323,9 +2399,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -2428,9 +2502,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -2591,9 +2663,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -2824,9 +2894,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -3046,9 +3114,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -3274,9 +3340,7 @@
                   "object",
                   "null"
                 ],
-                "description": "Titles",
-                "process names": null,
-                "judgment text. Never images.": null
+                "description": "Titles, process names, judgment text. Never images."
               }
             },
             "additionalProperties": false,
@@ -3499,9 +3563,7 @@
                     "object",
                     "null"
                   ],
-                  "description": "Titles",
-                  "process names": null,
-                  "judgment text. Never images.": null
+                  "description": "Titles, process names, judgment text. Never images."
                 }
               },
               "additionalProperties": false,
@@ -3521,8 +3583,7 @@
               ],
               "description": "Append-only observations of what the user did (backend_lld.md §6.5). Content never changes; status moves through events. confirm, dispute and claim append records, so they are create effects, not updates."
             },
-            "description": "Supersede chain",
-            "oldest first.": null
+            "description": "Supersede chain, oldest first."
           }
         }
       },
@@ -3773,9 +3834,7 @@
                     "object",
                     "null"
                   ],
-                  "description": "Titles",
-                  "process names": null,
-                  "judgment text. Never images.": null
+                  "description": "Titles, process names, judgment text. Never images."
                 }
               },
               "additionalProperties": false,
@@ -4847,9 +4906,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -4959,9 +5016,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -5189,9 +5244,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -5389,9 +5442,7 @@
                     "object",
                     "null"
                   ],
-                  "description": "Free-form details (platform",
-                  "seasons": null,
-                  "runtime).": null
+                  "description": "Free-form details (platform, seasons, runtime)."
                 },
                 "status": {
                   "type": "string",
@@ -5500,9 +5551,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -5615,9 +5664,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -6521,7 +6568,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -6684,7 +6733,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -6972,7 +7023,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -7227,7 +7280,9 @@
                     "string",
                     "null"
                   ],
-                  "maxLength": 500
+                  "maxLength": 500,
+                  "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+                  "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
                 },
                 "location": {
                   "type": [
@@ -7390,7 +7445,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -7556,7 +7613,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -9932,14 +9991,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -10095,14 +10156,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -10380,14 +10443,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -10629,14 +10694,16 @@
                     "integer",
                     "null"
                   ],
-                  "minimum": 1
+                  "minimum": 1,
+                  "maximum": 100000
                 },
                 "total_duration_s": {
                   "type": [
                     "integer",
                     "null"
                   ],
-                  "minimum": 1
+                  "minimum": 1,
+                  "maximum": 3600000
                 },
                 "goal_id": {
                   "type": [
@@ -10765,14 +10832,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -10931,14 +11000,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -11024,7 +11095,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -11036,7 +11108,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           }
         },
         "additionalProperties": false,
@@ -11124,7 +11197,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -11136,7 +11210,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           }
         },
         "additionalProperties": false,
@@ -11342,7 +11417,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -11354,7 +11430,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           }
         },
         "additionalProperties": false,
@@ -11516,7 +11593,8 @@
                 },
                 "ordinal": {
                   "type": "integer",
-                  "minimum": 0
+                  "minimum": 0,
+                  "maximum": 10000
                 },
                 "title": {
                   "type": "string",
@@ -11528,7 +11606,8 @@
                     "integer",
                     "null"
                   ],
-                  "minimum": 1
+                  "minimum": 1,
+                  "maximum": 360000
                 }
               },
               "additionalProperties": false,
@@ -11614,7 +11693,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -11626,7 +11706,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           },
           "expected_version": {
             "type": "integer",
@@ -11717,7 +11798,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -11729,7 +11811,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           }
         },
         "additionalProperties": false,
@@ -11805,14 +11888,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -11826,14 +11911,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -11948,14 +12035,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -11969,14 +12058,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -12215,14 +12306,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -12236,14 +12329,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -12440,14 +12535,16 @@
                     "integer",
                     "null"
                   ],
-                  "minimum": 1
+                  "minimum": 1,
+                  "maximum": 100000
                 },
                 "page_to": {
                   "type": [
                     "integer",
                     "null"
                   ],
-                  "minimum": 1
+                  "minimum": 1,
+                  "maximum": 100000
                 },
                 "section_id": {
                   "type": [
@@ -12461,14 +12558,16 @@
                     "integer",
                     "null"
                   ],
-                  "minimum": 0
+                  "minimum": 0,
+                  "maximum": 3600000
                 },
                 "pos_to_s": {
                   "type": [
                     "integer",
                     "null"
                   ],
-                  "minimum": 0
+                  "minimum": 0,
+                  "maximum": 3600000
                 },
                 "notes": {
                   "type": [
@@ -12583,14 +12682,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -12604,14 +12705,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -12728,14 +12831,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -12749,14 +12854,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -13021,6 +13128,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -13028,7 +13136,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -13201,6 +13310,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -13208,7 +13318,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -13508,6 +13619,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -13515,7 +13627,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -13793,6 +13906,7 @@
                     "null"
                   ],
                   "maxLength": 500,
+                  "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
                   "description": "RFC 5545 rule; null for one-off tasks."
                 },
                 "rrule_dtstart": {
@@ -13800,7 +13914,8 @@
                     "string",
                     "null"
                   ],
-                  "format": "date-time"
+                  "format": "date-time",
+                  "description": "Anchor of the rule; defaults to creation time."
                 },
                 "day_profiles": {
                   "type": "array",
@@ -13898,12 +14013,12 @@
           "from": {
             "type": "string",
             "format": "date",
-            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+            "description": "First day (inclusive). Defaults to the user's current day."
           },
           "to": {
             "type": "string",
             "format": "date",
-            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+            "description": "Last day (inclusive). Defaults to from + 6 days; at most 366 days after from."
           }
         },
         "additionalProperties": false,
@@ -14200,6 +14315,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -14207,7 +14323,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -14383,6 +14500,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -14390,7 +14508,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -16290,6 +16409,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {
@@ -16397,6 +16517,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {
@@ -16623,6 +16744,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {
@@ -16807,6 +16929,7 @@
                     "null"
                   ],
                   "maxLength": 500,
+                  "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
                   "description": "Optional RRULE for recurring duties."
                 },
                 "active": {
@@ -16913,6 +17036,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {
@@ -17023,6 +17147,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {

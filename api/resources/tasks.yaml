@@ -16,8 +16,8 @@ fields:
   estimate_min: {type: [integer, "null"], minimum: 1, maximum: 1440}
   due_at: {type: [string, "null"], format: date-time}
   status: {type: string, enum: [open, done, cancelled], default: open}
-  rrule: {type: [string, "null"], maxLength: 500, description: RFC 5545 rule; null for one-off tasks.}
-  rrule_dtstart: {type: [string, "null"], format: date-time}
+  rrule: {type: [string, "null"], maxLength: 500, pattern: '^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$', description: "RFC 5545 rule; null for one-off tasks."}
+  rrule_dtstart: {type: [string, "null"], format: date-time, description: Anchor of the rule; defaults to creation time.}
   day_profiles:
     type: array
     items: {type: string, maxLength: 40}
@@ -54,8 +54,8 @@ actions:
     target: true
     params: {id: {$ref: Id}}
     query:
-      from: {$ref: LocalDate}
-      to: {$ref: LocalDate}
+      from: {$ref: LocalDate, description: First day (inclusive). Defaults to the user's current day.}
+      to: {$ref: LocalDate, description: Last day (inclusive). Defaults to from + 6 days; at most 366 days after from.}
     returns:
       type: object
       required: [items]

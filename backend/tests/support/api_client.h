@@ -14,11 +14,16 @@ namespace thelife::test {
 class ApiClient {
  public:
   ApiClient(const ServerProcess& server, const TestUser& user);
+  // Uses an existing bearer token (device token, API key) instead of logging in.
+  ApiClient(const ServerProcess& server, const TestUser& user, std::string token);
 
   HttpResult get(const std::string& path) const;
   HttpResult post(const std::string& path, const Json::Value& body, const std::string& idempotencyKey = {}) const;
   HttpResult patch(const std::string& path, const Json::Value& body, const std::string& ifMatch) const;
   HttpResult del(const std::string& path, const std::string& ifMatch) const;
+  // Any method; body sent when non-null.
+  HttpResult call(const std::string& method, const std::string& path, const Json::Value& body = Json::Value(),
+                  const std::vector<std::pair<std::string, std::string>>& headers = {}) const;
 
   const std::string& token() const { return token_; }
   const TestUser& user() const { return user_; }

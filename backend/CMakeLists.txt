@@ -1,6 +1,7 @@
 find_package(Drogon CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(valijson CONFIG REQUIRED)
+find_package(LibIcal CONFIG REQUIRED)
 
 option(THELIFE_WERROR "Treat warnings as errors" OFF)
 
@@ -22,6 +23,7 @@ add_custom_command(
   DEPENDS "${THELIFE_MANIFEST}" ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_text.cmake
   COMMENT "Embedding tool manifest")
 
+set(THELIFE_STAGE 1 CACHE STRING "Delivery stage implemented by this build")
 configure_file(src/core/build_info.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/core/build_info.h" @ONLY)
 
 add_library(thelife_warnings INTERFACE)
@@ -35,6 +37,7 @@ add_library(thelife_core STATIC
   src/core/errors.cc
   src/core/json.cc
   src/core/blocking.cc
+  src/core/recurrence.cc
   src/db/database.cc
   src/db/tenant_tx.cc
   src/auth/authenticator.cc
@@ -49,10 +52,16 @@ add_library(thelife_core STATIC
   src/tools/registry.cc
   src/crud/resource.cc
   src/modules/planning.cc
+  src/modules/common.cc
+  src/modules/domain.cc
+  src/modules/tasks.cc
+  src/modules/calendar.cc
+  src/modules/detections.cc
+  src/modules/access.cc
   "${THELIFE_MANIFEST_CC}"
 )
 target_include_directories(thelife_core PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(thelife_core PUBLIC Drogon::Drogon unofficial-sodium::sodium valijson PRIVATE thelife_warnings)
+target_link_libraries(thelife_core PUBLIC Drogon::Drogon unofficial-sodium::sodium valijson ical PRIVATE thelife_warnings)
 
 add_executable(thelife-backend src/main.cc)
 target_link_libraries(thelife-backend PRIVATE thelife_core thelife_warnings)

@@ -1,5 +1,7 @@
 #include "http/auth_routes.h"
 
+#include <set>
+
 #include <drogon/drogon.h>
 #include <drogon/orm/Exception.h>
 
@@ -127,9 +129,13 @@ Task<drogon::HttpResponsePtr> updateMe(RequestContext& ctx) {
     static const std::vector<std::string> kDays{"MO", "TU", "WE", "TH", "FR", "SA", "SU"};
     if (!w.isArray()) throw ApiError::validation({{"/workdays", "must be an array"}});
     std::string arr = "{";
+    std::set<std::string> seen;
     for (Json::ArrayIndex i = 0; i < w.size(); ++i) {
       if (!w[i].isString() || std::find(kDays.begin(), kDays.end(), w[i].asString()) == kDays.end()) {
         throw ApiError::validation({{"/workdays/" + std::to_string(i), "must be one of MO..SU"}});
+      }
+      if (!seen.insert(w[i].asString()).second) {
+        throw ApiError::validation({{"/workdays/" + std::to_string(i), "is listed twice"}});
       }
       arr += (i ? "," : "") + w[i].asString();
     }
@@ -139,12 +145,14 @@ Task<drogon::HttpResponsePtr> updateMe(RequestContext& ctx) {
   auto tx = co_await TenantTx::begin(ctx.who());
   bool badTimezone = false;
   try {
-    co_await tx.exec(
+    const std::vector<std::optional<std::string>> params{
+        ctx.who().userId, displayName ? std::optional<std::string>(*displayName) : std::nullopt, timezone,
+        dayStart ? std::optional<std::string>(std::to_string(*dayStart)) : std::nullopt, workdays};
+    co_await tx.execParams(
         "UPDATE users SET display_name = coalesce($2, display_name), timezone = coalesce($3, timezone), "
         "day_start_hour = coalesce($4::smallint, day_start_hour), workdays = coalesce($5::text[], workdays) "
-        "WHERE id = $1",
-        ctx.who().userId, displayName ? std::optional<std::string>(*displayName) : std::nullopt, timezone,
-        dayStart ? std::optional<std::string>(std::to_string(*dayStart)) : std::nullopt, workdays);
+        "WHERE id = $1::uuid",
+        params);
   } catch (const drogon::orm::DrogonDbException& e) {
     // check_user_timezone() raises check_violation for unknown IANA zones.
     badTimezone = std::string(e.base().what()).find("invalid timezone") != std::string::npos;

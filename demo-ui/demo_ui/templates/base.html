@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}TheLife{% endblock %} · TheLife demo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if me %}
+<header class="top">
+  <a class="brand" href="{{ url_for('home') }}">TheLife <small>demo</small></a>
+  <nav>
+    <a href="{{ url_for('calendar') }}">Calendar</a>
+    {% for tag, resources in contract.nav() %}
+    {% if resources|length == 1 %}<a href="{{ url_for('resource_list', prefix=resources[0].prefix) }}">{{ tag }}</a>{% else %}
+    <details>
+      <summary>{{ tag }}</summary>
+      <div class="menu">{% for r in resources %}<a href="{{ url_for('resource_list', prefix=r.prefix) }}">{{ r.label }}</a>{% endfor %}</div>
+    </details>{% endif %}
+    {% endfor %}
+  </nav>
+  <div class="who">
+    <a href="{{ url_for('settings') }}">{{ me.display_name }}</a>
+    <form method="post" action="{{ url_for('logout') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="link">Sign out</button>
+    </form>
+  </div>
+</header>
+{% endif %}
+<main>
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+  <p class="flash {{ category }}">{{ message }}</p>
+  {% endfor %}
+  {% block body %}{% endblock %}
+</main>
+</body>
+</html>

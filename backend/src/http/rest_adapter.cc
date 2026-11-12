@@ -2,6 +2,7 @@
 
 #include <drogon/drogon.h>
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "core/errors.h"
@@ -88,10 +89,12 @@ void registerOne(const ToolDef& toolDef) {
         for (size_t i = 0; i < rest.pathArgs.size() && i < params.size(); ++i) args[rest.pathArgs[i]] = params[i];
 
         // query
+        // A parameter that is present but empty (?to=) is a value to validate, not an absent one.
         const auto& props = def.inputSchema["properties"];
+        const auto& query = ctx.req->getParameters();
         for (const auto& q : rest.queryArgs) {
-          const auto& raw = ctx.req->getParameter(q);
-          if (!raw.empty()) args[q] = coerceQuery(q, raw, props[q]);
+          const auto it = query.find(q);
+          if (it != query.end()) args[q] = coerceQuery(q, it->second, props[q]);
         }
 
         // body
@@ -123,10 +126,13 @@ void registerOne(const ToolDef& toolDef) {
         tools::InvokeOptions opts;
         opts.requestId = ctx.requestId;
         if (rest.method == "POST") {
-          const auto& key = ctx.req->getHeader("idempotency-key");
-          if (!key.empty()) {
-            if (key.size() < 8 || key.size() > 128) {
-              throw ApiError::validation({{"Idempotency-Key", "must be 8 to 128 characters"}});
+          // Present but empty is invalid, not absent. Visible ASCII only, so length is unambiguous.
+          const auto& headers = ctx.req->headers();
+          if (const auto h = headers.find("idempotency-key"); h != headers.end()) {
+            const auto& key = h->second;
+            const bool visible = std::all_of(key.begin(), key.end(), [](char c) { return c > ' ' && c < 127; });
+            if (key.size() < 8 || key.size() > 128 || !visible) {
+              throw ApiError::validation({{"Idempotency-Key", "must be 8 to 128 visible ASCII characters"}});
             }
             opts.idempotencyKey = key;
           }

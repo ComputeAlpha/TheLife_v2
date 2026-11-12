@@ -3,4 +3,7 @@
 namespace thelife::build {
 inline constexpr const char* kVersion = "@PROJECT_VERSION@";
 inline constexpr const char* kSchemaVersion = "@THELIFE_SCHEMA_VERSION@";
+// Delivery stage this build implements (prelim_spec.md §9): every contract tool with stage <= kStage must have
+// a handler, or the server refuses to start.
+inline constexpr int kStage = @THELIFE_STAGE@;
 }  // namespace thelife::build

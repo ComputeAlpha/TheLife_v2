@@ -310,11 +310,13 @@
         "properties": {
           "from": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Window start. Defaults to now."
           },
           "to": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Window end (exclusive). Defaults to from + 7 days; at most 62 days after from."
           }
         },
         "additionalProperties": false
@@ -449,9 +451,7 @@
               "object",
               "null"
             ],
-            "description": "Titles",
-            "process names": null,
-            "judgment text. Never images.": null
+            "description": "Titles, process names, judgment text. Never images."
           }
         },
         "additionalProperties": false,
@@ -629,9 +629,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -782,9 +780,7 @@
               "object",
               "null"
             ],
-            "description": "Free-form details (platform",
-            "seasons": null,
-            "runtime).": null
+            "description": "Free-form details (platform, seasons, runtime)."
           },
           "status": {
             "type": "string",
@@ -1032,7 +1028,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -1239,7 +1237,9 @@
               "string",
               "null"
             ],
-            "maxLength": 500
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."
           },
           "location": {
             "type": [
@@ -1860,14 +1860,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -2036,14 +2038,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "total_duration_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 3600000
           },
           "goal_id": {
             "type": [
@@ -2090,7 +2094,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -2102,7 +2107,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           }
         },
         "additionalProperties": false,
@@ -2217,7 +2223,8 @@
           },
           "ordinal": {
             "type": "integer",
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 10000
           },
           "title": {
             "type": "string",
@@ -2229,7 +2236,8 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 360000
           },
           "expected_version": {
             "type": "integer",
@@ -2270,14 +2278,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -2291,14 +2301,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -2448,14 +2460,16 @@
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "page_to": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 100000
           },
           "section_id": {
             "type": [
@@ -2469,14 +2483,16 @@
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "pos_to_s": {
             "type": [
               "integer",
               "null"
             ],
-            "minimum": 0
+            "minimum": 0,
+            "maximum": 3600000
           },
           "notes": {
             "type": [
@@ -2619,6 +2635,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -2626,7 +2643,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -2779,12 +2797,12 @@
           "from": {
             "type": "string",
             "format": "date",
-            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+            "description": "First day (inclusive). Defaults to the user's current day."
           },
           "to": {
             "type": "string",
             "format": "date",
-            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+            "description": "Last day (inclusive). Defaults to from + 6 days; at most 366 days after from."
           }
         },
         "additionalProperties": false,
@@ -2910,6 +2928,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "RFC 5545 rule; null for one-off tasks."
           },
           "rrule_dtstart": {
@@ -2917,7 +2936,8 @@
               "string",
               "null"
             ],
-            "format": "date-time"
+            "format": "date-time",
+            "description": "Anchor of the rule; defaults to creation time."
           },
           "day_profiles": {
             "type": "array",
@@ -3402,6 +3422,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {
@@ -3539,6 +3560,7 @@
               "null"
             ],
             "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
             "description": "Optional RRULE for recurring duties."
           },
           "active": {

@@ -12,6 +12,16 @@ void bindPlanning(tools::ToolRegistry& reg) {
                        .validate = nullptr});
 }
 
-void bindAll(tools::ToolRegistry& reg) { bindPlanning(reg); }
+void bindAll(tools::ToolRegistry& reg) {
+  bindPlanning(reg);
+  bindTasks(reg);
+  bindCalendar(reg);
+  bindWork(reg);
+  bindSkills(reg);
+  bindEntertainment(reg);
+  bindActivities(reg);
+  bindDetections(reg);
+  bindAccess(reg);
+}
 
 }  // namespace thelife::modules

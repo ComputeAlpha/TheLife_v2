@@ -24,6 +24,21 @@ ApiClient::ApiClient(const ServerProcess& server, const TestUser& user)
   token_ = r.json["token"].asString();
 }
 
+ApiClient::ApiClient(const ServerProcess& server, const TestUser& user, std::string token)
+    : base_(server.baseUrl() + "/api/v1"), user_(user), token_(std::move(token)) {}
+
+HttpResult ApiClient::call(const std::string& method, const std::string& path, const Json::Value& body,
+                           const std::vector<std::pair<std::string, std::string>>& headers) const {
+  Request r;
+  r.method = method;
+  r.url = base_ + path;
+  r.bearer = token_;
+  if (!body.isNull()) r.body = compact(body);
+  if (method == "PATCH") r.contentType = "application/merge-patch+json";
+  r.headers = headers;
+  return send(r);
+}
+
 HttpResult ApiClient::get(const std::string& path) const {
   Request r;
   r.url = base_ + path;

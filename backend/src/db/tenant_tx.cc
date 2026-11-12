@@ -36,8 +36,8 @@ struct DynamicExecAwaiter : drogon::CallbackAwaiter<drogon::orm::Result> {
 };
 }  // namespace
 
-drogon::Task<drogon::orm::Result> TenantTx::execParams(const std::string& sql,
-                                                       const std::vector<std::optional<std::string>>& params) {
+drogon::Task<drogon::orm::Result> TenantTx::execParams(std::string sql,
+                                                       std::vector<std::optional<std::string>> params) {
   if (!tx_) throw std::logic_error("TenantTx already finished");
   auto binder = *tx_ << sql;
   for (const auto& p : params) binder << p;

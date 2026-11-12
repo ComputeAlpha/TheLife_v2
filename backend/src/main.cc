@@ -9,6 +9,7 @@
 #include "http/auth_routes.h"
 #include "http/health.h"
 #include "http/rest_adapter.h"
+#include "http/route.h"
 #include "modules/modules.h"
 #include "tools/registry.h"
 
@@ -26,7 +27,9 @@ int main() {
     thelife::http::registerAuthRoutes();
     auto& registry = thelife::tools::registry();
     thelife::modules::bindAll(registry);
+    registry.verifyComplete(thelife::build::kStage);  // refuse to start with an unimplemented contract tool
     thelife::http::registerToolRoutes();
+    thelife::http::installMethodNotAllowed();
 
     LOG_INFO << "thelife-backend " << thelife::build::kVersion << " listening on " << addr << ":" << port;
     drogon::app()

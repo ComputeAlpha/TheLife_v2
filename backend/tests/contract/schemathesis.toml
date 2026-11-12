@@ -1,0 +1,19 @@
+# Contract tests (backend_lld.md §12): schemathesis against the running service. Run through run.sh.
+# Every check is on except where noted; each exception says why.
+
+[checks.missing_required_header]
+# A missing If-Match is 428 Precondition Required (RFC 6585), not a generic 4xx.
+expected-statuses = [400, 401, 403, 406, 415, 422, 428]
+
+[checks.positive_data_acceptance]
+# A schema-valid request can still break a rule no JSON Schema can state: a reference to an item that does not
+# exist, `to` before `from`, a range over the limit, an rrule that never occurs, a stale version (412), a
+# cursor from another query, a reused Idempotency-Key, a state transition that is not allowed (409). Those
+# answer 409/412/422 by design. run.sh --strict turns this back to the default, to review new rejections.
+expected-statuses = ["2xx", 401, 403, 404, 409, 412, 422, 429]
+
+[checks.unsupported_method]  # run.sh also passes --exclude-checks, since --checks all re-enables it
+# schemathesis probes with TRACE, which Drogon's HTTP parser rejects before any application code runs (a bare
+# 405 without Allow). Methods Drogon parses get problem+json 405 with Allow; ContractMatrix.UnservedMethods-
+# Answer405WithAllow covers every Stage 1 path.
+enabled = false

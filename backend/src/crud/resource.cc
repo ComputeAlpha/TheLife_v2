@@ -148,6 +148,28 @@ Json::Value toApi(const Json::Value& row, const std::vector<std::string>& projec
   return out;
 }
 
+std::vector<std::string> projectionFor(const tools::ToolRegistry& reg, const std::string& prefix) {
+  return shapeFor(reg, prefix).projection;
+}
+
+tools::TargetResolver targetResolver(const std::string& table) {
+  const auto q = quoted(table);
+  return [q](db::TenantTx& tx, const std::string& id) -> Task<std::optional<tools::TargetProvenance>> {
+    const auto rows = co_await tx.exec(
+        "SELECT created_by_kind::text AS k, origin::text AS o FROM " + q + " WHERE id = $1::uuid AND deleted_at IS NULL",
+        id);
+    if (rows.empty()) co_return std::nullopt;
+    co_return tools::TargetProvenance{rows[0]["k"].as<std::string>(), rows[0]["o"].as<std::string>()};
+  };
+}
+
+Task<Json::Value> fetchApi(db::TenantTx& tx, const std::string& table, const std::string& id,
+                           const std::vector<std::string>& projection) {
+  const auto row = co_await fetchOne(tx, table, id);
+  if (row.isNull()) co_return Json::Value();
+  co_return toApi(row, projection);
+}
+
 namespace {
 std::vector<std::pair<std::string, std::string>>& bound() {
   static std::vector<std::pair<std::string, std::string>> v;
@@ -165,14 +187,7 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
   auto has = [&](const std::string& op) { return tools.count(binding->prefix + "." + op) > 0; };
   const std::string table = binding->table;
 
-  tools::TargetResolver resolver = [table](db::TenantTx& tx,
-                                           const std::string& id) -> Task<std::optional<tools::TargetProvenance>> {
-    const auto rows = co_await tx.exec("SELECT created_by_kind::text AS k, origin::text AS o FROM " + quoted(table) +
-                                           " WHERE id = $1::uuid AND deleted_at IS NULL",
-                                       id);
-    if (rows.empty()) co_return std::nullopt;
-    co_return tools::TargetProvenance{rows[0]["k"].as<std::string>(), rows[0]["o"].as<std::string>()};
-  };
+  const tools::TargetResolver resolver = targetResolver(table);
 
   if (has("get")) {
     reg.bind(binding->prefix + ".get", [shape, table](ToolCall& c) -> Task<Json::Value> {
@@ -269,11 +284,12 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
       std::string list;
       for (const auto& k : patch.getMemberNames()) list += (list.empty() ? "" : ", ") + quoted(k);
       const auto id = c.args["id"].asString();
-      const auto rows = co_await c.tx.exec(
+      const std::vector<std::optional<std::string>> params{json::compact(patch), id, db::nullable(c.expectedVersion)};
+      const auto rows = co_await c.tx.execParams(
           "UPDATE " + quoted(table) + " AS r SET (" + list + ") = (SELECT " + list + " FROM jsonb_populate_record(NULL::" +
               quoted(table) + ", $1::jsonb)) WHERE r.id = $2::uuid AND r.deleted_at IS NULL "
               "AND ($3::int IS NULL OR r.version = $3::int) RETURNING to_jsonb(r)::text AS j",
-          json::compact(patch), id, c.expectedVersion);
+          params);
       if (rows.empty()) co_await explainMiss(c.tx, table, id);
       // Cross-field rules that depend on unchanged columns are enforced by table CHECK constraints.
       co_return toApi(json::parse(rows[0]["j"].as<std::string>()), shape->projection);
@@ -283,10 +299,11 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
   if (has("delete")) {
     reg.bind(binding->prefix + ".delete", [table](ToolCall& c) -> Task<Json::Value> {
       const auto id = c.args["id"].asString();
-      const auto rows = co_await c.tx.exec(
+      const std::vector<std::optional<std::string>> params{id, db::nullable(c.expectedVersion)};
+      const auto rows = co_await c.tx.execParams(
           "UPDATE " + quoted(table) + " SET deleted_at = now() WHERE id = $1::uuid AND deleted_at IS NULL "
           "AND ($2::int IS NULL OR version = $2::int) RETURNING id",
-          id, c.expectedVersion);
+          params);
       if (rows.empty()) co_await explainMiss(c.tx, table, id);
       co_return Json::Value();
     }, resolver);

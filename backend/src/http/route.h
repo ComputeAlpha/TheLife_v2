@@ -36,6 +36,10 @@ enum class Access { Public, Authenticated };
 void addRoute(const std::string& path, drogon::HttpMethod method, Access access, RouteHandler handler,
               std::vector<auth::PrincipalKind> allowedKinds = {auth::PrincipalKind::User});
 
+// Answers a known path with an unregistered method with 405 problem+json and an Allow header. Call once after
+// every route is registered.
+void installMethodNotAllowed();
+
 drogon::HttpResponsePtr jsonResponse(const Json::Value& body, drogon::HttpStatusCode status = drogon::k200OK);
 drogon::HttpResponsePtr noContent();
 

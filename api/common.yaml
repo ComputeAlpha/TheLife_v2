@@ -51,7 +51,7 @@ schemas:
   RRule:
     type: string
     maxLength: 500
-    pattern: "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[^;]+)*$"
+    pattern: "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$"
     description: RFC 5545 recurrence rule, for example FREQ=WEEKLY;BYDAY=MO,WE,FR.
   Text200:
     type: string
@@ -62,7 +62,10 @@ schemas:
     maxLength: 10000
   Scope:
     type: string
-    pattern: "^[a-z_]+:(read|write)$"
+    description: A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys may call.
+    enum: [activities:read, activities:write, calendar:read, calendar:write, detections:read, detections:write,
+           entertainment:read, entertainment:write, planning:read, planning:write, skills:read, skills:write,
+           tasks:read, tasks:write, work:read, work:write]
   ResourceMeta:
     type: object
     required: [id, created_at, updated_at, version, created_by, origin]
@@ -118,19 +121,19 @@ parameters:
     in: header
     required: true
     description: The resource version from its ETag, for example "3".
-    schema: {type: string, pattern: '^"[0-9]+"$'}
+    schema: {type: string, pattern: '^"[1-9][0-9]{0,8}"$'}
   IdempotencyKey:
     name: Idempotency-Key
     in: header
     required: false
-    description: Client-chosen key; the stored response is replayed for 24 h. Required on /ingest/*.
-    schema: {type: string, minLength: 8, maxLength: 128}
+    description: Client-chosen key of 8 to 128 visible ASCII characters; the stored response is replayed for 24 h. Required on /ingest/*.
+    schema: {type: string, minLength: 8, maxLength: 128, pattern: '^[!-~]{8,128}$'}
   IdempotencyKeyRequired:
     name: Idempotency-Key
     in: header
     required: true
     description: Required for collector ingest; retries with the same key replay the stored response.
-    schema: {type: string, minLength: 8, maxLength: 128}
+    schema: {type: string, minLength: 8, maxLength: 128, pattern: '^[!-~]{8,128}$'}
 
 headers:
   ETag:
@@ -155,6 +158,16 @@ responses:
         schema: {$ref: Problem}
   NotFound:
     description: Does not exist, is deleted, or belongs to another tenant.
+    content:
+      application/problem+json:
+        schema: {$ref: Problem}
+  BadRequest:
+    description: The body is not a JSON object.
+    content:
+      application/problem+json:
+        schema: {$ref: Problem}
+  UnsupportedMediaType:
+    description: The request Content-Type is not the documented one.
     content:
       application/problem+json:
         schema: {$ref: Problem}

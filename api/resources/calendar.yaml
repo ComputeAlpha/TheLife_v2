@@ -12,7 +12,7 @@ fields:
   starts_at: {$ref: Timestamp}
   ends_at: {$ref: Timestamp}
   all_day: {type: boolean, default: false}
-  rrule: {type: [string, "null"], maxLength: 500}
+  rrule: {type: [string, "null"], maxLength: 500, pattern: '^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$', description: "RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO."}
   location: {type: [string, "null"], maxLength: 200}
   area: {type: [string, "null"], enum: [work, skill, fitness, personal, entertainment, other, null]}
   category: {type: [string, "null"], maxLength: 80, pattern: "^[a-z0-9_.-]+$"}
@@ -46,10 +46,11 @@ actions:
     effect: read
     summary: Merged calendar of events, task occurrences, entertainment slots and skill sessions
     query:
-      from: {$ref: Timestamp}
-      to: {$ref: Timestamp}
+      from: {$ref: Timestamp, description: Window start. Defaults to now.}
+      to: {$ref: Timestamp, description: Window end (exclusive). Defaults to from + 7 days; at most 62 days after from.}
     returns:
       type: object
-      required: [items]
+      required: [items, truncated]
       properties:
-        items: {type: array, items: {$ref: CalendarEntry}}
+        items: {type: array, items: {$ref: CalendarEntry}, maxItems: 2000, description: Sorted by starts_at.}
+        truncated: {type: boolean, description: "True when the window held more than 2000 entries and only the earliest 2000 are returned; ask for a shorter window."}

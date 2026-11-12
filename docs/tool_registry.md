@@ -76,18 +76,20 @@ Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `met
   - `bulk_threshold`: approval when one call affects more than the tenant's `agent.bulk_threshold` items.
   - `user_stated_fact`: approval to forget a user-stated memory fact.
 - Every non-user call writes an `agent_actions` audit row: tool, args, decision, result summary, principal and conversation.
+- **Open for Stage 2:** `tasks.complete_occurrence` and `tasks.skip_occurrence` are `update` effects on the Task. Under the table, an agent logging "done" for a routine the user created would need approval, which is wrong for chat-as-data-entry. A named policy such as `user_reported_progress` (allow and audit when the triggering message states it) is the likely fix.
 
 ## 5. Backend Integration (Stage 1)
 
 - `tools.json` is embedded into the binary at build time (CMake turns it into a generated source file), so the binary and its contract cannot drift. `GET /healthz` will report `contract_version`.
-- Each module registers handlers by tool name: `registry.bind("tasks.update", &TasksService::update)`. **At startup the registry fails if any stage ≤ current-stage tool has no handler, or a handler names an unknown tool.**
+- Each module registers handlers by tool name: `registry.bind("tasks.update", &TasksService::update)`. **At startup the registry fails if any stage ≤ current-stage tool has no handler, or a handler names an unknown tool.** Active since Stage 1 (`build::kStage = 1`, CMake `THELIFE_STAGE`): the server refuses to start with an unimplemented Stage 1 tool.
+- Contract CRUD resources bind through `crud::bindCrud` (table columns named like contract fields). Custom tools (occurrences, calendar view, detection actions, credential issuing) bind plain handlers. Update and delete tools that target an entity also pass a target resolver, which the agent policy uses for provenance.
 - A generic REST adapter builds routes from the `rest` mapping:
   1. Collect path, query and body arguments into one args object.
   2. Validate against `input_schema` (valijson) → 422 problem.
   3. Run `Policy::decide`, invoke the handler inside a `TenantTx`, and map the result to the response.
 
   Controllers only exist for endpoints marked `tool: false` (health, login, logout, profile, password).
-- Tests derived from the manifest (Stage 1):
+- Tests derived from the manifest (Stage 1; the first three implemented in `backend/tests/api/contract_test.cc`, resource lifecycles in `resources_test.cc`):
   - every REST tool is called with a token lacking its scope (expect 403) and with a device token (expect 403 unless the tool allows devices)
   - every target tool answers 404 for another tenant's id
   - every update or delete without `If-Match` answers 428

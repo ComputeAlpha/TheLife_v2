@@ -10,7 +10,7 @@ fields:
   role_id: {$ref: Id}
   title: {$ref: Text200}
   description: {$ref: Notes}
-  cadence: {type: [string, "null"], maxLength: 500, description: Optional RRULE for recurring duties.}
+  cadence: {type: [string, "null"], maxLength: 500, pattern: '^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$', description: "Optional RRULE for recurring duties."}
   active: {type: boolean, default: true}
 required: [role_id, title]
 filters:

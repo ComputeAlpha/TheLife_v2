@@ -166,8 +166,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -212,6 +218,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -257,6 +267,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -301,8 +313,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -387,8 +405,6 @@ paths:
       - API keys
       summary: Create an API key
       description: Create an API key.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '201':
           description: OK
@@ -403,8 +419,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -442,6 +464,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: delete
         scopes:
@@ -479,6 +505,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -495,8 +523,6 @@ paths:
       - Auth
       summary: Exchange email and password for a session token
       description: Exchange email and password for a session token.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: OK
@@ -507,8 +533,14 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/TooManyRequests'
       security: []
@@ -555,6 +587,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: delete
         scopes: []
@@ -576,11 +612,13 @@ paths:
         required: false
         schema:
           $ref: '#/components/schemas/Timestamp'
+          description: Window start. Defaults to now.
       - name: to
         in: query
         required: false
         schema:
           $ref: '#/components/schemas/Timestamp'
+          description: Window end (exclusive). Defaults to from + 7 days; at most 62 days after from.
       responses:
         '200':
           description: OK
@@ -590,11 +628,18 @@ paths:
                 type: object
                 required:
                 - items
+                - truncated
                 properties:
                   items:
                     type: array
                     items:
                       $ref: '#/components/schemas/CalendarEntry'
+                    maxItems: 2000
+                    description: Sorted by starts_at.
+                  truncated:
+                    type: boolean
+                    description: True when the window held more than 2000 entries and only the earliest 2000 are returned;
+                      ask for a shorter window.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -732,8 +777,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -782,6 +833,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -824,6 +877,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -869,6 +924,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '409':
@@ -943,6 +1002,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
         '409':
           $ref: '#/components/responses/Conflict'
       x-thelife-tool:
@@ -990,6 +1051,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '409':
@@ -1082,8 +1147,6 @@ paths:
       - Devices
       summary: Register a collector device and issue its token
       description: Register a collector device and issue its token.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '201':
           description: OK
@@ -1098,8 +1161,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1158,8 +1227,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1307,8 +1382,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1340,8 +1421,6 @@ paths:
       - Devices
       summary: Issue a new device token; the old one stays valid for 5 minutes
       description: Issue a new device token; the old one stays valid for 5 minutes.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: OK
@@ -1364,6 +1443,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: update
         scopes:
@@ -1395,6 +1476,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: delete
         scopes:
@@ -1432,6 +1517,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -1545,8 +1632,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1591,6 +1684,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -1636,6 +1733,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -1680,8 +1779,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -1803,8 +1908,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1849,6 +1960,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -1894,6 +2009,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -1938,8 +2055,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2067,8 +2190,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2113,6 +2242,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2158,6 +2291,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -2202,8 +2337,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2340,8 +2481,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2386,6 +2533,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2431,6 +2582,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -2475,8 +2628,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2530,8 +2689,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '503':
@@ -2600,8 +2765,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '503':
@@ -2677,8 +2848,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2692,12 +2869,17 @@ paths:
                   $ref: '#/components/schemas/Text200'
                 timezone:
                   type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: IANA timezone, for example Asia/Kolkata.
                 day_start_hour:
                   type: integer
                   minimum: 0
                   maximum: 12
                 workdays:
                   type: array
+                  uniqueItems: true
+                  maxItems: 7
                   items:
                     type: string
                     enum:
@@ -2732,8 +2914,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2865,8 +3053,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2911,6 +3105,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2956,6 +3154,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3000,8 +3200,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3127,8 +3333,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3173,6 +3385,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3218,6 +3434,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3262,8 +3480,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3375,8 +3599,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3421,6 +3651,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3466,6 +3700,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3510,8 +3746,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3633,8 +3875,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3679,6 +3927,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3724,6 +3976,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3768,8 +4022,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3910,8 +4170,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3956,6 +4222,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4001,6 +4271,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -4045,8 +4317,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4088,11 +4366,13 @@ paths:
         required: false
         schema:
           $ref: '#/components/schemas/LocalDate'
+          description: First day (inclusive). Defaults to the user's current day.
       - name: to
         in: query
         required: false
         schema:
           $ref: '#/components/schemas/LocalDate'
+          description: Last day (inclusive). Defaults to from + 6 days; at most 366 days after from.
       responses:
         '200':
           description: OK
@@ -4168,8 +4448,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4230,8 +4516,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4359,8 +4651,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4405,6 +4703,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4450,6 +4752,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -4494,8 +4798,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4618,8 +4928,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4664,6 +4980,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4709,6 +5029,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -4753,8 +5075,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4871,8 +5199,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4917,6 +5251,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4962,6 +5300,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -5006,8 +5346,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -5119,8 +5465,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -5165,6 +5517,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -5210,6 +5566,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -5254,8 +5612,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -5612,8 +5976,7 @@ components:
           format: date-time
         token_prefix:
           type: string
-          description: First 8 characters
-          for identification.: null
+          description: First 8 characters, for identification.
         last_used_at:
           type:
           - string
@@ -5815,6 +6178,8 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO.
         location:
           type:
           - string
@@ -5888,6 +6253,8 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO.
         location:
           type:
           - string
@@ -5967,6 +6334,8 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO.
         location:
           type:
           - string
@@ -6097,6 +6466,7 @@ components:
         ordinal:
           type: integer
           minimum: 0
+          maximum: 10000
         title:
           $ref: '#/components/schemas/Text200'
         duration_s:
@@ -6104,6 +6474,7 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 360000
       additionalProperties: false
       required:
       - id
@@ -6124,6 +6495,7 @@ components:
         ordinal:
           type: integer
           minimum: 0
+          maximum: 10000
         title:
           $ref: '#/components/schemas/Text200'
         duration_s:
@@ -6131,6 +6503,7 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 360000
       additionalProperties: false
       required:
       - resource_id
@@ -6159,6 +6532,7 @@ components:
         ordinal:
           type: integer
           minimum: 0
+          maximum: 10000
         title:
           $ref: '#/components/schemas/Text200'
         duration_s:
@@ -6166,6 +6540,7 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 360000
       additionalProperties: false
       minProperties: 1
     Detection:
@@ -6256,9 +6631,7 @@ components:
           type:
           - object
           - 'null'
-          description: Titles
-          process names: null
-          judgment text. Never images.: null
+          description: Titles, process names, judgment text. Never images.
       additionalProperties: false
       required:
       - id
@@ -6306,9 +6679,7 @@ components:
           type:
           - object
           - 'null'
-          description: Titles
-          process names: null
-          judgment text. Never images.: null
+          description: Titles, process names, judgment text. Never images.
       additionalProperties: false
       required:
       - source
@@ -6361,8 +6732,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Detection'
-          description: Supersede chain
-          oldest first.: null
+          description: Supersede chain, oldest first.
     DetectionPage:
       type: object
       properties:
@@ -6408,9 +6778,7 @@ components:
           type:
           - object
           - 'null'
-          description: Titles
-          process names: null
-          judgment text. Never images.: null
+          description: Titles, process names, judgment text. Never images.
       additionalProperties: false
       minProperties: 1
     Device:
@@ -6626,9 +6994,7 @@ components:
           type:
           - object
           - 'null'
-          description: Free-form details (platform
-          seasons: null
-          runtime).: null
+          description: Free-form details (platform, seasons, runtime).
         status:
           type: string
           enum:
@@ -6666,9 +7032,7 @@ components:
           type:
           - object
           - 'null'
-          description: Free-form details (platform
-          seasons: null
-          runtime).: null
+          description: Free-form details (platform, seasons, runtime).
         status:
           type: string
           enum:
@@ -6713,9 +7077,7 @@ components:
           type:
           - object
           - 'null'
-          description: Free-form details (platform
-          seasons: null
-          runtime).: null
+          description: Free-form details (platform, seasons, runtime).
         status:
           type: string
           enum:
@@ -7296,7 +7658,7 @@ components:
     RRule:
       type: string
       maxLength: 500
-      pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[^;]+)*$
+      pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
       description: RFC 5545 recurrence rule, for example FREQ=WEEKLY;BYDAY=MO,WE,FR.
     ResourceMeta:
       type: object
@@ -7345,7 +7707,25 @@ components:
           format: date-time
     Scope:
       type: string
-      pattern: ^[a-z_]+:(read|write)$
+      description: A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys
+        may call.
+      enum:
+      - activities:read
+      - activities:write
+      - calendar:read
+      - calendar:write
+      - detections:read
+      - detections:write
+      - entertainment:read
+      - entertainment:write
+      - planning:read
+      - planning:write
+      - skills:read
+      - skills:write
+      - tasks:read
+      - tasks:write
+      - work:read
+      - work:write
     Session:
       type: object
       required:
@@ -7439,11 +7819,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         total_duration_s:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 3600000
         goal_id:
           type:
           - string
@@ -7495,11 +7877,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         total_duration_s:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 3600000
         goal_id:
           type:
           - string
@@ -7559,11 +7943,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         total_duration_s:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 3600000
         goal_id:
           type:
           - string
@@ -7628,11 +8014,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         page_to:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         section_id:
           type:
           - string
@@ -7643,11 +8031,13 @@ components:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         pos_to_s:
           type:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         notes:
           $ref: '#/components/schemas/Notes'
         source:
@@ -7683,11 +8073,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         page_to:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         section_id:
           type:
           - string
@@ -7698,11 +8090,13 @@ components:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         pos_to_s:
           type:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         notes:
           $ref: '#/components/schemas/Notes'
         source:
@@ -7746,11 +8140,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         page_to:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         section_id:
           type:
           - string
@@ -7761,11 +8157,13 @@ components:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         pos_to_s:
           type:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         notes:
           $ref: '#/components/schemas/Notes'
         source:
@@ -7861,12 +8259,14 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: RFC 5545 rule; null for one-off tasks.
         rrule_dtstart:
           type:
           - string
           - 'null'
           format: date-time
+          description: Anchor of the rule; defaults to creation time.
         day_profiles:
           type: array
           items:
@@ -7933,12 +8333,14 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: RFC 5545 rule; null for one-off tasks.
         rrule_dtstart:
           type:
           - string
           - 'null'
           format: date-time
+          description: Anchor of the rule; defaults to creation time.
         day_profiles:
           type: array
           items:
@@ -8042,12 +8444,14 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: RFC 5545 rule; null for one-off tasks.
         rrule_dtstart:
           type:
           - string
           - 'null'
           format: date-time
+          description: Anchor of the rule; defaults to creation time.
         day_profiles:
           type: array
           items:
@@ -8088,8 +8492,9 @@ components:
           $ref: '#/components/schemas/Text200'
         timezone:
           type: string
-          description: IANA timezone
-          for example Asia/Kolkata.: null
+          minLength: 1
+          maxLength: 64
+          description: IANA timezone, for example Asia/Kolkata.
         day_start_hour:
           type: integer
           minimum: 0
@@ -8101,6 +8506,8 @@ components:
           - tenant_admin
         workdays:
           type: array
+          uniqueItems: true
+          maxItems: 7
           items:
             type: string
             enum:
@@ -8454,6 +8861,7 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: Optional RRULE for recurring duties.
         active:
           type: boolean
@@ -8483,6 +8891,7 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: Optional RRULE for recurring duties.
         active:
           type: boolean
@@ -8520,6 +8929,7 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: Optional RRULE for recurring duties.
         active:
           type: boolean
@@ -8642,16 +9052,18 @@ components:
       description: The resource version from its ETag, for example "3".
       schema:
         type: string
-        pattern: ^"[0-9]+"$
+        pattern: ^"[1-9][0-9]{0,8}"$
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: false
-      description: Client-chosen key; the stored response is replayed for 24 h. Required on /ingest/*.
+      description: Client-chosen key of 8 to 128 visible ASCII characters; the stored response is replayed for 24 h. Required
+        on /ingest/*.
       schema:
         type: string
         minLength: 8
         maxLength: 128
+        pattern: ^[!-~]{8,128}$
     IdempotencyKeyRequired:
       name: Idempotency-Key
       in: header
@@ -8661,6 +9073,7 @@ components:
         type: string
         minLength: 8
         maxLength: 128
+        pattern: ^[!-~]{8,128}$
   headers:
     ETag:
       description: Quoted resource version.
@@ -8687,6 +9100,18 @@ components:
             $ref: '#/components/schemas/Problem'
     NotFound:
       description: Does not exist, is deleted, or belongs to another tenant.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    BadRequest:
+      description: The body is not a JSON object.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnsupportedMediaType:
+      description: The request Content-Type is not the documented one.
       content:
         application/problem+json:
           schema:
