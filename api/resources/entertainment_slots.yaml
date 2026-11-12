@@ -1,0 +1,19 @@
+name: entertainment_slots
+schema: EntertainmentSlot
+noun: entertainment slot
+path: /entertainment/slots
+scope: entertainment
+tag: Entertainment
+description: Pre-scheduled entertainment time.
+fields:
+  item_id: {type: [string, "null"], format: uuid}
+  starts_at: {$ref: Timestamp}
+  ends_at: {$ref: Timestamp}
+  consumed: {type: boolean, default: false}
+  notes: {$ref: Notes}
+required: [starts_at, ends_at]
+filters:
+  from: {$ref: Timestamp}
+  to: {$ref: Timestamp}
+  item_id: {$ref: Id}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

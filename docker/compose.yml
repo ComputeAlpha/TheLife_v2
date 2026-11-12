@@ -1,0 +1,28 @@
+# Local and CI infrastructure. Usage: docker compose -f docker/compose.yml up -d --wait
+name: thelife
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${THELIFE_PG_SUPERUSER_PASSWORD:-postgres-dev-only}
+      POSTGRES_DB: postgres
+      # consumed by init/01-roles.sh
+      THELIFE_DB_NAME: thelife
+      THELIFE_OWNER_PASSWORD: ${THELIFE_OWNER_PASSWORD:-owner-dev-only}
+      THELIFE_APP_PASSWORD: ${THELIFE_APP_PASSWORD:-app-dev-only}
+      THELIFE_ADMIN_PASSWORD: ${THELIFE_ADMIN_PASSWORD:-admin-dev-only}
+    ports:
+      - "127.0.0.1:${THELIFE_PG_PORT:-55432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thelife"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

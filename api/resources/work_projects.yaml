@@ -1,0 +1,19 @@
+name: work_projects
+schema: WorkProject
+noun: project
+path: /work/projects
+scope: work
+tag: Work
+description: Projects under a role; tasks and deliverables link to them.
+fields:
+  role_id: {type: [string, "null"], format: uuid}
+  title: {$ref: Text200}
+  description: {$ref: Notes}
+  status: {type: string, enum: [planned, active, on_hold, done, cancelled], default: active}
+  starts_on: {type: [string, "null"], format: date}
+  due_on: {type: [string, "null"], format: date}
+required: [title]
+filters:
+  role_id: {$ref: Id}
+  status: {type: string, enum: [planned, active, on_hold, done, cancelled]}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

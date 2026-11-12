@@ -1,0 +1,29 @@
+name: skill_resources
+schema: SkillResource
+noun: skill resource
+path: /skills/resources
+scope: skills
+tag: Skills
+description: Books (with page counts) and video courses (with sections and total duration).
+fields:
+  kind: {type: string, enum: [book, course]}
+  title: {$ref: Text200}
+  author: {type: [string, "null"], maxLength: 200}
+  url: {type: [string, "null"], format: uri, maxLength: 2000}
+  total_pages: {type: [integer, "null"], minimum: 1}
+  total_duration_s: {type: [integer, "null"], minimum: 1}
+  goal_id: {type: [string, "null"], format: uuid}
+  status: {type: string, enum: [planned, active, paused, done, dropped], default: planned}
+readonly:
+  progress:
+    type: object
+    description: Derived from sessions.
+    properties:
+      pages_done: {type: [integer, "null"]}
+      position_s: {type: [integer, "null"]}
+      percent: {type: [number, "null"], minimum: 0, maximum: 100}
+required: [kind, title]
+filters:
+  kind: {type: string, enum: [book, course]}
+  status: {type: string, enum: [planned, active, paused, done, dropped]}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

@@ -1,0 +1,3728 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "activities_create",
+      "description": "Create a activity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "detection",
+              "agent"
+            ],
+            "default": "manual"
+          },
+          "detection_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "area",
+          "title",
+          "started_at",
+          "ended_at"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "activities_delete",
+      "description": "Delete a activity (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "activities_get",
+      "description": "Get a activity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "activities_list",
+      "description": "List activities.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "detection",
+              "agent"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "activities_update",
+      "description": "Update a activity.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "detection",
+              "agent"
+            ]
+          },
+          "detection_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "calendar_view",
+      "description": "Merged calendar of events, task occurrences, entertainment slots and skill sessions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_claim",
+      "description": "Replace a detection with what the user says happened; the original becomes superseded.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "area",
+          "category",
+          "summary"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_confirm",
+      "description": "Confirm a detection.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_create",
+      "description": "Create a detection.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "user",
+              "external"
+            ],
+            "description": "Only user or external detections can be created over the API."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 1
+          },
+          "evidence": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Titles",
+            "process names": null,
+            "judgment text. Never images.": null
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "started_at",
+          "ended_at",
+          "area",
+          "category",
+          "summary"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_dispute",
+      "description": "Dispute a detection; it stops counting until the agent re-evaluates it.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "reason"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_get",
+      "description": "Get a detection.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_history",
+      "description": "Status events and supersede chain of a detection.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "detections_list",
+      "description": "List detections.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "detected",
+              "confirmed",
+              "disputed",
+              "superseded"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "vision",
+              "process",
+              "user",
+              "external"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_items_create",
+      "description": "Create a entertainment item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "game",
+              "movie",
+              "series"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Free-form details (platform",
+            "seasons": null,
+            "runtime).": null
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "wishlist",
+              "playing",
+              "watching",
+              "paused",
+              "finished",
+              "dropped"
+            ],
+            "default": "wishlist"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_items_delete",
+      "description": "Delete a entertainment item (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_items_get",
+      "description": "Get a entertainment item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_items_list",
+      "description": "List entertainment items.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "game",
+              "movie",
+              "series"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "wishlist",
+              "playing",
+              "watching",
+              "paused",
+              "finished",
+              "dropped"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_items_update",
+      "description": "Update a entertainment item.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "game",
+              "movie",
+              "series"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "meta": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Free-form details (platform",
+            "seasons": null,
+            "runtime).": null
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "wishlist",
+              "playing",
+              "watching",
+              "paused",
+              "finished",
+              "dropped"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_slots_create",
+      "description": "Create a entertainment slot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "consumed": {
+            "type": "boolean",
+            "default": false
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "starts_at",
+          "ends_at"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_slots_delete",
+      "description": "Delete a entertainment slot (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_slots_get",
+      "description": "Get a entertainment slot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_slots_list",
+      "description": "List entertainment slots.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "entertainment_slots_update",
+      "description": "Update a entertainment slot.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "item_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "consumed": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "events_create",
+      "description": "Create a calendar event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "all_day": {
+            "type": "boolean",
+            "default": false
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "area": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other",
+              null
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80,
+            "pattern": "^[a-z0-9_.-]+$"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "starts_at",
+          "ends_at"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "events_delete",
+      "description": "Delete a calendar event (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "events_get",
+      "description": "Get a calendar event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "events_list",
+      "description": "List calendar events.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 80
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "events_update",
+      "description": "Update a calendar event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "all_day": {
+            "type": "boolean"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "area": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other",
+              null
+            ]
+          },
+          "category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80,
+            "pattern": "^[a-z0-9_.-]+$"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "goals_create",
+      "description": "Create a goal.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "year",
+              "quarter",
+              "month",
+              "week"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "target": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Free-form measurable target, for example {\"metric\":\"pages\",\"amount\":3000}."
+          },
+          "starts_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "due_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "achieved",
+              "abandoned",
+              "paused"
+            ],
+            "default": "active"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "area",
+          "horizon"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "goals_delete",
+      "description": "Delete a goal (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "goals_get",
+      "description": "Get a goal.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "goals_list",
+      "description": "List goals.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "year",
+              "quarter",
+              "month",
+              "week"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "achieved",
+              "abandoned",
+              "paused"
+            ]
+          },
+          "parent_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "goals_update",
+      "description": "Update a goal.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "horizon": {
+            "type": "string",
+            "enum": [
+              "year",
+              "quarter",
+              "month",
+              "week"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "target": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Free-form measurable target, for example {\"metric\":\"pages\",\"amount\":3000}."
+          },
+          "starts_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "due_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "achieved",
+              "abandoned",
+              "paused"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plans_create",
+      "description": "Create a plan.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "goal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "done",
+              "abandoned"
+            ],
+            "default": "active"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "period_start",
+          "period_end"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plans_delete",
+      "description": "Delete a plan (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plans_get",
+      "description": "Get a plan.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plans_list",
+      "description": "List plans.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "goal_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "done",
+              "abandoned"
+            ]
+          },
+          "active_on": {
+            "type": "string",
+            "format": "date",
+            "description": "Plans whose period contains this day."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "plans_update",
+      "description": "Update a plan.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "goal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "body": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "active",
+              "done",
+              "abandoned"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_resources_create",
+      "description": "Create a skill resource.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "book",
+              "course"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 2000
+          },
+          "total_pages": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "total_duration_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "goal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "paused",
+              "done",
+              "dropped"
+            ],
+            "default": "planned"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_resources_delete",
+      "description": "Delete a skill resource (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_resources_get",
+      "description": "Get a skill resource.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_resources_list",
+      "description": "List skill resources.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "book",
+              "course"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "paused",
+              "done",
+              "dropped"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_resources_update",
+      "description": "Update a skill resource.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "book",
+              "course"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 2000
+          },
+          "total_pages": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "total_duration_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "goal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "paused",
+              "done",
+              "dropped"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sections_create",
+      "description": "Create a course section.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "ordinal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "duration_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "resource_id",
+          "ordinal",
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sections_delete",
+      "description": "Delete a course section (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sections_get",
+      "description": "Get a course section.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sections_list",
+      "description": "List course sections.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sections_update",
+      "description": "Update a course section.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "ordinal": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "duration_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sessions_create",
+      "description": "Create a skill session.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "page_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "page_to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "section_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "pos_from_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "pos_to_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "detection",
+              "agent"
+            ],
+            "default": "manual"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "resource_id",
+          "started_at",
+          "ended_at"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sessions_delete",
+      "description": "Delete a skill session (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sessions_get",
+      "description": "Get a skill session.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sessions_list",
+      "description": "List skill sessions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "skill_sessions_update",
+      "description": "Update a skill session.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "page_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "page_to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "section_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "pos_from_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "pos_to_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "detection",
+              "agent"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_complete_occurrence",
+      "description": "Mark one occurrence done.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "date"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_create",
+      "description": "Create a task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "goal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "0 low, 1 normal, 2 high, 3 critical.",
+            "default": 1
+          },
+          "estimate_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ],
+            "default": "open"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "RFC 5545 rule; null for one-off tasks."
+          },
+          "rrule_dtstart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "day_profiles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "description": "Day profiles on which occurrences apply (scoring_lld.md §3). Empty means all scored profiles."
+          },
+          "track_consistency": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "area"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_delete",
+      "description": "Delete a task (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_get",
+      "description": "Get a task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_list",
+      "description": "List tasks.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ]
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "goal_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "recurring": {
+            "type": "boolean"
+          },
+          "due_before": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_occurrences",
+      "description": "Occurrences of a recurring task in a date range.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_skip_occurrence",
+      "description": "Skip one occurrence; before its start this counts as replanning, not failure (scoring_lld.md §4.1).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "date"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "tasks_update",
+      "description": "Update a task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "goal_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "0 low, 1 normal, 2 high, 3 critical."
+          },
+          "estimate_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "done",
+              "cancelled"
+            ]
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "RFC 5545 rule; null for one-off tasks."
+          },
+          "rrule_dtstart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "day_profiles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "description": "Day profiles on which occurrences apply (scoring_lld.md §3). Empty means all scored profiles."
+          },
+          "track_consistency": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_deliverables_create",
+      "description": "Create a deliverable.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "delivered",
+              "cancelled"
+            ],
+            "default": "open"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "project_id",
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_deliverables_delete",
+      "description": "Delete a deliverable (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_deliverables_get",
+      "description": "Get a deliverable.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_deliverables_list",
+      "description": "List deliverables.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "delivered",
+              "cancelled"
+            ]
+          },
+          "due_before": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_deliverables_update",
+      "description": "Update a deliverable.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "delivered",
+              "cancelled"
+            ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_projects_create",
+      "description": "Create a project.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "role_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "on_hold",
+              "done",
+              "cancelled"
+            ],
+            "default": "active"
+          },
+          "starts_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "due_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_projects_delete",
+      "description": "Delete a project (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_projects_get",
+      "description": "Get a project.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_projects_list",
+      "description": "List projects.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "role_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "on_hold",
+              "done",
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_projects_update",
+      "description": "Update a project.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "role_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "on_hold",
+              "done",
+              "cancelled"
+            ]
+          },
+          "starts_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "due_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_responsibilities_create",
+      "description": "Create a responsibility.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "role_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "cadence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "Optional RRULE for recurring duties."
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "role_id",
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_responsibilities_delete",
+      "description": "Delete a responsibility (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_responsibilities_get",
+      "description": "Get a responsibility.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_responsibilities_list",
+      "description": "List responsibilities.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "role_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_responsibilities_update",
+      "description": "Update a responsibility.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "role_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "cadence": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "Optional RRULE for recurring duties."
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_roles_create",
+      "description": "Create a work role.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organization": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "title"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_roles_delete",
+      "description": "Delete a work role (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_roles_get",
+      "description": "Get a work role.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_roles_list",
+      "description": "List work roles.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "work_roles_update",
+      "description": "Update a work role.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "organization": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  }
+]

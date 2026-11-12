@@ -1,0 +1,89 @@
+name: tasks
+schema: Task
+noun: task
+path: /tasks
+scope: tasks
+tag: Tasks
+description: Ad hoc and recurring tasks. A task with an rrule is recurring; its occurrences are expanded on read and
+  materialized only when acted on (backend_lld.md §6.3).
+fields:
+  title: {$ref: Text200}
+  notes: {$ref: Notes}
+  area: {$ref: Area}
+  goal_id: {type: [string, "null"], format: uuid}
+  project_id: {type: [string, "null"], format: uuid}
+  priority: {$ref: Priority, default: 1}
+  estimate_min: {type: [integer, "null"], minimum: 1, maximum: 1440}
+  due_at: {type: [string, "null"], format: date-time}
+  status: {type: string, enum: [open, done, cancelled], default: open}
+  rrule: {type: [string, "null"], maxLength: 500, description: RFC 5545 rule; null for one-off tasks.}
+  rrule_dtstart: {type: [string, "null"], format: date-time}
+  day_profiles:
+    type: array
+    items: {type: string, maxLength: 40}
+    description: Day profiles on which occurrences apply (scoring_lld.md §3). Empty means all scored profiles.
+  track_consistency: {type: boolean, default: false}
+readonly:
+  completed_at: {type: [string, "null"], format: date-time}
+required: [title, area]
+filters:
+  status: {type: string, enum: [open, done, cancelled]}
+  area: {$ref: Area}
+  goal_id: {$ref: Id}
+  project_id: {$ref: Id}
+  recurring: {type: boolean}
+  due_before: {$ref: Timestamp}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}
+extra_schemas:
+  TaskOccurrence:
+    type: object
+    required: [task_id, occurs_on, status, materialized]
+    properties:
+      task_id: {$ref: Id}
+      occurs_on: {$ref: LocalDate}
+      status: {type: string, enum: [todo, done, skipped, missed]}
+      completed_at: {type: [string, "null"], format: date-time}
+      skip_reason: {type: [string, "null"], maxLength: 500}
+      materialized: {type: boolean, description: False when computed from the rrule with no stored state yet.}
+actions:
+  - name: occurrences
+    method: get
+    path: /tasks/{id}/occurrences
+    effect: read
+    summary: Occurrences of a recurring task in a date range
+    target: true
+    params: {id: {$ref: Id}}
+    query:
+      from: {$ref: LocalDate}
+      to: {$ref: LocalDate}
+    returns:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: TaskOccurrence}}
+  - name: complete_occurrence
+    method: post
+    path: /tasks/{id}/occurrences/{date}:complete
+    effect: update
+    summary: Mark one occurrence done
+    target: true
+    params: {id: {$ref: Id}, date: {$ref: LocalDate}}
+    body:
+      type: object
+      additionalProperties: false
+      properties:
+        completed_at: {$ref: Timestamp}
+    returns: TaskOccurrence
+  - name: skip_occurrence
+    method: post
+    path: /tasks/{id}/occurrences/{date}:skip
+    effect: update
+    summary: Skip one occurrence; before its start this counts as replanning, not failure (scoring_lld.md §4.1)
+    target: true
+    params: {id: {$ref: Id}, date: {$ref: LocalDate}}
+    body:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: {type: string, maxLength: 500}
+    returns: TaskOccurrence

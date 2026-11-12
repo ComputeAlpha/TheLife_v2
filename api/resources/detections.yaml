@@ -1,0 +1,102 @@
+name: detections
+schema: Detection
+noun: detection
+path: /detections
+scope: detections
+tag: Detections
+description: Append-only observations of what the user did (backend_lld.md §6.5). Content never changes; status moves
+  through events. confirm, dispute and claim append records, so they are create effects, not updates.
+fields:
+  source: {type: string, enum: [user, external], description: Only user or external detections can be created over the API.}
+  started_at: {$ref: Timestamp}
+  ended_at: {$ref: Timestamp}
+  area: {$ref: Area}
+  category: {type: string, maxLength: 80}
+  summary: {type: string, minLength: 1, maxLength: 500}
+  confidence: {type: number, minimum: 0, maximum: 1, default: 1}
+  evidence: {type: [object, "null"], description: Titles, process names, judgment text. Never images.}
+readonly:
+  status: {type: string, enum: [detected, confirmed, disputed, superseded]}
+  device_id: {type: [string, "null"], format: uuid}
+  supersedes_id: {type: [string, "null"], format: uuid}
+  superseded_by_id: {type: [string, "null"], format: uuid}
+required: [source, started_at, ended_at, area, category, summary]
+filters:
+  from: {$ref: Timestamp}
+  to: {$ref: Timestamp}
+  status: {type: string, enum: [detected, confirmed, disputed, superseded]}
+  source: {type: string, enum: [vision, process, user, external]}
+  area: {$ref: Area}
+ops: {list: {}, get: {}, create: {}}
+extra_schemas:
+  DetectionEvent:
+    type: object
+    required: [id, detection_id, at, actor_kind, from_status, to_status]
+    properties:
+      id: {$ref: Id}
+      detection_id: {$ref: Id}
+      at: {$ref: Timestamp}
+      actor_kind: {$ref: PrincipalKind}
+      from_status: {type: string}
+      to_status: {type: string}
+      reason: {type: [string, "null"], maxLength: 1000}
+  DetectionHistory:
+    type: object
+    required: [detection, events, chain]
+    properties:
+      detection: {$ref: Detection}
+      events: {type: array, items: {$ref: DetectionEvent}}
+      chain: {type: array, items: {$ref: Detection}, description: Supersede chain, oldest first.}
+actions:
+  - name: history
+    method: get
+    path: /detections/{id}/history
+    effect: read
+    summary: Status events and supersede chain of a detection
+    target: true
+    params: {id: {$ref: Id}}
+    returns: DetectionHistory
+  - name: confirm
+    method: post
+    path: /detections/{id}:confirm
+    effect: create
+    summary: Confirm a detection
+    target: true
+    params: {id: {$ref: Id}}
+    extra_responses: {409: Conflict}
+    returns: Detection
+  - name: dispute
+    method: post
+    path: /detections/{id}:dispute
+    effect: create
+    summary: Dispute a detection; it stops counting until the agent re-evaluates it
+    target: true
+    params: {id: {$ref: Id}}
+    extra_responses: {409: Conflict}
+    body:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 1000}
+    returns: Detection
+  - name: claim
+    method: post
+    path: /detections/{id}:claim
+    effect: create
+    summary: Replace a detection with what the user says happened; the original becomes superseded
+    target: true
+    params: {id: {$ref: Id}}
+    extra_responses: {409: Conflict}
+    status: 201
+    body:
+      type: object
+      additionalProperties: false
+      required: [area, category, summary]
+      properties:
+        area: {$ref: Area}
+        category: {type: string, maxLength: 80}
+        summary: {type: string, minLength: 1, maxLength: 500}
+        started_at: {$ref: Timestamp}
+        ended_at: {$ref: Timestamp}
+    returns: Detection

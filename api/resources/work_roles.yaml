@@ -1,0 +1,16 @@
+name: work_roles
+schema: WorkRole
+noun: work role
+path: /work/roles
+scope: work
+tag: Work
+description: Roles the user holds (job, side project, volunteer). Work contexts for scoring live in Stage 2.
+fields:
+  title: {$ref: Text200}
+  organization: {type: [string, "null"], maxLength: 200}
+  description: {$ref: Notes}
+  active: {type: boolean, default: true}
+required: [title]
+filters:
+  active: {type: boolean}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

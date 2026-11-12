@@ -1,0 +1,26 @@
+name: goals
+schema: Goal
+noun: goal
+path: /goals
+scope: planning
+tag: Goals
+description: Long-term goals, nestable by horizon (year → quarter → month → week).
+fields:
+  title: {$ref: Text200}
+  description: {$ref: Notes}
+  area: {$ref: Area}
+  horizon: {type: string, enum: [year, quarter, month, week]}
+  parent_id: {type: [string, "null"], format: uuid}
+  target:
+    type: [object, "null"]
+    description: Free-form measurable target, for example {"metric":"pages","amount":3000}.
+  starts_on: {type: [string, "null"], format: date}
+  due_on: {type: [string, "null"], format: date}
+  status: {type: string, enum: [active, achieved, abandoned, paused], default: active}
+required: [title, area, horizon]
+filters:
+  area: {$ref: Area}
+  horizon: {type: string, enum: [year, quarter, month, week]}
+  status: {type: string, enum: [active, achieved, abandoned, paused]}
+  parent_id: {$ref: Id}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}
