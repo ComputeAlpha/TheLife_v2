@@ -8,6 +8,7 @@
 
 #include "core/crypto.h"
 #include "core/errors.h"
+#include "core/ids.h"
 #include "core/json.h"
 
 namespace thelife::tools {
@@ -171,20 +172,64 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
   }
 
   // 4. policy (needs the target's provenance for agent updates)
+  const bool agent = principal.kind == auth::PrincipalKind::Agent;
   std::optional<TargetProvenance> target;
-  if (binding.resolver && def.targetResource && args.isMember("id") &&
-      principal.kind == auth::PrincipalKind::Agent) {
+  if (binding.resolver && def.targetResource && args.isMember("id") && agent) {
     target = co_await binding.resolver(tx, args["id"].asString());
   }
-  const auto decision = decide(PolicyInput{principal, def, target, true, false});
-  if (decision == Decision::Deny) throw ApiError::forbidden("Agent writes are disabled for this tenant.");
-  if (decision != Decision::Allow) {
-    // Approval queue and proposals arrive in Stage 2/3 (agent_lld.md §5, spec 5.6).
-    throw ApiError{501, "not-implemented", "Not implemented", "Approvals and proposals are not available yet."};
+  bool writesEnabled = true;
+  if (agent && def.effect != Effect::Read) {  // kill switch (tenants.agent_writes_enabled)
+    const auto k = co_await tx.exec("SELECT agent_writes_enabled FROM tenants WHERE id = $1::uuid", principal.tenantId);
+    writesEnabled = !k.empty() && k[0]["agent_writes_enabled"].as<bool>();
+  }
+  PolicyInput policyIn{principal, def, target, writesEnabled, false};
+  policyIn.userTurn = opts.userTurn;
+  const auto decision = decide(policyIn);
+  if (decision == Decision::Deny) {
+    throw ApiError::forbidden(writesEnabled ? "Not allowed." : "Agent writes are disabled for this tenant.");
+  }
+  if (decision == Decision::Propose) {
+    throw ApiError{501, "not-implemented", "Not implemented", "Proposals are not available yet."};
+  }
+  if (decision == Decision::RequireApproval) {
+    // Held, not run (agent_lld.md §5): store the exact call, pinned to the target's current version.
+    if (def.targetResource && args.isMember("id") && !target) throw ApiError::notFound();
+    const auto approvalId = ids::newUuidV7();
+    const std::optional<int> pinned = expectedVersion ? expectedVersion
+                                      : target       ? std::optional<int>(target->version)
+                                                     : std::nullopt;
+    std::string summary = def.description;
+    if (def.targetResource && args.isMember("id")) {
+      summary += " Target: " + *def.targetResource + " " + args["id"].asString() +
+                 (pinned ? " (version " + std::to_string(*pinned) + ")" : "") + ".";
+    }
+    std::string argText = json::compact(args);
+    if (argText.size() > 1500) argText = argText.substr(0, 1500) + "…";
+    summary += " Arguments: " + argText;
+    const std::vector<std::optional<std::string>> params{
+        approvalId, principal.tenantId, principal.userId, opts.conversationId, opts.turnId, name,
+        json::compact(args), summary,
+        def.targetResource && args.isMember("id") ? def.targetResource : std::nullopt,
+        args.isMember("id") ? std::optional<std::string>(args["id"].asString()) : std::nullopt,
+        db::nullable(pinned), opts.sourceMessageId, opts.origin};
+    co_await tx.execParams(
+        "INSERT INTO approval_requests (id, tenant_id, created_by_kind, created_by_id, user_id, conversation_id, "
+        "turn_id, tool, args, summary, target_type, target_id, target_version, source_message_id, origin) "
+        "VALUES ($1::uuid, $2::uuid, 'agent', $3::uuid, $3::uuid, $4::uuid, $5::uuid, $6, $7::jsonb, $8, $9, "
+        "$10::uuid, $11::int, $12::uuid, $13::origin_kind)",
+        params);
+    co_await tx.commit();
+    InvokeResult pending;
+    pending.outcome = Outcome::PendingApproval;
+    pending.status = 202;
+    pending.value["status"] = "pending_approval";
+    pending.value["approval_id"] = approvalId;
+    co_return pending;
   }
 
   // 5. execute
-  ToolCall call{def, principal, tx, std::move(args), expectedVersion, opts.requestId};
+  ToolCall call{def, principal, tx, std::move(args), expectedVersion, opts.requestId, opts.origin,
+                opts.sourceMessageId, {}};
   InvokeResult result;
   std::optional<ApiError> mapped;
   try {
@@ -206,7 +251,32 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
         params);
   }
   co_await tx.commit();
+  for (auto& fn : call.afterCommit) fn();
   co_return result;
+}
+
+drogon::Task<Json::Value> ToolRegistry::runInTx(const std::string& name, const auth::Principal& principal,
+                                                db::TenantTx& tx, Json::Value args, std::string origin,
+                                                std::optional<std::string> sourceMessageId) {
+  auto it = bindings_.find(name);
+  if (it == bindings_.end()) throw ApiError::notFound("Unknown operation.");
+  const auto& def = tool(name);
+  normalizeNumbers(args);
+  validateArgs(*it->second.validator, args);
+  std::optional<int> expectedVersion;
+  if (args.isMember("expected_version")) {
+    expectedVersion = args["expected_version"].asInt();
+    args.removeMember("expected_version");
+  }
+  ToolCall call{def, principal, tx, std::move(args), expectedVersion, "", std::move(origin), std::move(sourceMessageId), {}};
+  std::optional<ApiError> mapped;
+  try {
+    co_return co_await it->second.handler(call);
+  } catch (const drogon::orm::DrogonDbException& e) {
+    mapped = mapDbError(e);
+    if (!mapped) throw;
+  }
+  throw *mapped;
 }
 
 ToolRegistry& registry() {

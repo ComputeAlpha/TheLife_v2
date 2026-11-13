@@ -156,10 +156,12 @@ tools::TargetResolver targetResolver(const std::string& table) {
   const auto q = quoted(table);
   return [q](db::TenantTx& tx, const std::string& id) -> Task<std::optional<tools::TargetProvenance>> {
     const auto rows = co_await tx.exec(
-        "SELECT created_by_kind::text AS k, origin::text AS o FROM " + q + " WHERE id = $1::uuid AND deleted_at IS NULL",
+        "SELECT created_by_kind::text AS k, origin::text AS o, version, created_at > now() - interval '24 hours' AS recent "
+        "FROM " + q + " WHERE id = $1::uuid AND deleted_at IS NULL",
         id);
     if (rows.empty()) co_return std::nullopt;
-    co_return tools::TargetProvenance{rows[0]["k"].as<std::string>(), rows[0]["o"].as<std::string>()};
+    co_return tools::TargetProvenance{rows[0]["k"].as<std::string>(), rows[0]["o"].as<std::string>(),
+                                      rows[0]["version"].as<int>(), rows[0]["recent"].as<bool>()};
   };
 }
 
@@ -258,7 +260,8 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
       doc["tenant_id"] = c.principal.tenantId;
       doc["created_by_kind"] = auth::createdByKind(c.principal.kind);
       doc["created_by_id"] = c.principal.actorId().empty() ? Json::Value() : Json::Value(c.principal.actorId());
-      doc["origin"] = "direct";
+      doc["origin"] = c.origin;
+      if (c.sourceMessageId) doc["source_message_id"] = *c.sourceMessageId;
       const auto* cols = co_await columns().get(c.tx, table);
       checkColumns(*cols, doc, table);
       std::string list;

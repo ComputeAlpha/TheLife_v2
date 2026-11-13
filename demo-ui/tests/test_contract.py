@@ -33,3 +33,19 @@ def test_secret_returning_creates_and_actions_are_found():
 def test_later_stage_and_device_only_operations_are_hidden():
     c = Contract(OPENAPI, 1)
     assert "devices.self_heartbeat" not in c.ops and "ingest.captures" not in c.ops
+
+
+def test_stage_two_adds_approvals_and_conversations():
+    c = Contract(OPENAPI, 2)
+    assert {"approvals", "conversations"} <= set(c.resources)
+    assert {a.verb for a in c.resources["approvals"].actions} == {"approve", "reject"}
+    assert c.resources["approvals"].create is None and c.resources["approvals"].update is None
+    assert "approvals" not in Contract(OPENAPI, 1).resources
+    assert "devices.self_notifications" not in c.ops  # device-only
+
+
+def test_memory_facts_are_listed_with_their_statement():
+    c = Contract(OPENAPI, 2)
+    r = c.resources["memory_facts"]
+    assert r.create is None and r.update is None and r.delete is not None and r.delete.if_match
+    assert r.title_of({"id": "x", "statement": "Prefers deep work before noon"}) == "Prefers deep work before noon"

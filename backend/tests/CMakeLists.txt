@@ -19,8 +19,9 @@ gtest_discover_tests(thelife_unit_tests PROPERTIES LABELS "unit")
 
 # api: real binary on a free port (+ database when THELIFE_TEST_DB_URL / THELIFE_TEST_ADMIN_DB_URL are set)
 add_executable(thelife_api_tests api/health_test.cc api/auth_test.cc api/planning_test.cc
-               api/resources_test.cc api/contract_test.cc api/domain_test.cc api/llm_test.cc)
-target_link_libraries(thelife_api_tests PRIVATE thelife_test_support GTest::gtest_main thelife_warnings)
+               api/resources_test.cc api/contract_test.cc api/domain_test.cc api/llm_test.cc
+               api/agent_test.cc api/memory_test.cc)
+target_link_libraries(thelife_api_tests PRIVATE thelife_test_support GTest::gtest_main CURL::libcurl thelife_warnings)
 add_dependencies(thelife_api_tests thelife-backend)
 gtest_discover_tests(thelife_api_tests PROPERTIES LABELS "api")
 

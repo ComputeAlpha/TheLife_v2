@@ -1,4 +1,5 @@
 name: skill_sections
+agent_group: skills
 schema: CourseSection
 noun: course section
 path: /skills/sections

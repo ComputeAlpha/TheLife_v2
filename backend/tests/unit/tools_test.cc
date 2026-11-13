@@ -90,3 +90,27 @@ TEST(Policy, PermissionTableOfToolRegistrySpec) {
   EXPECT_EQ(decide({agent, create, std::nullopt, false}), Decision::Deny);
   EXPECT_EQ(decide({agent, update, TargetProvenance{"agent", "direct"}, false}), Decision::Deny);
 }
+
+TEST(Policy, NamedPoliciesAndUndo) {
+  using K = auth::PrincipalKind;
+  const auto agent = as(K::Agent);
+  auto progress = toolWith(Effect::Update);
+  progress.policy = "user_reported_progress";
+  const TargetProvenance userTask{"user", "direct", 3, false};
+  PolicyInput in{agent, progress, userTask};
+  EXPECT_EQ(decide(in), Decision::RequireApproval);  // not from a user message
+  in.userTurn = true;
+  EXPECT_EQ(decide(in), Decision::Allow);
+  in.agentWritesEnabled = false;
+  EXPECT_EQ(decide(in), Decision::Deny);  // the kill switch still wins
+
+  auto forget = toolWith(Effect::Delete);
+  forget.policy = "user_stated_fact";
+  EXPECT_EQ(decide({agent, forget, TargetProvenance{"agent", "user_stated", 1, true}}), Decision::RequireApproval);
+  EXPECT_EQ(decide({agent, forget, TargetProvenance{"agent", "inferred", 1, false}}), Decision::Allow);
+
+  const auto del = toolWith(Effect::Delete);
+  EXPECT_EQ(decide({agent, del, TargetProvenance{"agent", "user_stated", 1, true}}), Decision::Allow);   // undo
+  EXPECT_EQ(decide({agent, del, TargetProvenance{"agent", "user_stated", 1, false}}), Decision::RequireApproval);
+  EXPECT_EQ(decide({agent, del, TargetProvenance{"user", "direct", 1, true}}), Decision::RequireApproval);
+}

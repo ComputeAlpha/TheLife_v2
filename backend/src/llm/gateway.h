@@ -33,7 +33,10 @@ struct GatewayConfig {
 };
 
 struct ProviderStatus {
-  std::string provider;
+  std::string provider;  // configured name (display)
+  // Storage identity: name + hash of endpoint and model. Quota state belongs to an endpoint, so pointing a name at
+  // another endpoint (or a test's fake server) starts from fresh state.
+  std::string key;
   std::string state = "healthy";  // healthy | throttled | exhausted | probing | disabled
   std::optional<Clock::time_point> until;
   std::string quotaScope;
@@ -129,6 +132,9 @@ void initGateway();
 Gateway& gateway();
 // For tests and tools: replaces the process-wide gateway.
 void setGateway(std::unique_ptr<Gateway> g);
+
+// Storage key of a provider's state (name#hash(endpoint, model)).
+std::string stateKey(const ProviderConfig& c);
 
 // Parses a config document (exposed for tests). Throws std::invalid_argument on bad input.
 GatewayConfig parseConfig(const Json::Value& doc);

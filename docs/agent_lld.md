@@ -189,9 +189,36 @@ run_turn(input):
   deliver final message (channel) or no_message
 ```
 - Limits per turn: 8 steps, 30 tool calls, token cap per turn (config). Hitting a limit ends the turn with a summary of what was done.
-- **Approvals:** the stored approval holds the exact tool name, args, the target's `version`, and a human-readable diff. Approve → execute with `If-Match: version`; if the target changed meanwhile, the approval becomes `stale` and the agent is triggered to re-propose. Approvals expire after 72 h **(proposed)**. They can be approved or rejected from the web UI, from Telegram inline buttons, or by command (`/approve 12`).
+- **Approvals:** the stored approval holds the exact tool name, args, the target's `version`, and a human-readable diff. Approve → execute with `If-Match: version`; if the target changed meanwhile, the approval becomes `stale` and the agent is triggered to re-propose. Approvals expire after 72 h (decided 2026-11-13). They can be approved or rejected from the web UI, from Telegram inline buttons, or by command (`/approve 12`).
 - **Kill switch** (`tenants.agent_writes_enabled=false`): all agent write tools are denied; read tools and chat still work.
 - **Audit:** every tool call gets an `agent_actions` row (tool, args, decision, result summary, conversation, message id).
+
+**Implementation (Stage 2, increment 2):** `backend/src/agent/`, `backend/src/modules/agent.cc`.
+- **Turn queue:** one lane per (user, channel); turns of a lane run in order. The context is rebuilt from the database
+  before every model call, so a message that arrives mid-turn is seen by the next call. Each turn records
+  `seen_until` (the newest message in its last model call); a queued turn whose message a finished turn already saw
+  ends as `merged`, so nothing is answered twice and nothing is left unanswered.
+- **Provenance:** items created in a turn started by a user message get `origin = user_stated` and
+  `source_message_id`; other turns (approval follow-ups, later triggers) create `inferred` items.
+- **Policy additions:** the named policy `user_reported_progress` (on `tasks.complete_occurrence` and
+  `tasks.skip_occurrence`) allows the call during a turn started by a user message, because the turn's input is
+  what the user reported. **Undo:** the agent may delete an item it created within the last 24 h. Everything else
+  follows the table in `tool_registry.md` §4. The kill switch is read from `tenants` on every agent write.
+- **Approvals:** stored in `approval_requests` and served through the `approvals` view, which reads a pending
+  approval past `expires_at` as `expired` (no job needed). Approve runs the stored call as the agent, with
+  `expected_version` pinned to the version the agent saw, inside a savepoint of the decision's own transaction:
+  decision and effect commit together. A 412 or 404 makes the approval `stale` and nothing runs. Every decision
+  (approve or reject) starts an `approval` turn on the channel the request came from, so the agent tells the user
+  what happened and re-proposes a stale change if it still makes sense.
+- **Audit:** every agent tool call writes `agent_actions` (tool, args, decision, outcome, approval, result summary or
+  error, contract version), including calls that were denied, invalid or held. Approve/reject decisions are rows too.
+- **Deterministic mode:** messages starting with `/` never reach the model: `/help`, `/today`, `/done N`,
+  `/skip N [reason]`, `/tasks`, `/approvals`, `/approve N`, `/reject N [reason]` (numbers refer to the latest
+  listing, recomputed each time). While the gateway is in manual mode (or unconfigured), other messages get the
+  fixed offline reply with the reset time; they are saved, and answering them on reset arrives with the trigger
+  engine (deferred-reply catch-up).
+- **Limits:** 8 model calls and 30 tool calls per turn; hitting the step limit ends the turn with a summary of what
+  ran. Tool errors go back to the model as results (status, title, JSON-pointer errors) so it can correct itself.
 
 ### 5.1 Agent-only tools (beyond domain CRUD tools)
 `memory.recall`, `memory.remember`, `memory.update_fact`, `memory.forget` (approval required when the fact was user-stated), `agent.schedule_followup`, `agent.cancel_followup`, `context.now` (current activity, today's plan, deterministic plan progress so far), `history.search` (semantic, 3-month window), `detections.adjudicate` (dispute flow only), `notify.urgent` (marks the final message urgent; rate-limited).
@@ -220,6 +247,29 @@ run_turn(input):
 
 **Day close** happens at `day_start_hour` local time. The conversation for that channel and day is closed; a new message opens a new one.
 
+**Implementation (Stage 2, increment 3):** `backend/src/memory/`, `backend/src/modules/memory.cc`.
+- **Day close:** the scheduler queues one `day.close` job per user per local day (`ops.day_closes` makes it exactly
+  once, and a restart catches up). It closes the day's conversations, marks unfinished routine occurrences
+  `missed`, and queues `memory.compress_day` per channel with user messages. Sundays also queue the week rollup and
+  decay salience (×0.9 for entities unused for 7 days, pinned exempt); month ends queue the month rollup.
+- **One call per channel-day (deviation, decided here):** `registry.extract` is folded into `memory.compress_day`. A
+  single structured call (`prompts/jobs/compress_day.md`, reasoning `low`) returns the day summary, topics and up
+  to 10 durable facts. Facts with confidence ≥ 0.7 that do not contradict a known fact become `active`
+  (`origin = inferred`); the rest are `proposed` and stay out of the prompt. Duplicate statements are ignored.
+- **Context sections in use:** core profile (pinned, then by salience; 30 facts), the Now note, day summaries of
+  the 7 days before yesterday on the same channel, facts about entities named in the latest user message, then
+  yesterday's and today's transcript verbatim. Week and month rollups are stored for the weekly review.
+- **Tools:** `memory.remember` (dedupes; `user_stated` from a user's message), `memory.recall` (name, alias and
+  full-text match; marks facts used and raises salience), `memory.update_fact` (supersedes; approval for facts the
+  user stated), `memory.forget` (named policy `user_stated_fact`), `history.search` (keyword search over messages,
+  activities and day summaries, 3-month default window). An approved change keeps the origin of the request.
+  Users see and delete facts at `/memory/facts`.
+- **Not yet:** embeddings and semantic retrieval (`thelife-embedder`, next increment; `history.search` and entity
+  matching then gain a vector path), overflow compaction (§6.3), the cross-channel digest (with Telegram), and a
+  review flow for `proposed` facts.
+- **Model offline:** memory jobs throw `Defer` on `ProviderUnavailable` (until `resets_at`) or `RateLimited`, so
+  they wait in the queue without spending attempts and run in priority order after the reset (§3.4 catch-up).
+
 ### 6.3 Overflow handling
 If working memory overflows the budget: (1) shrink section 6, (2) replace yesterday's verbatim conversation with its summary plus its last 10 messages, (3) summarize today's oldest turns into a running summary (`messages.kind = rolling_summary`). The verbatim messages always stay in the DB; only the prompt changes.
 
@@ -246,6 +296,10 @@ kg_facts(id, tenant_id, subject_id, predicate text, object_id NULL, value text N
 ### 7.1 Web chat
 - `POST /api/v1/chat/web/messages {text, client_msg_id}` returns `202 {turn_id}`. `GET /api/v1/chat/web/stream` is a per-user SSE stream of `turn.started | token | tool.started | tool.finished | approval.requested | turn.finished | notification`.
 - `GET /api/v1/conversations?channel=&from=&to=` and `GET /api/v1/conversations/{id}/messages` for history.
+- **Implemented (increment 2):** `POST /chat/web/messages {text, client_msg_id?}` (the id, or `Idempotency-Key`,
+  makes resends return the original turn), `GET /chat/turns/{id}` for clients without the stream, and the stream
+  events `turn.started`, `token`, `reset` (retract streamed text: a retry, or leaked reasoning), `tool.started`,
+  `tool.finished`, `approval.requested`, `message`, `turn.finished`, with a comment heartbeat every 20 s.
 
 ### 7.2 Telegram
 - **Long polling** (`getUpdates`) from the backend, so there is no public webhook endpoint and nothing inbound to expose. Bot token from env.
@@ -296,6 +350,10 @@ Routing, evaluated per notification:
 1. **Desktop** if a collector heartbeat is fresh (< 2 min) and the user is not idle or locked. The collector long-polls and acks (`collector_lld.md` §7.5).
 2. **Browser** if a web UI tab holds the SSE stream (Notification API in the tab). Web Push with VAPID for closed tabs comes later **(proposed)**.
 3. **Telegram** if neither of the above acks within 3 min, or immediately when the user is away (no fresh heartbeat).
+
+**Implemented so far (increment 2):** the `notifications` and `notification_deliveries` tables, and the collector's
+long poll (`GET /devices/self/notifications?wait=`, repeated in short transactions by the REST adapter) and ack. The
+Notifier that creates notifications and routes them arrives with triggers and reminders.
 
 An ack on any channel resolves the notification, so it is not delivered again elsewhere. The message content lives in the conversation of the channel where it was **first delivered**. A desktop click opens the web chat, so desktop and browser deliveries belong to the web conversation.
 

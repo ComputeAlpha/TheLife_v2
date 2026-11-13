@@ -98,6 +98,15 @@ std::vector<FieldError> SchemaValidator::validate(const Json::Value& instance) c
           continue;
         }
       }
+      // "Missing required property 'title'." → /title: is required
+      static const std::string kMissing = "Missing required property '";
+      if (e.description.rfind(kMissing, 0) == 0) {
+        const auto q = e.description.find('\'', kMissing.size());
+        if (q != std::string::npos) {
+          errs.push_back({path + "/" + e.description.substr(kMissing.size(), q - kMissing.size()), "is required"});
+          continue;
+        }
+      }
       errs.push_back({path, e.description});
     }
   }

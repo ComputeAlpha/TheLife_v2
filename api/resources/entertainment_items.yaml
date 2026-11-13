@@ -1,4 +1,5 @@
 name: entertainment_items
+agent_group: entertainment
 schema: EntertainmentItem
 noun: entertainment item
 path: /entertainment/items

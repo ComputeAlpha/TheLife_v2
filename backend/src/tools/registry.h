@@ -25,6 +25,9 @@ struct ToolCall {
   Json::Value args;                     // validated against tool.inputSchema, expected_version removed
   std::optional<int> expectedVersion;   // If-Match (REST) or expected_version (agent)
   std::string requestId;
+  std::string origin = "direct";        // provenance of created rows (agent chat capture: user_stated)
+  std::optional<std::string> sourceMessageId;
+  std::vector<std::function<void()>> afterCommit;  // run once the call's transaction has committed
 };
 
 using ToolHandler = std::function<drogon::Task<Json::Value>(ToolCall&)>;
@@ -44,6 +47,12 @@ struct InvokeResult {
 struct InvokeOptions {
   std::string requestId;
   std::optional<std::string> idempotencyKey;
+  // Agent calls (agent_lld.md §5, §7.4)
+  std::string origin = "direct";
+  std::optional<std::string> sourceMessageId;
+  std::optional<std::string> conversationId;
+  std::optional<std::string> turnId;
+  bool userTurn = false;
 };
 
 // The single gate every capability passes through, from REST today and from the agent and MCP later
@@ -62,6 +71,12 @@ class ToolRegistry {
 
   drogon::Task<InvokeResult> invoke(const std::string& name, const auth::Principal& principal, Json::Value args,
                                     InvokeOptions opts);
+
+  // Runs a tool's handler inside the caller's transaction with schema validation but no policy: for trusted
+  // composition (an approved action, context.now reading calendar.view). DB errors map to ApiError.
+  drogon::Task<Json::Value> runInTx(const std::string& name, const auth::Principal& principal, db::TenantTx& tx,
+                                    Json::Value args, std::string origin = "direct",
+                                    std::optional<std::string> sourceMessageId = std::nullopt);
 
  private:
   struct Binding {

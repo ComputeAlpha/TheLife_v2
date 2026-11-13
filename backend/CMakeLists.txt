@@ -24,7 +24,34 @@ add_custom_command(
   DEPENDS "${THELIFE_MANIFEST}" ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_text.cmake
   COMMENT "Embedding tool manifest")
 
-set(THELIFE_STAGE 1 CACHE STRING "Delivery stage implemented by this build")
+# Prompts are compiled in too; their version and hash are recorded with every message and LLM call
+# (agent_lld.md §9). prompts/<dir>/<name>.md becomes the symbol kPrompt_<dir>_<name>.
+file(GLOB_RECURSE _prompts RELATIVE "${CMAKE_SOURCE_DIR}/prompts" CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/prompts/*.md")
+set(THELIFE_PROMPT_SOURCES)
+set(_prompt_table "")
+foreach(_p IN LISTS _prompts)
+  string(REGEX REPLACE "\\.md$" "" _stem "${_p}")
+  string(REGEX REPLACE "[^A-Za-z0-9]" "_" _sym "kPrompt_${_stem}")
+  set(_out "${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/${_sym}.cc")
+  add_custom_command(
+    OUTPUT "${_out}"
+    COMMAND ${CMAKE_COMMAND} -DIN=${CMAKE_SOURCE_DIR}/prompts/${_p} -DOUT=${_out} -DSYMBOL=${_sym}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_text.cmake
+    DEPENDS "${CMAKE_SOURCE_DIR}/prompts/${_p}" ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_text.cmake
+    COMMENT "Embedding prompt ${_p}")
+  list(APPEND THELIFE_PROMPT_SOURCES "${_out}")
+  string(APPEND _prompt_decls "extern const std::string_view ${_sym};\n")
+  string(APPEND _prompt_table "  {\"${_stem}\", ${_sym}},\n")
+endforeach()
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc.in"
+     "// GENERATED: every prompt file under prompts/.\n#include <map>\n#include <string>\n#include <string_view>\n"
+     "namespace thelife::generated {\n${_prompt_decls}const std::map<std::string, std::string_view>& promptFiles() {\n"
+     "  static const std::map<std::string, std::string_view> m{\n${_prompt_table}  };\n  return m;\n}\n}\n")
+configure_file("${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc" COPYONLY)
+list(APPEND THELIFE_PROMPT_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc")
+
+set(THELIFE_STAGE 2 CACHE STRING "Delivery stage implemented by this build")
 configure_file(src/core/build_info.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/core/build_info.h" @ONLY)
 
 add_library(thelife_warnings INTERFACE)
@@ -42,6 +69,11 @@ add_library(thelife_core STATIC
   src/db/database.cc
   src/db/tenant_tx.cc
   src/db/llm_store.cc
+  src/db/job_store.cc
+  src/jobs/worker.cc
+  src/memory/registry.cc
+  src/memory/jobs.cc
+  src/modules/memory.cc
   src/auth/authenticator.cc
   src/auth/rate_limiter.cc
   src/http/route.cc
@@ -66,7 +98,16 @@ add_library(thelife_core STATIC
   src/modules/calendar.cc
   src/modules/detections.cc
   src/modules/access.cc
+  src/modules/agent.cc
+  src/modules/notifications.cc
+  src/agent/prompt.cc
+  src/agent/events.cc
+  src/agent/store.cc
+  src/agent/runner.cc
+  src/agent/commands.cc
+  src/http/chat_routes.cc
   "${THELIFE_MANIFEST_CC}"
+  ${THELIFE_PROMPT_SOURCES}
 )
 target_include_directories(thelife_core PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/generated")
 target_link_libraries(thelife_core PUBLIC Drogon::Drogon unofficial-sodium::sodium valijson ical CURL::libcurl PRIVATE thelife_warnings)

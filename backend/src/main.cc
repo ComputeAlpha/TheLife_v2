@@ -7,11 +7,14 @@
 #include "core/env.h"
 #include "db/database.h"
 #include "http/auth_routes.h"
+#include "http/chat_routes.h"
 #include "http/health.h"
 #include "http/llm_routes.h"
 #include "http/rest_adapter.h"
 #include "http/route.h"
+#include "jobs/worker.h"
 #include "llm/gateway.h"
+#include "memory/jobs.h"
 #include "modules/modules.h"
 #include "tools/registry.h"
 
@@ -29,11 +32,14 @@ int main() {
     thelife::http::registerAuthRoutes();
     thelife::llm::initGateway();
     thelife::http::registerLlmRoutes();
+    thelife::http::registerChatRoutes();
     auto& registry = thelife::tools::registry();
     thelife::modules::bindAll(registry);
     registry.verifyComplete(thelife::build::kStage);  // refuse to start with an unimplemented contract tool
     thelife::http::registerToolRoutes();
     thelife::http::installMethodNotAllowed();
+    thelife::memory::registerJobs();
+    if (thelife::db::Database::instance().configured()) thelife::jobs::startWorker();
 
     LOG_INFO << "thelife-backend " << thelife::build::kVersion << " listening on " << addr << ":" << port;
     drogon::app()

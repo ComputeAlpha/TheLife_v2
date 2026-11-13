@@ -1,4 +1,5 @@
 name: activities
+agent_group: planning
 schema: Activity
 noun: activity
 plural_noun: activities
@@ -23,4 +24,4 @@ filters:
   to: {$ref: Timestamp}
   area: {$ref: Area}
   source: {type: string, enum: [manual, detection, agent]}
-ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}
+ops: {list: {}, get: {}, create: {agent_group: core}, update: {}, delete: {}}

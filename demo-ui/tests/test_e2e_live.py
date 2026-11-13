@@ -102,3 +102,20 @@ def test_device_token_is_shown_once(ui):
 def test_every_resource_page_renders(ui):
     for prefix in ui.application.extensions["demo"]["contract"].resources:
         assert ui.get(f"/r/{prefix}").status_code == 200, prefix
+
+
+def test_chat_command_round_trip(ui):
+    """Deterministic commands answer without a model, so this works whether or not the backend has an LLM."""
+    page = ui.get("/chat").get_data(as_text=True)
+    client_id = re.search(r'name="client_id" value="([0-9a-f]+)"', page).group(1)
+    r = ui.post("/chat", data={"csrf": ui.csrf, "text": "/help", "client_id": client_id})
+    assert r.status_code == 302 and "/chat?turn=" in r.headers["Location"]
+    turn_url = r.headers["Location"]
+    for _ in range(100):
+        html = ui.get(turn_url).get_data(as_text=True)
+        if "working on it" not in html:
+            break
+    assert "/approve N, /reject N" in html
+    # Resubmitting the same form does not send the message twice.
+    again = ui.post("/chat", data={"csrf": ui.csrf, "text": "/help", "client_id": client_id})
+    assert again.headers["Location"] == turn_url

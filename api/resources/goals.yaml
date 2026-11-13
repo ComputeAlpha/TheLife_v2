@@ -1,4 +1,5 @@
 name: goals
+agent_group: planning
 schema: Goal
 noun: goal
 path: /goals

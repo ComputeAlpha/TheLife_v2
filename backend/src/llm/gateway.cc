@@ -10,6 +10,7 @@
 #include <thread>
 
 #include "core/blocking.h"
+#include "core/crypto.h"
 #include "core/env.h"
 #include "core/json.h"
 #include "tools/schema_validator.h"
@@ -60,18 +61,34 @@ std::optional<Json::Value> extractJsonObject(const std::string& text) {
 
 }  // namespace
 
+std::string stateKey(const ProviderConfig& c) {
+  if (c.kind == "stub") return c.name;
+  const auto digest = crypto::sha256(c.kind + "\n" + c.baseUrl + "\n" + c.chatModel);
+  static constexpr char kHex[] = "0123456789abcdef";
+  std::string h;
+  for (std::size_t i = 0; i < 5; ++i) {
+    h += kHex[digest[i] >> 4];
+    h += kHex[digest[i] & 0x0F];
+  }
+  return c.name.substr(0, 40) + "#" + h;
+}
+
 Gateway::Gateway(GatewayConfig cfg, std::vector<std::unique_ptr<Provider>> providers,
                  std::shared_ptr<StateStore> store, std::shared_ptr<UsageSink> usage, GatewayHooks hooks)
     : cfg_(std::move(cfg)), store_(std::move(store)), usage_(std::move(usage)), hooks_(std::move(hooks)) {
   std::map<std::string, ProviderStatus> saved;
   if (store_) {
-    for (auto& s : store_->load()) saved[s.provider] = s;
+    for (auto& s : store_->load()) saved[s.key] = s;
   }
   for (auto& p : providers) {
     Slot slot;
     slot.status.provider = p->config().name;
+    slot.status.key = stateKey(p->config());
     slot.status.changedAt = now();
-    if (auto it = saved.find(slot.status.provider); it != saved.end()) slot.status = it->second;
+    if (auto it = saved.find(slot.status.key); it != saved.end()) {
+      slot.status = it->second;
+      slot.status.provider = p->config().name;
+    }
     // A probe interrupted by a restart is retried as exhausted-and-due.
     if (slot.status.state == "probing") slot.status.state = "exhausted";
     slot.provider = std::move(p);

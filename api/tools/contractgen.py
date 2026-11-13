@@ -38,6 +38,9 @@ EXPOSURES = {"rest", "agent", "mcp"}
 PRINCIPALS = {"user", "agent", "api_key", "device"}
 STANDARD_OPS = ("list", "get", "create", "update", "delete")
 OP_EFFECT = {"list": "read", "get": "read", "create": "create", "update": "update", "delete": "delete"}
+# Agent tool groups (docs/tool_registry.md §6): "core" is sent on every turn, the others on agent.load_tools.
+AGENT_GROUPS = {"core", "planning", "work", "skills", "entertainment", "detections"}
+POLICIES = {"user_reported_progress", "bulk_threshold", "user_stated_fact"}
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 
 
@@ -115,19 +118,24 @@ class Model:
         self.tools: list[dict] = []
         self.operations: list[dict] = []  # (path, method, operation object)
         self.tags: list[dict] = []
+        # Schemas first, so any resource may reference another's schemas regardless of file order.
+        for r in resources:
+            self.add_schemas(r)
         for r in resources:
             self.add_resource(r)
         self.validate()
 
     # --- resources
-    def add_resource(self, r):
-        name = r["name"]
-        self.tags.append({"name": r.get("tag", name), "description": r.get("description", "").strip()})
+    def add_schemas(self, r):
         for sname, s in (r.get("extra_schemas") or {}).items():
             self._add_schema(sname, s, r)
-        schema = r.get("schema")
-        if schema:
+        if r.get("schema"):
             self._add_resource_schemas(r)
+
+    def add_resource(self, r):
+        name = r["name"]
+        if not any(t["name"] == r.get("tag", name) for t in self.tags):
+            self.tags.append({"name": r.get("tag", name), "description": r.get("description", "").strip()})
         for op, overrides in (r.get("ops") or {}).items():
             if op not in STANDARD_OPS:
                 raise ContractError(f"{r['_file']}: unknown standard op {op}")
@@ -168,6 +176,7 @@ class Model:
             "exposure": overrides.get("exposure", r.get("exposure", ["rest", "agent", "mcp"])),
             "principals": overrides.get("principals", r.get("principals", ["user", "agent", "api_key"])),
             "stage": overrides.get("stage", r.get("stage", 1)),
+            "agent_group": overrides.get("agent_group", r.get("agent_group")),
         }
         meta.update(defaults)
         return meta
@@ -203,7 +212,9 @@ class Model:
         self._emit(r, spec, ov)
 
     def _add_action(self, r, a):
-        required_keys = {"name", "method", "path", "effect", "summary"}
+        required_keys = {"name", "effect", "summary"}
+        if "rest" in a.get("exposure", r.get("exposure", ["rest"])):
+            required_keys |= {"method", "path"}
         missing = required_keys - set(a)
         if missing:
             raise ContractError(f"{r['_file']}: action {a.get('name')} missing {missing}")
@@ -213,7 +224,8 @@ class Model:
                         if r.get("scope") else [])
         spec.setdefault("description", a["summary"] + ".")
         spec.setdefault("status", 200)
-        spec["path"] = a["path"] if a.get("absolute") else BASE + a["path"]
+        spec.setdefault("method", "post")
+        spec["path"] = a.get("path", "") if a.get("absolute") else BASE + a.get("path", "")
         self._emit(r, spec, a)
 
     def _emit(self, r, spec, ov):
@@ -241,7 +253,9 @@ class Model:
             arg_props = {**params, **query}
             if body_props:
                 arg_props.update(body_props)
-            if spec.get("if_match"):
+            # Every update/delete of a target takes expected_version (docs/tool_registry.md §3): REST sends it as
+            # If-Match; approvals pin it so a changed target makes the approval stale.
+            if spec.get("if_match") or (spec["effect"] in ("update", "delete") and spec.get("target")):
                 arg_props["expected_version"] = {"type": "integer", "minimum": 1, "description":
                     "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."}
             input_schema = inline(obj(arg_props, required=list(params) + body_required), self.schemas)
@@ -261,6 +275,7 @@ class Model:
                 "stage": meta["stage"],
                 "target": target,
                 "policy": spec.get("policy"),
+                "agent_group": meta["agent_group"] if "agent" in meta["exposure"] else None,
                 "input_schema": input_schema,
                 "output_schema": output_schema,
                 "rest": {"method": spec["method"].upper(), "path": spec["path"], "success_status": spec["status"],
@@ -299,8 +314,8 @@ class Model:
         if returns is None:
             op["responses"][status] = {"description": "Done"}
         else:
-            resp = {"description": "OK", "content": {"application/json": {"schema": to_openapi(
-                {"$ref": returns} if isinstance(returns, str) else returns)}}}
+            resp = {"description": "OK", "content": {spec.get("response_content_type", "application/json"): {
+                "schema": to_openapi({"$ref": returns} if isinstance(returns, str) else returns)}}}
             if spec.get("target") or spec["effect"] in ("create", "update"):
                 resp["headers"] = {"ETag": {"$ref": "#/components/headers/ETag"}}
             op["responses"][status] = resp
@@ -358,6 +373,10 @@ class Model:
                     and not t["target"] and not t.get("policy"):
                 raise ContractError(f"{t['name']}: agent-exposed {t['effect']} needs a target or explicit policy "
                                     f"so the permission policy can inspect provenance")
+            if "agent" in t["exposure"] and t["agent_group"] not in AGENT_GROUPS:
+                raise ContractError(f"{t['name']}: agent tools need agent_group, one of {sorted(AGENT_GROUPS)}")
+            if t.get("policy") and t["policy"] not in POLICIES:
+                raise ContractError(f"{t['name']}: unknown policy {t['policy']}")
             if t["rest"] and not t["scopes"] and "api_key" in t["principals"]:
                 raise ContractError(f"{t['name']}: api_key principals need scopes")
             for p in t["rest"]["path_args"] if t["rest"] else []:
@@ -393,7 +412,11 @@ class Model:
     def manifest(self):
         tools = sorted(self.tools, key=lambda t: t["name"])
         digest = hashlib.sha256(json.dumps(tools, sort_keys=True).encode()).hexdigest()[:16]
-        return {"contract_version": digest, "tools": tools}
+        groups: dict = {}
+        for t in tools:
+            if t.get("agent_group"):
+                groups.setdefault(t["agent_group"], []).append(t["name"])
+        return {"contract_version": digest, "agent_groups": groups, "tools": tools}
 
     def agent_tools(self):
         out = []

@@ -39,7 +39,7 @@ References use the short form `{$ref: Name}`. Sibling keys such as `description`
 | `extra_schemas` | Additional named schemas |
 | `exposure`, `principals`, `stage` | Defaults for all tools in the file |
 
-Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `method`, `path` (relative to `/api/v1` unless `absolute: true`), `effect`, `summary`, `params` (path), `query`, `body`, `returns`, `status`, `target`, `scopes`, `principals`, `exposure`, `stage`, `public`, `tool: false` (REST-only plumbing such as login and health), `idempotency_required`, `content_type`, `extra_responses`, `policy`.
+Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `method`, `path` (relative to `/api/v1` unless `absolute: true`), `effect`, `summary`, `params` (path), `query`, `body`, `returns`, `status`, `target`, `scopes`, `principals`, `exposure`, `stage`, `public`, `tool: false` (REST-only plumbing such as login and health), `idempotency_required`, `content_type`, `response_content_type` (for example `text/event-stream`), `extra_responses`, `policy` (one of the named policies), `agent_group`. `method` and `path` are only required for REST-exposed actions (agent-only tools have neither).
 
 ## 3. Tool Semantics (`tools.json`)
 
@@ -76,7 +76,8 @@ Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `met
   - `bulk_threshold`: approval when one call affects more than the tenant's `agent.bulk_threshold` items.
   - `user_stated_fact`: approval to forget a user-stated memory fact.
 - Every non-user call writes an `agent_actions` audit row: tool, args, decision, result summary, principal and conversation.
-- **Open for Stage 2:** `tasks.complete_occurrence` and `tasks.skip_occurrence` are `update` effects on the Task. Under the table, an agent logging "done" for a routine the user created would need approval, which is wrong for chat-as-data-entry. A named policy such as `user_reported_progress` (allow and audit when the triggering message states it) is the likely fix.
+- **Resolved in Stage 2 (2026-11-13):** `tasks.complete_occurrence` and `tasks.skip_occurrence` carry the named policy `user_reported_progress`: allowed (and audited) during a turn started by a user message, held for approval otherwise. Logging "done" for a routine from chat is data entry, not an edit of the user's plan.
+- **Undo (Stage 2):** an agent delete is allowed without approval when the agent created the target within the last 24 h (the receipt's "undo"). Deleting anything else still needs approval.
 
 ## 5. Backend Integration (Stage 1)
 
@@ -100,7 +101,7 @@ Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `met
 The full agent surface is **81 tools ≈ 11k tokens** per call (measured from `agent_tools.json`). That is too large to send on every turn, and tool-choice accuracy drops with that many options.
 
 **Decision: tool groups with on-demand loading.** The generator gains `agent_group` and emits a groups index in Stage 2.
-- Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`, `admin`).
+- Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`); an op or action may override it (`agent_group: core`). The generator rejects an agent tool without a group and emits the index as `agent_groups` in `tools.json`. **Implemented (Stage 2):** core is 13 tools; the loop sends core plus the groups loaded in the turn, and calls to an unloaded tool are answered with an error telling the model to load the group.
 - Every turn sends `core`, about 15 tools / 2.5k tokens:
   - capture: `activities.create`, `tasks.create`, `tasks.update`, `reminders.create`, `skill_sessions.create`
   - `calendar.view`, `context.now`, `memory.recall` / `memory.remember`, `history.search`
@@ -115,4 +116,4 @@ Rejected alternative: generic `records.list|get|create|update(type, …)` tools 
 
 - Additive changes (new optional field, new tool, new filter) stay in `/api/v1`. Renaming or removing anything, or adding a required field, needs `/api/v2` or a deprecation window.
 - `contract_version` (hash of the tool manifest) is recorded on `agent_actions` and `llm_calls`, so behaviour can be traced to the contract in force.
-- Stage 2+ resources (reminders, routines, targets, day profiles, work contexts, scores, chat, approvals, notifications, conversations, memory, agent-only tools) are added to `api/resources/` at the start of Stage 2. Stage 4 device endpoints are already present so the collector contract is fixed.
+- Stage 2+ resources (reminders, routines, targets, day profiles, work contexts, scores, chat, approvals, notifications, conversations, memory, agent-only tools) are added to `api/resources/` as each Stage 2 increment implements them, because a build at stage N refuses to start while a stage-N tool has no handler. Stage 4 device endpoints are already present so the collector contract is fixed.

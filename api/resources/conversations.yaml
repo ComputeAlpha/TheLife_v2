@@ -1,0 +1,60 @@
+name: conversations
+schema: Conversation
+noun: conversation
+path: /conversations
+scope: chat
+tag: Chat
+stage: 2
+exposure: [rest]
+principals: [user]
+description: One conversation per channel per local day (agent_lld.md §1, §6.2). Transcripts are per channel;
+  data and long-term memory are shared.
+fields: {}
+readonly:
+  channel: {type: string, enum: [web, telegram]}
+  local_day: {$ref: LocalDate}
+  status: {type: string, enum: [open, closed]}
+  closed_at: {type: [string, "null"], format: date-time}
+filters:
+  channel: {type: string, enum: [web, telegram]}
+  from: {$ref: LocalDate, description: First local day (inclusive).}
+  to: {$ref: LocalDate, description: Last local day (inclusive).}
+ops: {list: {}, get: {}}
+extra_schemas:
+  ChatToolCall:
+    type: object
+    required: [id, name, arguments]
+    properties:
+      id: {type: string}
+      name: {type: string}
+      arguments: {type: string, description: JSON text of the arguments.}
+  ChatMessage:
+    type: object
+    required: [id, conversation_id, role, kind, content, created_at]
+    properties:
+      id: {$ref: Id}
+      conversation_id: {$ref: Id}
+      turn_id: {type: [string, "null"], format: uuid}
+      role: {type: string, enum: [user, assistant, tool]}
+      kind: {type: string, enum: [normal, deterministic, suppressed, error]}
+      content: {type: string}
+      tool_calls: {type: array, items: {$ref: ChatToolCall}}
+      tool_call_id: {type: [string, "null"]}
+      tool_name: {type: [string, "null"]}
+      created_at: {$ref: Timestamp}
+actions:
+  - name: messages
+    method: get
+    path: /conversations/{id}/messages
+    effect: read
+    summary: Messages of a conversation, oldest first
+    target: true
+    params: {id: {$ref: Id}}
+    query:
+      after: {$ref: Id, description: Only messages after this message id.}
+      limit: {type: integer, minimum: 1, maximum: 500, default: 200}
+    returns:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: ChatMessage}}

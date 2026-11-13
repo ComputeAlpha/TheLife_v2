@@ -14,6 +14,9 @@ void bindPlanning(tools::ToolRegistry& reg) {
 
 void bindAll(tools::ToolRegistry& reg) {
   bindPlanning(reg);
+  bindAgent(reg);
+  bindNotifications(reg);
+  bindMemory(reg);
   bindTasks(reg);
   bindCalendar(reg);
   bindWork(reg);

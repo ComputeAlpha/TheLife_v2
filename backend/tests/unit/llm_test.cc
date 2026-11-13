@@ -275,7 +275,7 @@ struct MemStore : StateStore {
   std::vector<ProviderStatus> load() override { return saved; }
   void save(const ProviderStatus& s) override {
     for (auto& x : saved) {
-      if (x.provider == s.provider) {
+      if (x.key == s.key) {
         x = s;
         return;
       }

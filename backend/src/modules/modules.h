@@ -16,5 +16,8 @@ void bindEntertainment(tools::ToolRegistry& reg);
 void bindActivities(tools::ToolRegistry& reg);
 void bindDetections(tools::ToolRegistry& reg);
 void bindAccess(tools::ToolRegistry& reg);
+void bindAgent(tools::ToolRegistry& reg);
+void bindNotifications(tools::ToolRegistry& reg);
+void bindMemory(tools::ToolRegistry& reg);
 
 }  // namespace thelife::modules

@@ -25,7 +25,8 @@ class DbStateStore final : public llm::StateStore {
         "coalesce(reason, '') AS reason, extract(epoch FROM changed_at)::bigint AS changed_s FROM ops.provider_state");
     for (const auto& row : r) {
       llm::ProviderStatus s;
-      s.provider = row["provider"].as<std::string>();
+      s.key = row["provider"].as<std::string>();
+      s.provider = s.key.substr(0, s.key.find('#'));
       s.state = row["state"].as<std::string>();
       if (!row["until_s"].isNull()) s.until = llm::Clock::from_time_t(row["until_s"].as<long long>());
       s.quotaScope = row["scope"].as<std::string>();
@@ -45,7 +46,7 @@ class DbStateStore final : public llm::StateStore {
         "VALUES ($1, $2, to_timestamp(nullif($3, '')::bigint), nullif($4, ''), nullif($5, ''), now()) "
         "ON CONFLICT (provider) DO UPDATE SET state = EXCLUDED.state, until_at = EXCLUDED.until_at, "
         "quota_scope = EXCLUDED.quota_scope, reason = EXCLUDED.reason, changed_at = now()",
-        s.provider, s.state, until, s.quotaScope, s.reason.substr(0, 200));
+        s.key.empty() ? s.provider : s.key, s.state, until, s.quotaScope, s.reason.substr(0, 200));
   }
 
   llm::Clock::time_point nextWeeklyReset(const llm::WeeklyReset& rule, llm::Clock::time_point now) override {

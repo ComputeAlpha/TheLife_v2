@@ -374,6 +374,18 @@ REST controllers are thin: map path/query/body to `args`, call `invoke`, map the
 
 A Postgres-backed queue (`jobs` table). The in-process worker coroutine claims work through `jobs.claim()` (`FOR UPDATE SKIP LOCKED`), sets the tenant context from the job row and runs the handler. Exponential backoff, `max_attempts`, dead status.
 Stage 1 jobs: `occurrences.mark_missed` (daily per tenant), `observations.retention`, `idempotency.gc`.
+
+**Implemented (Stage 2, increment 3):** `ops.jobs` (deployment state in the `ops` schema, like `provider_state`;
+payloads hold ids and dates only) with `FOR UPDATE SKIP LOCKED` claims, a partial unique index on
+`(kind, dedupe_key)` for queued/running jobs (bursts coalesce), exponential backoff (1 min doubling, 6 h cap) up to
+`max_attempts`, then `dead`. A handler throws `jobs::Defer` to wait (assistant offline, rate limit) without
+spending an attempt. Housekeeping every minute calls SECURITY DEFINER functions owned by `thelife_definer`:
+`ops.enqueue_day_closes()` (missed-occurrence marking now runs inside `day.close`), `ops.fail_stale_turns()` (turns
+left running by a crash) and `ops.gc_idempotency_keys()`, and requeues jobs whose worker vanished. Jobs are
+enqueued inside the tenant transaction that causes them. Knobs: `THELIFE_JOBS=off`, `THELIFE_JOBS_CONCURRENCY`,
+`THELIFE_JOBS_POLL_MS`, `THELIFE_JOBS_HOUSEKEEPING=off`, `THELIFE_JOBS_TENANT` (claim one tenant's jobs only;
+tests on the shared database use it, and test servers default to `THELIFE_JOBS=off`). `observations.retention`
+arrives with Stage 4.
 Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recompute` (triggered on detection or activity change, debounced per tenant-day).
 
 ## 11. Configuration and Observability
@@ -394,6 +406,8 @@ Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recomp
 | detection invariants | UPDATE/DELETE blocked, transitions recorded, claim → superseded | isolation (as `thelife_app`) + api |
 | manifest matrix (implemented) | every Stage 1 REST tool: device token → 403, API key without scope → 403, update/delete without If-Match → 428, target reads with an unknown id → 404 | `api/contract_test.cc`, driven by the embedded `tools.json` |
 | resource lifecycle (implemented) | every CRUD resource: create/get/list/patch/delete, ETag/412/428, other tenant 404 and empty list. A new resource fails CI until it has a case | `api/resources_test.cc` |
+| memory and jobs (implemented, Stage 2) | remember/recall/update/forget with provenance and approvals, mentioned-entity retrieval, history search, day close (summary, facts active vs proposed, conversation closed, routine missed, exactly once), deferral while the model is offline, week rollup; named policies in unit tests | `api/memory_test.cc` with a tenant-scoped worker against `docker/fake-llm`; `unit/tools_test.cc` |
+| agent (implemented, Stage 2) | chat capture provenance (`user_stated`, `source_message_id`) and audit, tool groups, approvals (held → approve runs pinned to the version, stale on change, reject, 72 h expiry), kill switch, `user_reported_progress` and undo, weekly limit → deterministic replies and commands, step limit, model and argument errors, idempotent sends, SSE events, turn merging, desktop notification long poll and ack | `api/agent_test.cc`: the real binary against `docker/fake-llm` with scripted conversations |
 | LLM gateway (implemented) | error classification against the recorded Stage 0 bodies, response and SSE parsing (split anywhere, leaked `</think>` retracted), provider state machine on a fake clock (transient backoff, weekly exhaustion → manual → probe → healthy, restart persistence, auth → disabled, rate limits), structured output (tool-as-output → repair → schema-in-prompt) | `unit/llm_test.cc`; `api/llm_test.cc` over libcurl against `docker/fake-llm` plus `ops.provider_state` / `llm_calls` / `llm_usage` in Postgres; `live/llm_live_test.cc` against the real endpoint when `THELIFE_LIVE_LLM_URL` is set |
 | demo UI (implemented) | contract-generated pages render for every resource; forms send contract bodies (local time → RFC 3339, merge patch with If-Match, only changed fields); tokens never reach the browser; end-to-end flows against the built backend | `demo-ui/tests` (pytest, fake backend); `test_e2e_live.py` in the backend CI job |
 

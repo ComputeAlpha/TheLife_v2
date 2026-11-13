@@ -41,6 +41,7 @@ Manifest parseManifest(std::string_view text) {
     d.stage = t["stage"].asInt();
     if (t["target"].isObject()) d.targetResource = t["target"]["resource"].asString();
     if (t["policy"].isString()) d.policy = t["policy"].asString();
+    if (t["agent_group"].isString()) d.agentGroup = t["agent_group"].asString();
     d.inputSchema = t["input_schema"];
     d.outputSchema = t["output_schema"];
     if (t["rest"].isObject()) {
@@ -58,6 +59,7 @@ Manifest parseManifest(std::string_view text) {
     }
     m.tools.emplace(d.name, std::move(d));
   }
+  for (const auto& g : doc["agent_groups"].getMemberNames()) m.agentGroups[g] = strings(doc["agent_groups"][g]);
   if (m.tools.empty()) throw std::runtime_error("tool manifest is empty");
   return m;
 }

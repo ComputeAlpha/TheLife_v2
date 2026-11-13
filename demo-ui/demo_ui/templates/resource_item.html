@@ -99,4 +99,18 @@
   </div>
 </section>
 {% endif %}
+{% if transcript is defined %}
+<div class="card chat">
+  <h2>Transcript</h2>
+  {% for e in transcript %}
+  <div class="msg {{ e.role }} {{ e.kind }}">
+    <div class="meta">{{ "You" if e.role == "user" else "TheLife" }} · {{ e.created_at|local("%H:%M") }}</div>
+    {% if e.content %}<div class="text">{{ e.content }}</div>{% endif %}
+    {% for st in e.steps %}<details class="step"><summary><code>{{ st.name }}</code></summary>
+      <pre class="mono">{{ st.arguments|pretty }}</pre>{% if st.result is not none %}<pre class="mono result">{{ st.result|pretty }}</pre>{% endif %}
+    </details>{% endfor %}
+  </div>
+  {% else %}<p class="muted">No messages.</p>{% endfor %}
+</div>
+{% endif %}
 {% endblock %}

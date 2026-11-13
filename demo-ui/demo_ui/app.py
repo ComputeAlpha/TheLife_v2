@@ -1,6 +1,6 @@
 """Flask demo UI (prelim_spec.md §8): a pure API client for exercising the backend. Pages for resources are
-generated from the contract; the only hand-written pages are login, the calendar, settings and a few
-resource-specific panels (task occurrences, detection history)."""
+generated from the contract; the only hand-written pages are login, the calendar, chat, settings and a few
+resource-specific panels (task occurrences, detection history, conversation transcript)."""
 from __future__ import annotations
 
 import json
@@ -34,7 +34,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.config.update(
         API_URL=os.environ.get("THELIFE_API_URL", "http://127.0.0.1:8080"),
         CONTRACT=os.environ.get("THELIFE_CONTRACT", str(REPO / "api/generated/openapi.yaml")),
-        STAGE=int(os.environ.get("THELIFE_STAGE", "1")),
+        STAGE=int(os.environ.get("THELIFE_STAGE", "2")),
         SECURE_COOKIES=os.environ.get("DEMO_SECURE_COOKIES", "0") == "1",
         HTTP_SESSION=None,  # tests inject a requests.Session with a fake transport
     )
@@ -102,6 +102,11 @@ def create_app(config: dict | None = None) -> Flask:
 
     @app.template_filter("pretty")
     def pretty(value):
+        if isinstance(value, str):  # JSON text (tool arguments and results) is shown parsed
+            try:
+                value = json.loads(value)
+            except ValueError:
+                return value
         return json.dumps(value, indent=2, ensure_ascii=False)
 
     def login_required(view):
@@ -300,6 +305,8 @@ def create_app(config: dict | None = None) -> Flask:
                 "from": start, "to": request.args.get("to")})["items"]
         if r.prefix == "detections" and contract.ops.get("detections.history"):
             out["history"] = g.api.get(f"/api/v1/detections/{id}/history")
+        if r.prefix == "conversations" and contract.ops.get("conversations.messages"):
+            out["transcript"] = transcript(g.api.get(f"/api/v1/conversations/{id}/messages")["items"])
         return out
 
     @app.post("/r/<prefix>/<id>/edit")
@@ -361,6 +368,67 @@ def create_app(config: dict | None = None) -> Flask:
         target = result.get("id", id) if isinstance(result, dict) else id
         return redirect(url_for("resource_get", prefix=prefix, id=target))
 
+    # ------------------------------------------------------------------ chat
+    @app.get("/chat")
+    @login_required
+    def chat():
+        day_start = int(g.s.user.get("day_start_hour", 0))
+        today = (datetime.now(g.tz) - timedelta(hours=day_start)).date().isoformat()
+        convs = g.api.get("/api/v1/conversations", channel="web", **{"from": today, "to": today})["items"]
+        messages = g.api.get(f"/api/v1/conversations/{convs[0]['id']}/messages")["items"] if convs else []
+        turn = None
+        if request.args.get("turn"):
+            check_id(request.args["turn"])
+            turn = g.api.get(f"/api/v1/chat/turns/{request.args['turn']}")
+        try:
+            status = g.api.get("/api/v1/system/llm-status")
+        except ApiError as e:
+            if e.status == 401:
+                raise
+            status = None
+        pending = g.api.get("/api/v1/approvals", status="pending")["items"]
+        busy = bool(turn and turn["status"] in ("queued", "running"))
+        return render_template("chat.html", entries=transcript(messages), turn=turn, busy=busy, status=status,
+                               pending=pending, client_id=secrets.token_hex(12))
+
+    @app.post("/chat")
+    @login_required
+    def chat_send():
+        text = request.form.get("text", "").strip()
+        if not text:
+            flash("Type a message first.", "error")
+            return redirect(url_for("chat"))
+        client_id = request.form.get("client_id", "")
+        body = {"text": text}
+        if re.fullmatch(r"[0-9a-f]{24}", client_id):
+            body["client_msg_id"] = client_id  # a resubmitted form returns the original turn
+        try:
+            turn = g.api.post("/api/v1/chat/web/messages", body)
+        except ApiError as e:
+            if e.status == 401:
+                raise
+            flash(f"Not sent: {describe(e)}", "error")
+            return redirect(url_for("chat"))
+        return redirect(url_for("chat", turn=turn["id"]))
+
+    @app.post("/chat/approvals/<id>/<verb>")
+    @login_required
+    def chat_decide(id, verb):
+        check_id(id)
+        if verb not in ("approve", "reject"):
+            abort(404)
+        try:
+            a = g.api.post(f"/api/v1/approvals/{id}:{verb}", {"reason": request.form["reason"]}
+                           if verb == "reject" and request.form.get("reason") else None)
+            flash({"approved": "Approved and done.", "rejected": "Rejected; nothing changed.",
+                   "stale": "The item changed since the request, so nothing ran.",
+                   }.get(a["status"], f"Approval is {a['status']}."), "ok" if a["status"] != "failed" else "error")
+        except ApiError as e:
+            if e.status == 401:
+                raise
+            flash(describe(e), "error")
+        return redirect(url_for("chat"))
+
     # ------------------------------------------------------------------ settings
     @app.route("/settings", methods=["GET", "POST"])
     @login_required
@@ -409,6 +477,27 @@ def create_app(config: dict | None = None) -> Flask:
         return render_template(template, fields=fields, **ctx), status
 
     return app
+
+
+def transcript(messages: list[dict]) -> list[dict]:
+    """Chat messages as display entries: user and assistant text, with each assistant step's tool calls and
+    their results folded into it."""
+    out: list[dict] = []
+    by_call: dict[str, dict] = {}
+    for m in messages:
+        if m["role"] == "tool":
+            step = by_call.get(m.get("tool_call_id") or "")
+            if step is not None:
+                step["result"] = m["content"]
+            continue
+        entry = {"role": m["role"], "kind": m["kind"], "content": m["content"], "created_at": m["created_at"],
+                 "steps": []}
+        for c in m.get("tool_calls") or []:
+            step = {"name": c["name"], "arguments": c["arguments"], "result": None}
+            by_call[c["id"]] = step
+            entry["steps"].append(step)
+        out.append(entry)
+    return out
 
 
 def describe(e: Exception) -> str:

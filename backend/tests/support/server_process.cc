@@ -38,6 +38,8 @@ int pickFreePort() {
 ServerProcess::ServerProcess(std::map<std::string, std::string> env) : port_(pickFreePort()) {
   env["THELIFE_LISTEN_ADDR"] = "127.0.0.1";
   env["THELIFE_LISTEN_PORT"] = std::to_string(port_);
+  // Tests share one database: a background worker would pick up other tests' jobs. Tests that need it opt in.
+  if (!env.count("THELIFE_JOBS")) env["THELIFE_JOBS"] = "off";
 
   // Inherit the parent environment, minus THELIFE_* (tests must be explicit), plus overrides.
   std::vector<std::string> envStrings;

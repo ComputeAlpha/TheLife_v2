@@ -97,3 +97,13 @@ TEST(FailureLimiter, WindowExpires) {
   std::this_thread::sleep_for(std::chrono::milliseconds(1100));
   EXPECT_EQ(l.blockedFor("k"), 0);
 }
+
+TEST(Ids, UuidV7IsStrictlyIncreasingWithinOneMillisecond) {
+  std::string prev = ids::newUuidV7();
+  for (int i = 0; i < 5000; ++i) {
+    const auto next = ids::newUuidV7();
+    ASSERT_LT(prev, next) << "at " << i;
+    ASSERT_EQ(next[14], '7');
+    prev = next;
+  }
+}

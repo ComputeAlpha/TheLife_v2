@@ -31,6 +31,7 @@ struct ToolDef {
   int stage = 1;
   std::optional<std::string> targetResource;
   std::optional<std::string> policy;
+  std::optional<std::string> agentGroup;  // agent-exposed tools: core | planning | work | ...
   Json::Value inputSchema;
   Json::Value outputSchema;
   std::optional<RestMapping> rest;
@@ -39,6 +40,7 @@ struct ToolDef {
 struct Manifest {
   std::string contractVersion;
   std::map<std::string, ToolDef> tools;
+  std::map<std::string, std::vector<std::string>> agentGroups;  // group → tool names (docs/tool_registry.md §6)
 };
 
 // Parses the generated tools.json (api/generated/tools.json). Throws std::runtime_error on malformed input.

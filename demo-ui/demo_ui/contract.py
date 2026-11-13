@@ -55,7 +55,7 @@ class Resource:
         return [p for p in self.list_op.params if p["name"] not in PAGING_PARAMS]
 
     def title_of(self, item: dict) -> str:
-        for k in ("title", "name", "summary"):
+        for k in ("title", "name", "summary", "statement"):
             if item.get(k):
                 return str(item[k])
         return str(item.get("id", ""))

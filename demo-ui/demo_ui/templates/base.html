@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}TheLife{% endblock %} · TheLife demo</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
 {% if me %}
@@ -12,6 +13,7 @@
   <a class="brand" href="{{ url_for('home') }}">TheLife <small>demo</small></a>
   <nav>
     <a href="{{ url_for('calendar') }}">Calendar</a>
+    <a href="{{ url_for('chat') }}">Chat</a>
     {% for tag, resources in contract.nav() %}
     {% if resources|length == 1 %}<a href="{{ url_for('resource_list', prefix=resources[0].prefix) }}">{{ tag }}</a>{% else %}
     <details>

@@ -1,5 +1,107 @@
 {
-  "contract_version": "b406aaf14407b666",
+  "contract_version": "9e7bf9472298cf61",
+  "agent_groups": {
+    "core": [
+      "activities.create",
+      "agent.load_tools",
+      "calendar.view",
+      "context.now",
+      "detections.claim",
+      "detections.dispute",
+      "events.create",
+      "history.search",
+      "memory.forget",
+      "memory.recall",
+      "memory.remember",
+      "memory.update_fact",
+      "skill_sessions.create",
+      "tasks.complete_occurrence",
+      "tasks.create",
+      "tasks.list",
+      "tasks.skip_occurrence",
+      "tasks.update"
+    ],
+    "planning": [
+      "activities.delete",
+      "activities.get",
+      "activities.list",
+      "activities.update",
+      "events.delete",
+      "events.get",
+      "events.list",
+      "events.update",
+      "goals.create",
+      "goals.delete",
+      "goals.get",
+      "goals.list",
+      "goals.update",
+      "plans.create",
+      "plans.delete",
+      "plans.get",
+      "plans.list",
+      "plans.update",
+      "tasks.delete",
+      "tasks.get",
+      "tasks.occurrences"
+    ],
+    "detections": [
+      "detections.confirm",
+      "detections.create",
+      "detections.get",
+      "detections.history",
+      "detections.list"
+    ],
+    "entertainment": [
+      "entertainment_items.create",
+      "entertainment_items.delete",
+      "entertainment_items.get",
+      "entertainment_items.list",
+      "entertainment_items.update",
+      "entertainment_slots.create",
+      "entertainment_slots.delete",
+      "entertainment_slots.get",
+      "entertainment_slots.list",
+      "entertainment_slots.update"
+    ],
+    "skills": [
+      "skill_resources.create",
+      "skill_resources.delete",
+      "skill_resources.get",
+      "skill_resources.list",
+      "skill_resources.update",
+      "skill_sections.create",
+      "skill_sections.delete",
+      "skill_sections.get",
+      "skill_sections.list",
+      "skill_sections.update",
+      "skill_sessions.delete",
+      "skill_sessions.get",
+      "skill_sessions.list",
+      "skill_sessions.update"
+    ],
+    "work": [
+      "work_deliverables.create",
+      "work_deliverables.delete",
+      "work_deliverables.get",
+      "work_deliverables.list",
+      "work_deliverables.update",
+      "work_projects.create",
+      "work_projects.delete",
+      "work_projects.get",
+      "work_projects.list",
+      "work_projects.update",
+      "work_responsibilities.create",
+      "work_responsibilities.delete",
+      "work_responsibilities.get",
+      "work_responsibilities.list",
+      "work_responsibilities.update",
+      "work_roles.create",
+      "work_roles.delete",
+      "work_roles.get",
+      "work_roles.list",
+      "work_roles.update"
+    ]
+  },
   "tools": [
     {
       "name": "activities.create",
@@ -21,6 +123,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -317,6 +420,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -375,6 +479,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -585,6 +690,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -861,6 +967,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1143,6 +1250,56 @@
       }
     },
     {
+      "name": "agent.load_tools",
+      "description": "Load a group of tools for the rest of this turn: planning (goals, plans, tasks, events, activities), work, skills, entertainment, detections.",
+      "effect": "read",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "work",
+              "skills",
+              "entertainment",
+              "detections"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "group"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "loaded"
+        ],
+        "properties": {
+          "loaded": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "rest": null
+    },
+    {
       "name": "api_keys.get",
       "description": "Get a API key.",
       "effect": "read",
@@ -1161,6 +1318,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1346,6 +1504,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1581,6 +1740,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1801,6 +1961,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1808,6 +1969,11 @@
             "type": "string",
             "format": "uuid",
             "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
           }
         },
         "additionalProperties": false,
@@ -1832,6 +1998,883 @@
       }
     },
     {
+      "name": "approvals.approve",
+      "description": "Approve and run the held action.",
+      "effect": "update",
+      "scopes": [
+        "approvals:write"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Approval",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Tool name, for example tasks.update."
+          },
+          "args": {
+            "type": "object",
+            "description": "The exact arguments that run on approval."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Human-readable description of the change."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "stale",
+              "failed"
+            ]
+          },
+          "target_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "target_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "decision_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "description": "Result of the executed call (approved), otherwise null."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale and nothing runs. Pending approvals expire after 72 h."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/approvals/{id}:approve",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "approvals.get",
+      "description": "Get a approval.",
+      "effect": "read",
+      "scopes": [
+        "approvals:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Approval",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Tool name, for example tasks.update."
+          },
+          "args": {
+            "type": "object",
+            "description": "The exact arguments that run on approval."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Human-readable description of the change."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "stale",
+              "failed"
+            ]
+          },
+          "target_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "target_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "decision_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "description": "Result of the executed call (approved), otherwise null."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale and nothing runs. Pending approvals expire after 72 h."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/approvals/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "approvals.list",
+      "description": "List approvals.",
+      "effect": "read",
+      "scopes": [
+        "approvals:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "stale",
+              "failed"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "tool": {
+                  "type": "string",
+                  "description": "Tool name, for example tasks.update."
+                },
+                "args": {
+                  "type": "object",
+                  "description": "The exact arguments that run on approval."
+                },
+                "summary": {
+                  "type": "string",
+                  "description": "Human-readable description of the change."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "approved",
+                    "rejected",
+                    "expired",
+                    "stale",
+                    "failed"
+                  ]
+                },
+                "target_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "target_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "target_version": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "conversation_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "expires_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "decided_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "decision_reason": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "result": {
+                  "description": "Result of the executed call (approved), otherwise null."
+                },
+                "error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin"
+              ],
+              "description": "Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale and nothing runs. Pending approvals expire after 72 h."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/approvals",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted",
+          "status"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "approvals.reject",
+      "description": "Reject the held action; nothing runs.",
+      "effect": "update",
+      "scopes": [
+        "approvals:write"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Approval",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "tool": {
+            "type": "string",
+            "description": "Tool name, for example tasks.update."
+          },
+          "args": {
+            "type": "object",
+            "description": "The exact arguments that run on approval."
+          },
+          "summary": {
+            "type": "string",
+            "description": "Human-readable description of the change."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "expired",
+              "stale",
+              "failed"
+            ]
+          },
+          "target_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "target_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "target_version": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decided_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "decision_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "description": "Result of the executed call (approved), otherwise null."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale and nothing runs. Pending approvals expire after 72 h."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/approvals/{id}:reject",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [
+          "reason"
+        ],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
       "name": "calendar.view",
       "description": "Merged calendar of events, task occurrences, entertainment slots and skill sessions.",
       "effect": "read",
@@ -1851,6 +2894,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1960,6 +3004,647 @@
       }
     },
     {
+      "name": "context.now",
+      "description": "Current local time and day, today's plan with completion state, pending approvals, and whether agent writes are enabled.",
+      "effect": "read",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "now",
+          "local_day",
+          "timezone",
+          "today",
+          "pending_approvals",
+          "agent_writes_enabled"
+        ],
+        "properties": {
+          "now": {
+            "type": "string",
+            "description": "Local time with offset."
+          },
+          "local_day": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "day_start_hour": {
+            "type": "integer"
+          },
+          "today": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "kind",
+                "id",
+                "title",
+                "starts_at",
+                "ends_at",
+                "all_day"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "event",
+                    "task_occurrence",
+                    "entertainment_slot",
+                    "skill_session"
+                  ]
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "title": {
+                  "type": "string"
+                },
+                "starts_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "ends_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "all_day": {
+                  "type": "boolean"
+                },
+                "area": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "occurs_on": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                }
+              }
+            }
+          },
+          "pending_approvals": {
+            "type": "integer"
+          },
+          "agent_writes_enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "rest": null
+    },
+    {
+      "name": "conversations.get",
+      "description": "Get a conversation.",
+      "effect": "read",
+      "scopes": [
+        "chat:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Conversation",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "web",
+              "telegram"
+            ]
+          },
+          "local_day": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "One conversation per channel per local day (agent_lld.md §1, §6.2). Transcripts are per channel; data and long-term memory are shared."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/conversations/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "conversations.list",
+      "description": "List conversations.",
+      "effect": "read",
+      "scopes": [
+        "chat:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "web",
+              "telegram"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "description": "First local day (inclusive)."
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "description": "Last local day (inclusive)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "web",
+                    "telegram"
+                  ]
+                },
+                "local_day": {
+                  "type": "string",
+                  "format": "date",
+                  "description": "A calendar day in the user's timezone, honouring day_start_hour."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "closed"
+                  ]
+                },
+                "closed_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin"
+              ],
+              "description": "One conversation per channel per local day (agent_lld.md §1, §6.2). Transcripts are per channel; data and long-term memory are shared."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/conversations",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted",
+          "channel",
+          "from",
+          "to"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "conversations.messages",
+      "description": "Messages of a conversation, oldest first.",
+      "effect": "read",
+      "scopes": [
+        "chat:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Conversation",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "after": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Only messages after this message id."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 200
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "conversation_id",
+                "role",
+                "kind",
+                "content",
+                "created_at"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "conversation_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "turn_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant",
+                    "tool"
+                  ]
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "deterministic",
+                    "suppressed",
+                    "error"
+                  ]
+                },
+                "content": {
+                  "type": "string"
+                },
+                "tool_calls": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "name",
+                      "arguments"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "arguments": {
+                        "type": "string",
+                        "description": "JSON text of the arguments."
+                      }
+                    }
+                  }
+                },
+                "tool_call_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tool_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/conversations/{id}/messages",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [
+          "after",
+          "limit"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
       "name": "detections.claim",
       "description": "Replace a detection with what the user says happened; the original becomes superseded.",
       "effect": "create",
@@ -1982,6 +3667,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2237,6 +3923,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "detections",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2452,6 +4139,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "detections",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2726,6 +4414,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2952,6 +4641,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "detections",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3170,6 +4860,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "detections",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3620,6 +5311,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "detections",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -3908,6 +5600,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4075,6 +5768,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4274,6 +5968,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4465,6 +6160,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4472,6 +6168,11 @@
             "type": "string",
             "format": "uuid",
             "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
           }
         },
         "additionalProperties": false,
@@ -4511,6 +6212,7 @@
       "stage": 2,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4569,6 +6271,7 @@
       "stage": 4,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -4649,6 +6352,7 @@
       "stage": 4,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4729,6 +6433,7 @@
       "stage": 2,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4833,6 +6538,7 @@
       "stage": 4,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -4885,6 +6591,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5083,6 +6790,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5141,6 +6849,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5305,6 +7014,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5525,6 +7235,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5730,6 +7441,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5917,6 +7629,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5975,6 +7688,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6133,6 +7847,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6342,6 +8057,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "entertainment",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6536,6 +8252,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6851,6 +8568,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6909,6 +8627,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -7128,6 +8847,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -7409,6 +9129,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -7730,6 +9451,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -8011,6 +9733,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -8069,6 +9792,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -8272,6 +9996,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -8548,6 +10273,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -8816,6 +10542,99 @@
       }
     },
     {
+      "name": "history.search",
+      "description": "Search past conversations, activities and day summaries by keywords (last 3 months unless from/to say otherwise).",
+      "effect": "read",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30,
+            "default": 10
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "kind",
+                "id",
+                "at",
+                "text"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "message",
+                    "activity",
+                    "day_summary"
+                  ]
+                },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "channel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "text": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "rest": null
+    },
+    {
       "name": "ingest.captures",
       "description": "Upload one capture (JSON context part + one JPEG per monitor). Held in memory only and discarded after the vision call; 503 when the in-memory queue is full (the collector then drops the capture)..",
       "effect": "create",
@@ -8831,6 +10650,7 @@
       "stage": 4,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -8956,6 +10776,7 @@
       "stage": 4,
       "target": null,
       "policy": null,
+      "agent_group": null,
       "input_schema": {
         "type": "object",
         "properties": {
@@ -9040,6 +10861,1019 @@
       }
     },
     {
+      "name": "memory.forget",
+      "description": "Forget a remembered fact. Facts the user stated need their approval.",
+      "effect": "delete",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "MemoryFact",
+        "id_arg": "id"
+      },
+      "policy": "user_stated_fact",
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": null
+    },
+    {
+      "name": "memory.recall",
+      "description": "Look up remembered facts about a person, project or topic.",
+      "effect": "read",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 8
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "query"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "subject",
+                "statement",
+                "confidence",
+                "origin"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "statement": {
+                  "type": "string"
+                },
+                "confidence": {
+                  "type": "number"
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        }
+      },
+      "rest": null
+    },
+    {
+      "name": "memory.remember",
+      "description": "Remember a short fact about the user for later conversations (a preference, a person, a habit, a plan). Use the user's words; one fact per call.",
+      "effect": "create",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Who or what the fact is about, for example \"me\", \"Priya\", \"Rust course\"."
+          },
+          "subject_kind": {
+            "type": "string",
+            "enum": [
+              "self",
+              "person",
+              "project",
+              "goal",
+              "habit",
+              "preference",
+              "place",
+              "app",
+              "topic",
+              "other"
+            ],
+            "default": "self"
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280,
+            "description": "The fact as one sentence."
+          },
+          "predicate": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 280
+          },
+          "pinned": {
+            "type": "boolean",
+            "default": false,
+            "description": "Always keep this in mind (core profile)."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "subject",
+          "statement"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "predicate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "description": "Human-readable fact, for example: Prefers deep work before noon."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "proposed",
+              "superseded"
+            ],
+            "description": "proposed: inferred with low confidence or contradicting something the user said; not used until confirmed."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valid_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "superseded_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only; a change supersedes the old fact. Deleting a fact makes the assistant forget it."
+      },
+      "rest": null
+    },
+    {
+      "name": "memory.update_fact",
+      "description": "Replace a remembered fact with a corrected one (the old fact is kept as superseded). Facts the user stated need their approval.",
+      "effect": "update",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "MemoryFact",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 280
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "statement"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "predicate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "description": "Human-readable fact, for example: Prefers deep work before noon."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "proposed",
+              "superseded"
+            ],
+            "description": "proposed: inferred with low confidence or contradicting something the user said; not used until confirmed."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valid_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "superseded_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only; a change supersedes the old fact. Deleting a fact makes the assistant forget it."
+      },
+      "rest": null
+    },
+    {
+      "name": "memory_facts.delete",
+      "description": "Delete a remembered fact (soft delete).",
+      "effect": "delete",
+      "scopes": [
+        "memory:write"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "MemoryFact",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": {
+        "method": "DELETE",
+        "path": "/api/v1/memory/facts/{id}",
+        "success_status": 204,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": true,
+        "content_type": null
+      }
+    },
+    {
+      "name": "memory_facts.get",
+      "description": "Get a remembered fact.",
+      "effect": "read",
+      "scopes": [
+        "memory:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "MemoryFact",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "predicate": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "value": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "description": "Human-readable fact, for example: Prefers deep work before noon."
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "proposed",
+              "superseded"
+            ],
+            "description": "proposed: inferred with low confidence or contradicting something the user said; not used until confirmed."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valid_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "superseded_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "last_used_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only; a change supersedes the old fact. Deleting a fact makes the assistant forget it."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/memory/facts/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "memory_facts.list",
+      "description": "List remembered facts.",
+      "effect": "read",
+      "scopes": [
+        "memory:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "proposed",
+              "superseded"
+            ]
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "subject_id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "predicate": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "statement": {
+                  "type": "string",
+                  "description": "Human-readable fact, for example: Prefers deep work before noon."
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "proposed",
+                    "superseded"
+                  ],
+                  "description": "proposed: inferred with low confidence or contradicting something the user said; not used until confirmed."
+                },
+                "valid_from": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "valid_to": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "superseded_by": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "last_used_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin"
+              ],
+              "description": "The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only; a change supersedes the old fact. Deleting a fact makes the assistant forget it."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/memory/facts",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted",
+          "status",
+          "subject_id"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
       "name": "plans.create",
       "description": "Create a plan.",
       "effect": "create",
@@ -9059,6 +11893,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -9275,6 +12110,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -9333,6 +12169,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -9505,6 +12342,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -9734,6 +12572,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -9956,6 +12795,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -10242,6 +13082,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -10300,6 +13141,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -10519,6 +13361,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -10792,6 +13635,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11085,6 +13929,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11267,6 +14112,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11325,6 +14171,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11481,6 +14328,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11678,6 +14526,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -11867,6 +14716,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12145,6 +14995,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12203,6 +15054,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12404,6 +15256,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12656,6 +15509,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "skills",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12942,7 +15796,8 @@
         "resource": "Task",
         "id_arg": "id"
       },
-      "policy": null,
+      "policy": "user_reported_progress",
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -12959,6 +15814,11 @@
           "completed_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
           }
         },
         "additionalProperties": false,
@@ -13051,6 +15911,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -13395,6 +16256,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -13453,6 +16315,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -13689,6 +16552,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -14002,6 +16866,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "planning",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -14123,7 +16988,8 @@
         "resource": "Task",
         "id_arg": "id"
       },
-      "policy": null,
+      "policy": "user_reported_progress",
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -14140,6 +17006,11 @@
           "reason": {
             "type": "string",
             "maxLength": 500
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
           }
         },
         "additionalProperties": false,
@@ -14235,6 +17106,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "core",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -14584,6 +17456,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -14794,6 +17667,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -14852,6 +17726,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -15025,6 +17900,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -15254,6 +18130,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -15471,6 +18348,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -15693,6 +18571,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -15751,6 +18630,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -15926,6 +18806,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -16153,6 +19034,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -16383,6 +19265,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -16578,6 +19461,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -16636,6 +19520,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -16798,6 +19683,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17005,6 +19891,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17207,6 +20094,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17385,6 +20273,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17443,6 +20332,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17597,6 +20487,7 @@
       "stage": 1,
       "target": null,
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -17790,6 +20681,7 @@
         "id_arg": "id"
       },
       "policy": null,
+      "agent_group": "work",
       "input_schema": {
         "type": "object",
         "properties": {

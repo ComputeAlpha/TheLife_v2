@@ -19,11 +19,20 @@ tags:
   description: Scoped keys for external apps and MCP clients. Writes made with a key become proposals for MCP clients.
 - name: Activities
   description: Things the user did, logged manually, through chat, by the agent, or confirmed from detections.
+- name: Agent
+  description: Agent-only tools (agent_lld.md §5.1). Not reachable over REST.
+- name: Approvals
+  description: Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call exactly,
+    pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale and nothing
+    runs. Pending approvals expire after 72 h.
 - name: Auth
   description: Login, session and the current user's profile. Accounts are created by an admin only (no signup).
 - name: Calendar
   description: Calendar events and planned time blocks. category routine.<kind> fixes a routine occurrence; day_profile.<name>
     on an all-day event overrides the day profile (agent_lld.md §4.4, scoring_lld.md §3).
+- name: Chat
+  description: Web chat with the agent (agent_lld.md §7.1). Sending returns at once; the reply streams over the SSE stream
+    and is stored in the day's conversation.
 - name: Detections
   description: Append-only observations of what the user did (backend_lld.md §6.5). Content never changes; status moves through
     events. confirm, dispute and claim append records, so they are create effects, not updates.
@@ -31,20 +40,17 @@ tags:
   description: Collector devices. Registering one returns its device token once (backend_lld.md §6.1, collector_lld.md §8).
 - name: Entertainment
   description: Games, movies and series the user wants to enjoy. Tracked and scheduled; never limited (scoring_lld.md §6).
-- name: Entertainment
-  description: Pre-scheduled entertainment time.
 - name: Goals
   description: Long-term goals, nestable by horizon (year → quarter → month → week).
 - name: Ingest
   description: Collector uploads (backend_lld.md §7.2, collector_lld.md §7). Device tokens only; Idempotency-Key required.
+- name: Memory
+  description: The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only;
+    a change supersedes the old fact. Deleting a fact makes the assistant forget it.
 - name: Plans
   description: Plans for a period, optionally serving a goal.
 - name: Skills
   description: Books (with page counts) and video courses (with sections and total duration).
-- name: Skills
-  description: Ordered sections of a course.
-- name: Skills
-  description: A study session on a book (page range) or course (section and timeline positions).
 - name: System
   description: Liveness and readiness probes (not under /api/v1).
 - name: Tasks
@@ -52,12 +58,6 @@ tags:
     only when acted on (backend_lld.md §6.3).
 - name: Work
   description: Dated deliverables of a project; milestones due on a day count in plan adherence.
-- name: Work
-  description: Projects under a role; tasks and deliverables link to them.
-- name: Work
-  description: Ongoing responsibilities under a role.
-- name: Work
-  description: Roles the user holds (job, side project, volunteer). Work contexts for scoring live in Stage 2.
 paths:
   /api/v1/activities:
     get:
@@ -516,6 +516,214 @@ paths:
         principals:
         - user
         stage: 1
+  /api/v1/approvals:
+    get:
+      operationId: approvals.list
+      tags:
+      - Approvals
+      summary: List approvals
+      description: List approvals.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          - stale
+          - failed
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - approvals:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/approvals/{id}:
+    get:
+      operationId: approvals.get
+      tags:
+      - Approvals
+      summary: Get a approval
+      description: Get a approval.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - approvals:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/approvals/{id}:approve:
+    post:
+      operationId: approvals.approve
+      tags:
+      - Approvals
+      summary: Approve and run the held action
+      description: Approve and run the held action.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - approvals:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/approvals/{id}:reject:
+    post:
+      operationId: approvals.reject
+      tags:
+      - Approvals
+      summary: Reject the held action; nothing runs
+      description: Reject the held action; nothing runs.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  maxLength: 500
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - approvals:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/auth/login:
     post:
       operationId: auth.login
@@ -659,6 +867,305 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/chat/turns/{id}:
+    get:
+      operationId: chat.turn
+      tags:
+      - Chat
+      summary: State of a turn (for clients without the stream)
+      description: State of a turn (for clients without the stream).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatTurn'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/chat/web/messages:
+    post:
+      operationId: chat.send
+      tags:
+      - Chat
+      summary: Send a message to the agent
+      description: Send a message to the agent.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatTurn'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - text
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 8000
+                client_msg_id:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                  pattern: ^[!-~]+$
+                  description: Retrying with the same id returns the original turn.
+      x-thelife-tool:
+        effect: create
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/chat/web/stream:
+    get:
+      operationId: chat.stream
+      tags:
+      - Chat
+      summary: 'Server-sent events for this user: turn.started, token, reset, tool.started, tool.finished, approval.requested,
+        turn.finished'
+      description: 'Server-sent events for this user: turn.started, token, reset, tool.started, tool.finished, approval.requested,
+        turn.finished.'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/conversations:
+    get:
+      operationId: conversations.list
+      tags:
+      - Chat
+      summary: List conversations
+      description: List conversations.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: channel
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - web
+          - telegram
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+          description: First local day (inclusive).
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+          description: Last local day (inclusive).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/conversations/{id}:
+    get:
+      operationId: conversations.get
+      tags:
+      - Chat
+      summary: Get a conversation
+      description: Get a conversation.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/conversations/{id}/messages:
+    get:
+      operationId: conversations.messages
+      tags:
+      - Chat
+      summary: Messages of a conversation, oldest first
+      description: Messages of a conversation, oldest first.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - name: after
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Id'
+          description: Only messages after this message id.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatMessage'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/detections:
     get:
       operationId: detections.list
@@ -2949,6 +3456,154 @@ paths:
         principals:
         - user
         stage: 1
+  /api/v1/memory/facts:
+    get:
+      operationId: memory_facts.list
+      tags:
+      - Memory
+      summary: List remembered facts
+      description: List remembered facts.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - active
+          - proposed
+          - superseded
+      - name: subject_id
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryFactPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - memory:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/memory/facts/{id}:
+    delete:
+      operationId: memory_facts.delete
+      tags:
+      - Memory
+      summary: Delete a remembered fact (soft delete)
+      description: Delete a remembered fact (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - memory:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+    get:
+      operationId: memory_facts.get
+      tags:
+      - Memory
+      summary: Get a remembered fact
+      description: Get a remembered fact.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryFact'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - memory:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/plans:
     get:
       operationId: plans.list
@@ -6187,6 +6842,132 @@ components:
         token:
           type: string
           description: tlk_ API key; shown once.
+    Approval:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        tool:
+          type: string
+          description: Tool name, for example tasks.update.
+        args:
+          type: object
+          description: The exact arguments that run on approval.
+        summary:
+          type: string
+          description: Human-readable description of the change.
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          - stale
+          - failed
+        target_type:
+          type:
+          - string
+          - 'null'
+        target_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        target_version:
+          type:
+          - integer
+          - 'null'
+        conversation_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decision_reason:
+          type:
+          - string
+          - 'null'
+        result:
+          description: Result of the executed call (approved), otherwise null.
+        error:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call
+        exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale
+        and nothing runs. Pending approvals expire after 72 h.
+    ApprovalCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ApprovalPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Approval'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ApprovalPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     Area:
       type: string
       enum:
@@ -6535,6 +7316,194 @@ components:
           maxItems: 200
           items:
             type: object
+    ChatMessage:
+      type: object
+      required:
+      - id
+      - conversation_id
+      - role
+      - kind
+      - content
+      - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        conversation_id:
+          $ref: '#/components/schemas/Id'
+        turn_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+          - tool
+        kind:
+          type: string
+          enum:
+          - normal
+          - deterministic
+          - suppressed
+          - error
+        content:
+          type: string
+        tool_calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatToolCall'
+        tool_call_id:
+          type:
+          - string
+          - 'null'
+        tool_name:
+          type:
+          - string
+          - 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+    ChatToolCall:
+      type: object
+      required:
+      - id
+      - name
+      - arguments
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        arguments:
+          type: string
+          description: JSON text of the arguments.
+    ChatTurn:
+      type: object
+      required:
+      - id
+      - conversation_id
+      - message_id
+      - status
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        conversation_id:
+          $ref: '#/components/schemas/Id'
+        message_id:
+          $ref: '#/components/schemas/Id'
+          description: The user message that started the turn.
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - done
+          - failed
+          - manual
+          - merged
+          description: 'manual: answered without the model (deterministic command, or the assistant is offline). merged: answered
+            by a turn that started later and saw this message too.'
+        error:
+          type:
+          - string
+          - 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        finished_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    Conversation:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        channel:
+          type: string
+          enum:
+          - web
+          - telegram
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        status:
+          type: string
+          enum:
+          - open
+          - closed
+        closed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: One conversation per channel per local day (agent_lld.md §1, §6.2). Transcripts are per channel; data and
+        long-term memory are shared.
+    ConversationCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ConversationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ConversationPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     CourseSection:
       type: object
       properties:
@@ -7526,6 +8495,119 @@ components:
       type: string
       format: date
       description: A calendar day in the user's timezone, honouring day_start_hour.
+    MemoryFact:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        subject_id:
+          $ref: '#/components/schemas/Id'
+        predicate:
+          type:
+          - string
+          - 'null'
+        value:
+          type:
+          - string
+          - 'null'
+        statement:
+          type: string
+          description: 'Human-readable fact, for example: Prefers deep work before noon.'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum:
+          - active
+          - proposed
+          - superseded
+          description: 'proposed: inferred with low confidence or contradicting something the user said; not used until confirmed.'
+        valid_from:
+          $ref: '#/components/schemas/Timestamp'
+        valid_to:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        superseded_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        last_used_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only;
+        a change supersedes the old fact. Deleting a fact makes the assistant forget it.
+    MemoryFactCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    MemoryFactPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemoryFact'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    MemoryFactPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     Notes:
       type:
       - string

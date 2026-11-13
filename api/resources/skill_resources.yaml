@@ -1,4 +1,5 @@
 name: skill_resources
+agent_group: skills
 schema: SkillResource
 noun: skill resource
 path: /skills/resources

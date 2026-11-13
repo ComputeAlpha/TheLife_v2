@@ -208,7 +208,8 @@ TEST(LlmDbStore, PersistsStateComputesLocalResetAndRecordsUsage) {
   EXPECT_EQ(toRfc3339(store->nextWeeklyReset(WeeklyReset{1, 0, "Asia/Kolkata"}, mon)), "2026-11-22T18:30:00Z");
 
   ProviderStatus s;
-  s.provider = "test-" + thelife::ids::newUuidV7().substr(24);
+  s.provider = "test";
+  s.key = "test#" + thelife::ids::newUuidV7().substr(26);
   s.state = "exhausted";
   s.until = mon;
   s.quotaScope = "weekly";
@@ -216,7 +217,8 @@ TEST(LlmDbStore, PersistsStateComputesLocalResetAndRecordsUsage) {
   store->save(s);
   bool found = false;
   for (const auto& x : store->load()) {
-    if (x.provider != s.provider) continue;
+    if (x.key != s.key) continue;
+    EXPECT_EQ(x.provider, "test");
     found = true;
     EXPECT_EQ(x.state, "exhausted");
     EXPECT_EQ(x.until, mon);

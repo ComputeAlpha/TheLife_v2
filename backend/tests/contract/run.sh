@@ -50,16 +50,20 @@ except urllib.error.HTTPError as e:
 PY
 )"
 
-# Operations a user cannot call at Stage 1 (collector endpoints, later stages), the two that would end the
-# session under test, and login (fuzzed separately, see --with-login).
-exclude="$("$py" - "$contract" <<'PY'
+# Operations a user cannot call at this stage (collector endpoints, later stages), the two that would end the
+# session under test, login (fuzzed separately, see --with-login), and the chat event stream (it never ends by
+# design; covered by backend/tests/api/agent_test.cc). Run against a backend without an LLM configured: chat
+# messages are then answered deterministically and spend no quota.
+stage="${THELIFE_CONTRACT_STAGE:-2}"
+exclude="$("$py" - "$contract" "$stage" <<'PY'
 import re, sys, yaml
 doc = yaml.safe_load(open(sys.argv[1]))
-ops = {"auth.logout", "auth.change_password", "auth.login"}
+stage = int(sys.argv[2])
+ops = {"auth.logout", "auth.change_password", "auth.login", "chat.stream"}
 for methods in doc["paths"].values():
     for o in methods.values():
         t = o["x-thelife-tool"]
-        if t["stage"] > 1 or "user" not in t["principals"]:
+        if t["stage"] > stage or "user" not in t["principals"]:
             ops.add(o["operationId"])
 print("^(" + "|".join(re.escape(o) for o in sorted(ops)) + ")$")
 PY

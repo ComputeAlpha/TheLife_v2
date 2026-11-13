@@ -3,6 +3,7 @@
 #include <drogon/drogon.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 
 #include "core/errors.h"
@@ -138,7 +139,17 @@ void registerOne(const ToolDef& toolDef) {
           }
         }
 
-        auto result = co_await tools::registry().invoke(name, ctx.who(), std::move(args), opts);
+        // Long poll (`wait` seconds, for example the collector's notification fetch): repeat the read in short
+        // transactions until it returns items or the wait is over, so no connection idles in a transaction.
+        const int waitSec = def.effect == tools::Effect::Read && args.isMember("wait") ? args["wait"].asInt() : 0;
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(std::clamp(waitSec, 0, 55));
+        auto result = co_await tools::registry().invoke(name, ctx.who(), args, opts);
+        while (waitSec > 0 && result.value["items"].isArray() && result.value["items"].empty()) {
+          const auto left = std::chrono::duration<double>(deadline - std::chrono::steady_clock::now()).count();
+          if (left <= 0.05) break;
+          co_await drogon::sleepCoro(trantor::EventLoop::getEventLoopOfCurrentThread(), std::min(1.0, left));
+          result = co_await tools::registry().invoke(name, ctx.who(), args, opts);
+        }
 
         drogon::HttpResponsePtr resp;
         if (result.outcome != tools::Outcome::Executed) {

@@ -10,6 +10,7 @@
 #include <regex>
 #include <set>
 
+#include "core/build_info.h"
 #include "core/ids.h"
 #include "core/json.h"
 #include "support/api_client.h"
@@ -27,10 +28,10 @@ std::string fill(const std::string& path) {
   return out.substr(std::string("/api/v1").size());
 }
 
-std::vector<const thelife::tools::ToolDef*> stage1RestTools() {
+std::vector<const thelife::tools::ToolDef*> stage1RestTools() {  // every REST tool up to the build stage
   std::vector<const thelife::tools::ToolDef*> out;
   for (const auto& [name, def] : thelife::tools::embeddedManifest().tools) {
-    if (def.stage <= 1 && def.rest && def.rest->path.rfind("/api/v1/", 0) == 0) out.push_back(&def);
+    if (def.stage <= thelife::build::kStage && def.rest && def.rest->path.rfind("/api/v1/", 0) == 0) out.push_back(&def);
   }
   return out;
 }
@@ -70,13 +71,24 @@ TestUser* ContractMatrix::user_ = nullptr;
 std::string* ContractMatrix::keyToken_ = nullptr;
 std::string* ContractMatrix::deviceToken_ = nullptr;
 
-TEST_F(ContractMatrix, DeviceTokenReachesNoStage1Tool) {
+TEST_F(ContractMatrix, DeviceTokenReachesOnlyDeviceTools) {
   const ApiClient device(*server_, *user_, *deviceToken_);
+  int deviceTools = 0;
   for (const auto* def : stage1RestTools()) {
-    ASSERT_FALSE(def->principals.count("device")) << def->name;
-    const auto r = device.call(def->rest->method, fill(def->rest->path), bodyFor(*def), {{"If-Match", "\"1\""}});
-    EXPECT_EQ(r.status, 403) << def->name << " " << r.body;
+    auto path = fill(def->rest->path);
+    if (std::find(def->rest->queryArgs.begin(), def->rest->queryArgs.end(), "wait") != def->rest->queryArgs.end()) {
+      path += "?wait=0";  // do not long-poll here
+    }
+    const auto r = device.call(def->rest->method, path, bodyFor(*def), {{"If-Match", "\"1\""}});
+    if (def->principals.count("device")) {
+      ++deviceTools;
+      EXPECT_NE(r.status, 403) << def->name << " " << r.body;
+      EXPECT_LT(r.status, 500) << def->name << " " << r.body;
+    } else {
+      EXPECT_EQ(r.status, 403) << def->name << " " << r.body;
+    }
   }
+  EXPECT_EQ(deviceTools, thelife::build::kStage >= 4 ? 5 : 2);  // notification poll and ack (Stage 2)
 }
 
 TEST_F(ContractMatrix, ApiKeyNeedsTheToolsScope) {
