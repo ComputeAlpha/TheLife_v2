@@ -1,0 +1,36 @@
+{
+  "id": "chatcmpl-886",
+  "object": "chat.completion",
+  "created": 1794423405,
+  "model": "glm-5.3-flash",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The user wants a reminder at 6pm to call the bank. Current time is 2026-11-12T14:05:00+05:30. So 6pm today would be 2026-11-12T18:00:00+05:30.</think>",
+        "tool_calls": [
+          {
+            "id": "call_9tjl7ltg",
+            "index": 0,
+            "type": "function",
+            "function": {
+              "name": "reminders_create",
+              "arguments": "{\"due_at\":\"2026-11-12T18:00:00+05:30\",\"text\":\"Call the bank\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 395,
+    "completion_tokens": 97,
+    "total_tokens": 492,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  }
+}

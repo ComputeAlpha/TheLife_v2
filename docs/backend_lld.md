@@ -49,6 +49,7 @@ TheLife_v2/
 | JSON | jsoncpp (Drogon's native type). Avoid a second JSON library |
 | JSON Schema | valijson with its jsoncpp adapter, used by the tool registry and request validation |
 | Crypto | libsodium: argon2id passwords, CSPRNG tokens, `crypto_secretbox` for envelope encryption |
+| LLM HTTP | libcurl (vcpkg, OpenSSL) for model calls only: streaming SSE bodies, which Drogon 1.9's `HttpClient` cannot deliver incrementally. Runs on the LLM gateway's own thread pool (`agent_lld.md` §3) |
 | Recurrence | libical 3.0 (vcpkg) for RFC 5545 RRULE parsing and expansion (`core/recurrence`). Rules are expanded in **floating local time** and converted to instants by Postgres (`AT TIME ZONE`), so a 09:00 routine stays at 09:00 across DST. Accepted: `FREQ=DAILY\|WEEKLY\|MONTHLY\|YEARLY`, INTERVAL 1–1000; rules that can never occur are rejected. libical's fatal-error mode is switched off at first use |
 | Tests | GoogleTest + real PostgreSQL 17 with pgvector from docker compose |
 | Migrations | **dbmate (decided)**: plain SQL, one static binary, no ORM coupling |
@@ -393,6 +394,7 @@ Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recomp
 | detection invariants | UPDATE/DELETE blocked, transitions recorded, claim → superseded | isolation (as `thelife_app`) + api |
 | manifest matrix (implemented) | every Stage 1 REST tool: device token → 403, API key without scope → 403, update/delete without If-Match → 428, target reads with an unknown id → 404 | `api/contract_test.cc`, driven by the embedded `tools.json` |
 | resource lifecycle (implemented) | every CRUD resource: create/get/list/patch/delete, ETag/412/428, other tenant 404 and empty list. A new resource fails CI until it has a case | `api/resources_test.cc` |
+| LLM gateway (implemented) | error classification against the recorded Stage 0 bodies, response and SSE parsing (split anywhere, leaked `</think>` retracted), provider state machine on a fake clock (transient backoff, weekly exhaustion → manual → probe → healthy, restart persistence, auth → disabled, rate limits), structured output (tool-as-output → repair → schema-in-prompt) | `unit/llm_test.cc`; `api/llm_test.cc` over libcurl against `docker/fake-llm` plus `ops.provider_state` / `llm_calls` / `llm_usage` in Postgres; `live/llm_live_test.cc` against the real endpoint when `THELIFE_LIVE_LLM_URL` is set |
 | demo UI (implemented) | contract-generated pages render for every resource; forms send contract bodies (local time → RFC 3339, merge patch with If-Match, only changed fields); tokens never reach the browser; end-to-end flows against the built backend | `demo-ui/tests` (pytest, fake backend); `test_e2e_live.py` in the backend CI job |
 
 Cross-tenant reads return **404, not 403**, so ids from other tenants cannot be probed.

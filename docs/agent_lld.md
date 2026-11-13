@@ -66,6 +66,14 @@ class ILlmProvider {
 - `StubFallbackProvider`: `caps()` reports nothing available; every call throws `ProviderUnavailable`. It is a placeholder so the routing code exists and is tested.
 - Providers are configured in `config/llm.json` (`name, base_url, api_key_env, models{chat, vision}, role: primary|fallback, caps`). The capability values come from the Stage 0 spike, not assumptions.
 
+**Implementation (Stage 2, increment 1):** `backend/src/llm/`.
+- Transport is **libcurl** on a dedicated 4-thread pool (`runBlockingOn`), because Drogon 1.9's `HttpClient` cannot stream response bodies. Gateway logic is synchronous on that pool; `Gateway::complete()` / `structured()` are the coroutine entry points.
+- Responses with tool calls carry reasoning leaked into `content`, ending in `</think>` (recorded in `tools_single.json`). The provider keeps only the text after the tag, and while streaming it calls `StreamSink::reset()` when the tag appears, so the leaked part is retracted from the UI. A retry after a failure mid-stream also calls `reset()`.
+- Provider state lives in `ops.provider_state` (schema `ops`: deployment state, not tenant data, so the "every public table is tenant-scoped" catalog rule stays absolute). The weekly reset instant is computed by Postgres in the configured timezone (`config/llm.json` `weekly_reset`), since libstdc++ 13 has no tzdb.
+- Exhausted, disabled or incapable routing ends in `ProviderUnavailable` (with `resets_at` when known): the single "manual mode" signal for callers. `RateLimited` keeps its class so background work can reschedule.
+- Configuration: `THELIFE_LLM_CONFIG` (JSON file), `THELIFE_LLM_BASE_URL` (overrides the primary's endpoint, or alone gives a one-provider setup), `THELIFE_LLM_FIXTURE_DIR` (fixture-capture mode). With none of these the gateway is `unconfigured` and the service still starts.
+- `GET /api/v1/system/llm-status` returns mode, provider states and the tenant's usage this week (Monday in the user's timezone).
+
 ### 3.2 Capability fallbacks
 | Missing capability | Fallback |
 |---|---|
@@ -122,7 +130,7 @@ healthy ──AuthFailed──► disabled (manual)
 `llm_calls(id, tenant, purpose, provider, model, prompt_id, prompt_version, priority, tokens_in, tokens_out, images, latency_ms, status, error_class, created_at)`. **No content** by default. A per-tenant `debug_capture` flag stores request and response bodies for 24 h, for prompt debugging on the developer's own tenant.
 
 ### 3.7 Testing
-- `fake-llm` server (Python, in `docker/`): replays recorded fixtures keyed by `(purpose, scenario)`, can stream SSE, and can inject each error class including the real weekly-limit body captured in Stage 0.
+- `fake-llm` server (`docker/fake-llm/fake_llm.py`, standard library only): a FIFO script of responses set over `POST /_fake/script`; replays the recorded Stage 0 bodies (`docker/fake-llm/fixtures/`), streams SSE, injects HTTP errors, dropped connections and streams cut mid-way, and records the request bodies it received. A real weekly-limit body joins the fixtures once fixture-capture mode sees one.
 - Gateway tests: every error class → expected state transition and handling; exhausted → manual/deterministic mode; reset at Monday 00:00 local; catch-up ordering and pacing.
 
 ## 4. Turns, Triggers and Proactivity
@@ -327,7 +335,7 @@ Built only after the web UI, collector and Telegram are stable in daily use.
 - Routines: adaptive time from synthetic activity history; chat override; calendar override; skip once.
 - Channels: Telegram unlinked chat ignored, HMAC callback tampering rejected, isolation (Telegram turn never sees web transcript verbatim).
 - Notifier: routing matrix, ack de-duplication, quiet hours, daily cap.
-- Live smoke (manual / nightly): one real turn, one vision call, one structured-output job against `glm-5.3-flash:cloud`.
+- Live smoke (manual / nightly): one real turn, one vision call, one structured-output job against `glm-5.3-flash:cloud`. Implemented so far: streamed turn, tool call, structured output (`backend/tests/live/`, runs only with `THELIFE_LIVE_LLM_URL`); the vision call arrives with the vision pipeline.
 
 ## 13. Decisions (review round 3, 2026-11-11)
 

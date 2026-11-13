@@ -8,8 +8,10 @@
 #include "db/database.h"
 #include "http/auth_routes.h"
 #include "http/health.h"
+#include "http/llm_routes.h"
 #include "http/rest_adapter.h"
 #include "http/route.h"
+#include "llm/gateway.h"
 #include "modules/modules.h"
 #include "tools/registry.h"
 
@@ -25,6 +27,8 @@ int main() {
                                 static_cast<double>(dbTimeout));
     thelife::http::registerHealthRoutes();
     thelife::http::registerAuthRoutes();
+    thelife::llm::initGateway();
+    thelife::http::registerLlmRoutes();
     auto& registry = thelife::tools::registry();
     thelife::modules::bindAll(registry);
     registry.verifyComplete(thelife::build::kStage);  // refuse to start with an unimplemented contract tool

@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-626",
+  "object": "chat.completion",
+  "created": 1794423429,
+  "model": "glm-5.3-flash",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The screenshot shows Visual Studio Code with a C++ file (health.cc) for a project called \"TheLife_v2\". There's a backend project structure, HTTP routes registration using drogon framework, and a terminal showing ctest passing 5 tests. This is clearly a software development activity — work category.\n\nActive processes: code, chromium, steam. The foreground is VS Code, so the visible/active segment is work (coding). Chromium and steam are in the background, but the screen shows VS Code. The user asks for detection segments for this screen. Only one segment visible: work covering the whole screen.\n\nI should return segments with category, maybe time spans. Since it's a single screenshot, one segment covering full duration: work.</think>**Detected segment:**\n\n| Segment | Category | Confidence | Evidence |\n|---|---|---|---|\n| Full screen (VS Code foreground) | **work** | High | Active editor `health.cc` in project \"TheLife_v2\": C++ HTTP health-route handler (drogon framework), backend folder structure (src/, http/, db/, tests/), and integrated terminal running `ctest --preset dev` with \"100% tests passed, 0 tests failed out of 5\". This is active software development and testing. |\n\n**Notes on background processes:**\n- `chromium` — not visible on screen; could be work (docs/research) or personal, cannot be attributed without screen evidence.\n- `steam` — background only; no gaming content is visible, so no entertainment segment is assigned.\n\nNo skill-learning, entertainment, fitness, or personal segments are detectable on this screen — the entire visible activity is one continuous **work** segment."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1987,
+    "completion_tokens": 351,
+    "total_tokens": 2338,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  }
+}

@@ -20,11 +20,12 @@ namespace detail {
 template <typename T>
 struct BlockingAwaiter : drogon::CallbackAwaiter<T> {
   std::function<T()> fn;
-  explicit BlockingAwaiter(std::function<T()> f) : fn(std::move(f)) {}
+  trantor::ConcurrentTaskQueue* pool;
+  BlockingAwaiter(std::function<T()> f, trantor::ConcurrentTaskQueue* p) : fn(std::move(f)), pool(p) {}
   void await_suspend(std::coroutine_handle<> h) {
     // Resume on the event loop that awaited, if there is one.
     auto* loop = trantor::EventLoop::getEventLoopOfCurrentThread();
-    blockingPool().runTaskInQueue([this, h, loop] {
+    pool->runTaskInQueue([this, h, loop] {
       try {
         if constexpr (std::is_void_v<T>) {
           fn();
@@ -48,7 +49,14 @@ struct BlockingAwaiter : drogon::CallbackAwaiter<T> {
 template <typename F>
 auto runBlocking(F&& fn) {
   using T = std::invoke_result_t<F>;
-  return detail::BlockingAwaiter<T>(std::function<T()>(std::forward<F>(fn)));
+  return detail::BlockingAwaiter<T>(std::function<T()>(std::forward<F>(fn)), &blockingPool());
+}
+
+// Same, on a caller-chosen pool (for example the LLM gateway's, whose calls block for seconds).
+template <typename F>
+auto runBlockingOn(trantor::ConcurrentTaskQueue& pool, F&& fn) {
+  using T = std::invoke_result_t<F>;
+  return detail::BlockingAwaiter<T>(std::function<T()>(std::forward<F>(fn)), &pool);
 }
 
 }  // namespace thelife

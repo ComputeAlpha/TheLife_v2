@@ -76,8 +76,9 @@ HttpResult ApiClient::del(const std::string& path, const std::string& ifMatch) c
   return send(r);
 }
 
-std::unique_ptr<ServerProcess> startServerWithDb() {
-  return std::make_unique<ServerProcess>(std::map<std::string, std::string>{{"THELIFE_DB_URL", appDbUrl()}});
+std::unique_ptr<ServerProcess> startServerWithDb(std::map<std::string, std::string> extraEnv) {
+  extraEnv["THELIFE_DB_URL"] = appDbUrl();
+  return std::make_unique<ServerProcess>(std::move(extraEnv));
 }
 
 }  // namespace thelife::test

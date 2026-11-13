@@ -2,6 +2,9 @@
 
 #include <json/value.h>
 
+#include <map>
+#include <memory>
+
 #include <string>
 
 #include "support/fixtures.h"
@@ -35,6 +38,6 @@ class ApiClient {
 };
 
 // Starts a server bound to the test database.
-std::unique_ptr<ServerProcess> startServerWithDb();
+std::unique_ptr<ServerProcess> startServerWithDb(std::map<std::string, std::string> extraEnv = {});
 
 }  // namespace thelife::test

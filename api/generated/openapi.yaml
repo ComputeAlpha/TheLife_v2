@@ -4053,6 +4053,118 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/system/llm-status:
+    get:
+      operationId: system.llm_status
+      tags:
+      - System
+      summary: Assistant availability (LLM gateway mode and provider states) and this week's usage
+      description: Assistant availability (LLM gateway mode and provider states) and this week's usage.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - mode
+                - resets_at
+                - providers
+                - usage
+                properties:
+                  mode:
+                    type: string
+                    enum:
+                    - online
+                    - manual
+                    - unconfigured
+                    description: manual means no model is usable (quota exhausted or providers disabled); chat answers deterministic
+                      commands only.
+                  resets_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                    description: When manual mode is expected to end, if known.
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - name
+                      - role
+                      - kind
+                      - model
+                      - state
+                      - until
+                      - quota_scope
+                      properties:
+                        name:
+                          type: string
+                        role:
+                          type: string
+                          enum:
+                          - primary
+                          - fallback
+                        kind:
+                          type: string
+                          enum:
+                          - openai
+                          - stub
+                        model:
+                          type:
+                          - string
+                          - 'null'
+                        state:
+                          type: string
+                          enum:
+                          - healthy
+                          - throttled
+                          - exhausted
+                          - probing
+                          - disabled
+                        until:
+                          type:
+                          - string
+                          - 'null'
+                          format: date-time
+                        quota_scope:
+                          type:
+                          - string
+                          - 'null'
+                  usage:
+                    type: object
+                    required:
+                    - weekly_request_estimate
+                    properties:
+                      week_start:
+                        $ref: '#/components/schemas/LocalDate'
+                      requests:
+                        type: integer
+                      failures:
+                        type: integer
+                      tokens_in:
+                        type: integer
+                      tokens_out:
+                        type: integer
+                      images:
+                        type: integer
+                      weekly_request_estimate:
+                        type: integer
+                        description: Soft estimate; exceeding it only triggers a warning.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/tasks:
     get:
       operationId: tasks.list

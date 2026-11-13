@@ -2,6 +2,7 @@ find_package(Drogon CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(valijson CONFIG REQUIRED)
 find_package(LibIcal CONFIG REQUIRED)
+find_package(CURL CONFIG REQUIRED)
 
 option(THELIFE_WERROR "Treat warnings as errors" OFF)
 
@@ -40,12 +41,19 @@ add_library(thelife_core STATIC
   src/core/recurrence.cc
   src/db/database.cc
   src/db/tenant_tx.cc
+  src/db/llm_store.cc
   src/auth/authenticator.cc
   src/auth/rate_limiter.cc
   src/http/route.cc
   src/http/health.cc
   src/http/auth_routes.cc
   src/http/rest_adapter.cc
+  src/http/llm_routes.cc
+  src/llm/classifier.cc
+  src/llm/transport_curl.cc
+  src/llm/provider.cc
+  src/llm/gateway.cc
+  src/llm/init.cc
   src/tools/manifest.cc
   src/tools/schema_validator.cc
   src/tools/policy.cc
@@ -61,7 +69,7 @@ add_library(thelife_core STATIC
   "${THELIFE_MANIFEST_CC}"
 )
 target_include_directories(thelife_core PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/generated")
-target_link_libraries(thelife_core PUBLIC Drogon::Drogon unofficial-sodium::sodium valijson ical PRIVATE thelife_warnings)
+target_link_libraries(thelife_core PUBLIC Drogon::Drogon unofficial-sodium::sodium valijson ical CURL::libcurl PRIVATE thelife_warnings)
 
 add_executable(thelife-backend src/main.cc)
 target_link_libraries(thelife-backend PRIVATE thelife_core thelife_warnings)
