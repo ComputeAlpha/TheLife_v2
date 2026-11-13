@@ -21,6 +21,7 @@ class Transport {
                           const std::function<void(std::string_view)>& onChunk) = 0;
 };
 
-std::unique_ptr<Transport> makeCurlTransport();
+// unixSocket: talk HTTP over that Unix domain socket instead of TCP (thelife-embedder).
+std::unique_ptr<Transport> makeCurlTransport(std::string unixSocket = {});
 
 }  // namespace thelife::llm

@@ -1,5 +1,5 @@
 {
-  "_comment": "LLM gateway providers (agent_lld.md §3.1). Capabilities come from spikes/llm/REPORT.md. Secrets only through api_key_env. THELIFE_LLM_BASE_URL overrides the primary's base_url (tests point it at docker/fake-llm).",
+  "_comment": "LLM gateway providers (agent_lld.md \u00a73.1). Capabilities come from spikes/llm/REPORT.md. Secrets only through api_key_env. THELIFE_LLM_BASE_URL overrides the primary's base_url (tests point it at docker/fake-llm).",
   "providers": [
     {
       "name": "ollama",
@@ -7,8 +7,16 @@
       "role": "primary",
       "base_url": "http://127.0.0.1:11434/v1",
       "api_key_env": "",
-      "models": {"chat": "glm-5.3-flash:cloud", "vision": "glm-5.3-flash:cloud"},
-      "caps": {"tools": true, "json_schema": false, "vision": true, "ctx_tokens": 128000},
+      "models": {
+        "chat": "glm-5.3-flash:cloud",
+        "vision": "glm-5.3-flash:cloud"
+      },
+      "caps": {
+        "tools": true,
+        "json_schema": false,
+        "vision": true,
+        "ctx_tokens": 128000
+      },
       "timeout_s": 180,
       "idle_timeout_s": 60
     },
@@ -18,6 +26,16 @@
       "role": "fallback"
     }
   ],
-  "weekly_reset": {"iso_weekday": 1, "hour": 0, "timezone": "Asia/Kolkata"},
-  "weekly_request_estimate": 3000
+  "weekly_reset": {
+    "iso_weekday": 1,
+    "hour": 0,
+    "timezone": "Asia/Kolkata"
+  },
+  "weekly_request_estimate": 3000,
+  "web_search": {
+    "base_url": "https://ollama.com/api",
+    "api_key_env": "OLLAMA_API_KEY",
+    "timeout_s": 15,
+    "daily_limit": 50
+  }
 }

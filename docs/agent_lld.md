@@ -220,6 +220,21 @@ run_turn(input):
 - **Limits:** 8 model calls and 30 tool calls per turn; hitting the step limit ends the turn with a summary of what
   ran. Tool errors go back to the model as results (status, title, JSON-pointer errors) so it can correct itself.
 
+### Web search (Stage 2 addendum, 2026-11-13)
+`web.search` and `web.fetch` call Ollama's web search API (`POST https://ollama.com/api/web_search {query,
+max_results ≤ 10}`, `POST …/web_fetch {url}`, `Authorization: Bearer $OLLAMA_API_KEY`; config `web_search` in
+`config/llm.json`). They are core tools, so they work on every channel (web chat now, Telegram when it exists).
+- **When:** only when the user asks for a lookup, or the answer depends on current outside information (news,
+  weather, prices, releases, documentation). Never for the user's own data; no personal details in queries
+  (prompt rules, `prompts/agent/system.md` 1.2.0).
+- **Limits:** 3 searches and 3 fetches per turn (loop), `daily_limit` web calls per user per 24 h (default 50,
+  counted from `agent_actions`). Every call is audited with its query.
+- **Untrusted content:** results are cleaned (control characters removed, cut on UTF-8 boundaries: 1,200 characters
+  per snippet, 6,000 per page) and marked `untrusted`. Once web content is in a turn, **every agent write of that
+  turn is held for approval** (policy input `untrustedContext`), with the approval summary saying so, because
+  instructions planted in a page could otherwise steer the agent's tools. The kill switch still wins.
+- Queries leave the machine (ollama.com). Without a key the tools answer "not configured".
+
 ### 5.1 Agent-only tools (beyond domain CRUD tools)
 `memory.recall`, `memory.remember`, `memory.update_fact`, `memory.forget` (approval required when the fact was user-stated), `agent.schedule_followup`, `agent.cancel_followup`, `context.now` (current activity, today's plan, deterministic plan progress so far), `history.search` (semantic, 3-month window), `detections.adjudicate` (dispute flow only), `notify.urgent` (marks the final message urgent; rate-limited).
 
@@ -264,9 +279,13 @@ run_turn(input):
   user stated), `memory.forget` (named policy `user_stated_fact`), `history.search` (keyword search over messages,
   activities and day summaries, 3-month default window). An approved change keeps the origin of the request.
   Users see and delete facts at `/memory/facts`.
-- **Not yet:** embeddings and semantic retrieval (`thelife-embedder`, next increment; `history.search` and entity
-  matching then gain a vector path), overflow compaction (§6.3), the cross-channel digest (with Telegram), and a
-  review flow for `proposed` facts.
+- **Semantic tier (increment 3b):** `history.search` merges keyword and vector hits (reciprocal rank fusion; each
+  hit says `keyword`, `semantic` or `both`); `memory.recall` adds facts close in meaning; the context gains
+  "Related from earlier (by meaning)": up to 4 items from before yesterday with similarity ≥ 0.50, computed once
+  per turn from the user's message. Without the embedder all three quietly use keywords only.
+- **Not yet:** overflow compaction (§6.3), the cross-channel digest (with Telegram), and a review flow for
+  `proposed` facts. The pgvector + RLS benchmark of `backend_lld.md` §4.5 (2 tenants × 200k vectors) is still to do;
+  queries already set `hnsw.iterative_scan = relaxed_order`.
 - **Model offline:** memory jobs throw `Defer` on `ProviderUnavailable` (until `resets_at`) or `RateLimited`, so
   they wait in the queue without spending attempts and run in priority order after the reset (§3.4 catch-up).
 

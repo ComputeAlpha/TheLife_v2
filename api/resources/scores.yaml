@@ -1,0 +1,168 @@
+name: scores
+agent_group: scoring
+schema: Score
+noun: score
+path: /scores
+scope: scoring
+tag: Scoring
+stage: 2
+exposure: [rest, agent, mcp]
+description: Day, week and month scores (scoring_lld.md). A day score is computed when the day closes - a
+  deterministic base from plan adherence, targets and consistency, then one assistant adjustment of at most
+  ±30 % with stated reasons. Scores are versioned; this list shows the current version.
+fields: {}
+readonly:
+  period: {type: string, enum: [day, week, month]}
+  period_start: {$ref: LocalDate}
+  profile: {type: [string, "null"]}
+  status: {type: string, enum: [provisional, final, unobserved, not_scored], description: "provisional: base only, the adjustment follows when the assistant is back. unobserved: no evidence that day. not_scored: leave or sick."}
+  base: {type: [number, "null"]}
+  adjustment_pct: {type: [number, "null"]}
+  adjustment: {type: [object, "null"], description: "{adjustment_pct, reasons[{text, direction, refs}], goal_alignment}"}
+  final: {type: [number, "null"]}
+  breakdown: {type: object, description: "Per area: adherence, quantity, alpha, items with weight and completion, targets."}
+  consistency: {type: object}
+  coverage: {type: [object, "null"], description: "Periods: scored days and calendar days."}
+  formula_version: {type: string}
+filters:
+  period: {type: string, enum: [day, week, month]}
+  from: {$ref: LocalDate}
+  to: {$ref: LocalDate}
+ops: {list: {}, get: {}}
+actions:
+  - name: history
+    method: get
+    path: /scores/{id}/history
+    effect: read
+    summary: Every version of this score's period, newest first
+    target: true
+    params: {id: {$ref: Id}}
+    returns:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: Score}}
+  - name: dispute
+    method: post
+    path: /scores/{id}:dispute
+    effect: create
+    summary: Dispute the assistant's adjustment; it is re-run once with your reason
+    target: true
+    principals: [user]
+    exposure: [rest]
+    params: {id: {$ref: Id}}
+    extra_responses: {409: Conflict}
+    status: 202
+    body:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 1000}
+    returns:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string, enum: [queued]}
+  - name: today_progress
+    method: get
+    path: /progress/today
+    effect: read
+    summary: "Deterministic plan progress so far today: no score number, no assistant call"
+    returns: {$ref: DayProgress}
+  - name: preemptions
+    method: get
+    path: /insights/preemptions
+    effect: read
+    summary: What entertainment displaced (planned items it overlapped or ran while due)
+    query:
+      from: {$ref: LocalDate}
+      to: {$ref: LocalDate}
+    returns:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [local_day, kind, displaced_type, displaced_id, minutes]
+            properties:
+              local_day: {$ref: LocalDate}
+              kind: {type: string, enum: [overlap, while_due]}
+              displaced_type: {type: string}
+              displaced_id: {$ref: Id}
+              displaced_title: {type: [string, "null"]}
+              minutes: {type: integer}
+  - name: settings
+    method: get
+    path: /settings/scoring
+    effect: read
+    summary: Area weights and plan-versus-target balance
+    principals: [user]
+    exposure: [rest]
+    returns: {$ref: ScoringSettings}
+  - name: update_settings
+    method: patch
+    path: /settings/scoring
+    effect: update
+    summary: Change area weights or the plan-versus-target balance
+    principals: [user]
+    exposure: [rest]
+    body: ScoringSettingsPatch
+    returns: {$ref: ScoringSettings}
+extra_schemas:
+  ScoringSettings:
+    type: object
+    required: [weights, plan_share]
+    properties:
+      weights:
+        type: object
+        description: Relative area weights (normalised over the areas that apply on a day).
+        additionalProperties: false
+        properties:
+          work: {type: number, minimum: 0, maximum: 1}
+          skill: {type: number, minimum: 0, maximum: 1}
+          fitness: {type: number, minimum: 0, maximum: 1}
+          personal: {type: number, minimum: 0, maximum: 1}
+          consistency: {type: number, minimum: 0, maximum: 1}
+      plan_share:
+        type: object
+        description: "alpha per area: share of plan adherence next to targets (1 - alpha). Default 0.8."
+        additionalProperties: false
+        properties:
+          work: {type: number, minimum: 0, maximum: 1}
+          skill: {type: number, minimum: 0, maximum: 1}
+          fitness: {type: number, minimum: 0, maximum: 1}
+          personal: {type: number, minimum: 0, maximum: 1}
+  ScoringSettingsPatch:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    properties:
+      weights:
+        type: object
+        additionalProperties: false
+        properties:
+          work: {type: number, minimum: 0, maximum: 1}
+          skill: {type: number, minimum: 0, maximum: 1}
+          fitness: {type: number, minimum: 0, maximum: 1}
+          personal: {type: number, minimum: 0, maximum: 1}
+          consistency: {type: number, minimum: 0, maximum: 1}
+      plan_share:
+        type: object
+        additionalProperties: false
+        properties:
+          work: {type: number, minimum: 0, maximum: 1}
+          skill: {type: number, minimum: 0, maximum: 1}
+          fitness: {type: number, minimum: 0, maximum: 1}
+          personal: {type: number, minimum: 0, maximum: 1}
+  DayProgress:
+    type: object
+    required: [local_day, profile, areas]
+    properties:
+      local_day: {$ref: LocalDate}
+      profile: {type: string}
+      areas:
+        type: object
+        description: "Per area: planned items, done, planned and covered block minutes so far, target progress."

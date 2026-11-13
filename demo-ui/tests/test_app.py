@@ -158,3 +158,34 @@ def test_list_filters_are_converted(signed_in, backend):
 def test_truncated_calendar_says_so(signed_in, backend):
     backend.on("GET", r"/api/v1/calendar", lambda req: (200, {"items": [], "truncated": True}))
     assert "pick fewer days" in signed_in.get("/").get_data(as_text=True)
+
+
+SCORE = {"id": "0190a000-0000-7000-8000-0000000000f1", "period": "day", "period_start": "2026-11-12", "status": "final",
+         "profile": "workday", "base": 55.88, "adjustment_pct": 5, "final": 59, "formula_version": "1",
+         "adjustment": {"adjustment_pct": 5, "reasons": [{"text": "Strong reading progress.", "direction": "up"}]},
+         "breakdown": {"areas": {"fitness": {"applicable": True, "score": 50, "adherence": 0.5, "targets": [],
+                                             "items": [{"title": "Gym", "completion": 0.5}]},
+                                 "work": {"applicable": False, "items": [], "targets": []}},
+                       "preemptions": [{"title": "Gym", "minutes": 30, "kind": "overlap"}]},
+         "consistency": {}, "coverage": None, "version": 1, "created_by": {"kind": "system", "id": None},
+         "created_at": "2026-11-13T04:10:00+00:00", "updated_at": "2026-11-13T04:10:00+00:00", "origin": "direct"}
+
+
+def test_score_page_explains_the_number(signed_in, backend):
+    backend.on("GET", rf"/api/v1/scores/{SCORE['id']}", lambda req: (200, SCORE))
+    backend.on("GET", rf"/api/v1/scores/{SCORE['id']}/history", lambda req: (200, {"items": [SCORE, {**SCORE, "base": 50}]}))
+    html = signed_in.get(f"/r/scores/{SCORE['id']}").get_data(as_text=True)
+    assert "Base 55.88, adjusted +5 % by the assistant" in html
+    assert "Strong reading progress." in html
+    assert "Gym: 30 min (overlap)" in html
+    assert "Versions" in html
+    assert "Dispute" in html  # the generated action form
+
+
+def test_calendar_shows_todays_progress(signed_in, backend):
+    backend.on("GET", r"/api/v1/calendar", lambda req: (200, {"items": [], "truncated": False}))
+    backend.on("GET", r"/api/v1/progress/today", lambda req: (200, {"local_day": "2026-11-13", "profile": "workday",
+        "areas": {"work": {"planned_items": 2, "done_items": 1, "block_minutes_so_far": 60, "block_minutes_covered": 30,
+                           "targets": [{"title": "Workday", "achieved": 120, "amount": 360, "metric": "minutes"}]}}}))
+    html = signed_in.get("/").get_data(as_text=True)
+    assert "Today so far" in html and "30 of 60 min" in html and "Workday: 120 / 360 minutes" in html

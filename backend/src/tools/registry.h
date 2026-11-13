@@ -53,6 +53,7 @@ struct InvokeOptions {
   std::optional<std::string> conversationId;
   std::optional<std::string> turnId;
   bool userTurn = false;
+  bool untrustedContext = false;  // web content entered the turn: writes are held for approval
 };
 
 // The single gate every capability passes through, from REST today and from the agent and MCP later

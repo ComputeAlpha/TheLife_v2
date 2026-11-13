@@ -1,0 +1,18 @@
+name: day_profiles
+agent_group: scoring
+schema: DayProfile
+noun: day profile
+path: /day-profiles
+scope: scoring
+tag: Scoring
+stage: 2
+description: Kinds of day (scoring_lld.md §3). Built in, unless redefined here under the same name - workday,
+  weekend and holiday (scored) and leave and sick (not scored, streaks frozen). Workdays come from the profile
+  setting workdays; other days are weekends.
+fields:
+  name: {type: string, pattern: "^[a-z][a-z0-9_]{0,39}$"}
+  scored: {type: boolean, default: true}
+  freezes_streaks: {type: boolean, default: false}
+  description: {$ref: Notes}
+required: [name]
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

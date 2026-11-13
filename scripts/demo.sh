@@ -4,6 +4,9 @@
 #   scripts/demo.sh up                              Postgres + migrations + backend (:8080) + demo UI (:5000)
 # Ctrl-C stops both. Logs: build/demo-backend.log. Ports: THELIFE_LISTEN_PORT, DEMO_PORT.
 # LLM: config/llm.json (local Ollama, glm-5.3-flash:cloud). DEMO_FAKE_LLM=1 uses docker/fake-llm instead (no quota).
+# Web search: export OLLAMA_API_KEY (https://ollama.com/settings/keys) before starting; without it the tool is off.
+# Embeddings: thelife-embedder starts when built and the model files exist (THELIFE_EMBED_MODEL, THELIFE_EMBED_SPM;
+# default: the Stage 0 spike download under spikes/embed/models). DEMO_EMBEDDER=0 skips it (keyword search only).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -22,7 +25,9 @@ database() {
 
 build() {
   [[ -d build/dev ]] || cmake --preset dev
-  cmake --build build/dev -j"$(nproc)" --target thelife-backend thelife-admin
+  local targets=(thelife-backend thelife-admin)
+  [[ "${DEMO_EMBEDDER:-1}" == 1 ]] && targets+=(thelife-embedder)
+  cmake --build build/dev -j"$(nproc)" --target "${targets[@]}"
 }
 
 venv() {
@@ -52,9 +57,22 @@ case "${1:-}" in
       fake=$!
       export THELIFE_LLM_BASE_URL="http://127.0.0.1:${DEMO_FAKE_LLM_PORT:-11435}/v1"
     fi
+    embedder=""
+    model="${THELIFE_EMBED_MODEL:-spikes/embed/models/bge-m3-fp16/model.onnx}"
+    spm="${THELIFE_EMBED_SPM:-spikes/embed/models/bge-m3/onnx/sentencepiece.bpe.model}"
+    if [[ "${DEMO_EMBEDDER:-1}" == 1 && -x "$BIN/embedder/thelife-embedder" && -f "$model" && -f "$spm" ]]; then
+      export THELIFE_EMBEDDER_SOCKET="${XDG_RUNTIME_DIR:-/tmp}/thelife/embedder.sock"
+      "$BIN/embedder/thelife-embedder" --model "$model" --spm "$spm" --socket "$THELIFE_EMBEDDER_SOCKET" \
+        > build/demo-embedder.log 2>&1 &
+      embedder=$!
+      for _ in $(seq 1 60); do [[ -S "$THELIFE_EMBEDDER_SOCKET" ]] && break; sleep 0.5; done
+      [[ -S "$THELIFE_EMBEDDER_SOCKET" ]] || echo "embedder did not start; see build/demo-embedder.log" >&2
+    else
+      echo "embedder not started (keyword search only)" >&2
+    fi
     THELIFE_LISTEN_PORT="$API_PORT" "$BIN/thelife-backend" > build/demo-backend.log 2>&1 &
     backend=$!
-    trap 'kill "$backend" $fake 2>/dev/null || true' EXIT INT TERM
+    trap 'kill "$backend" $fake $embedder 2>/dev/null || true' EXIT INT TERM
     for _ in $(seq 1 30); do
       curl -sf "http://127.0.0.1:$API_PORT/readyz" >/dev/null && break
       kill -0 "$backend" 2>/dev/null || { echo "backend exited; see build/demo-backend.log" >&2; exit 1; }
@@ -62,6 +80,8 @@ case "${1:-}" in
     done
     curl -sf "http://127.0.0.1:$API_PORT/readyz" >/dev/null || { echo "backend not ready; see build/demo-backend.log" >&2; exit 1; }
     echo "backend  http://127.0.0.1:$API_PORT   (log: build/demo-backend.log)"
+    [[ -n "$embedder" ]] && echo "embedder $THELIFE_EMBEDDER_SOCKET   (log: build/demo-embedder.log)"
+    [[ -n "${OLLAMA_API_KEY:-}" ]] && echo "web search on (OLLAMA_API_KEY)" || echo "web search off (no OLLAMA_API_KEY)"
     echo "demo UI  http://127.0.0.1:$UI_PORT   (Ctrl-C stops both)"
     cd demo-ui
     env -u PYTHONPATH THELIFE_API_URL="http://127.0.0.1:$API_PORT" DEMO_PORT="$UI_PORT" \

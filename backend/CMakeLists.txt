@@ -73,7 +73,15 @@ add_library(thelife_core STATIC
   src/jobs/worker.cc
   src/memory/registry.cc
   src/memory/jobs.cc
+  src/memory/embedder.cc
+  src/memory/semantic.cc
+  src/scoring/engine.cc
+  src/scoring/inputs.cc
+  src/scoring/jobs.cc
+  src/modules/scoring.cc
   src/modules/memory.cc
+  src/modules/web.cc
+  src/web/search.cc
   src/auth/authenticator.cc
   src/auth/rate_limiter.cc
   src/http/route.cc
@@ -117,6 +125,9 @@ target_link_libraries(thelife-backend PRIVATE thelife_core thelife_warnings)
 
 add_executable(thelife-admin tools/admin_cli/main.cc)
 target_link_libraries(thelife-admin PRIVATE thelife_core thelife_warnings)
+
+find_package(Threads REQUIRED)
+add_subdirectory(embedder)
 
 if(THELIFE_BUILD_TESTS)
   add_subdirectory(tests)

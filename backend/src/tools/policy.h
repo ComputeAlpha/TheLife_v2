@@ -25,6 +25,7 @@ struct PolicyInput {
   bool agentWritesEnabled = true;  // tenants.agent_writes_enabled (kill switch)
   bool mcpClient = false;          // api_key used by an MCP client (Stage 3)
   bool userTurn = false;           // the agent acts on a message the user just sent (named policies)
+  bool untrustedContext = false;   // web content is in this turn's context (possible prompt injection)
 };
 
 // Permission table of docs/tool_registry.md §4. Principal-kind and scope checks happen before this.

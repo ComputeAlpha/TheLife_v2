@@ -11,6 +11,11 @@ Responses come from a FIFO script. Each entry is one of:
 Any entry may add "delay_ms" (before answering) and, when the request streams, "break_after": N (send N
 chunks, then close without finishing). With an empty script the reply is "echo: <last user message>".
 
+Web search (Ollama web search API shape): POST /api/web_search {query, max_results} and POST /api/web_fetch
+{url} answer from their own FIFO (POST /_fake/web_script {"responses": [...]}); each entry is a response body, or
+{"error": {"status": 401, "body": ...}}. With an empty queue they answer with one canned result echoing the input.
+GET /_fake/web_requests lists {path, body, authorization} of the web calls received.
+
 Control endpoints:
   POST /_fake/script {"responses": [...], "append": false}
   POST /_fake/reset
@@ -33,6 +38,8 @@ FIXTURES = os.path.join(HERE, "fixtures")
 lock = threading.Lock()
 script = []
 requests_seen = []
+web_script = []
+web_seen = []
 counter = [0]
 
 
@@ -135,6 +142,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/_fake/requests":
             with lock:
                 return self.send_json(200, list(requests_seen))
+        if self.path == "/_fake/web_requests":
+            with lock:
+                return self.send_json(200, list(web_seen))
         if self.path == "/v1/models":
             return self.send_json(200, {"object": "list", "data": [{"id": "fake", "object": "model"}]})
         self.send_json(404, {"error": {"message": "not found", "type": "not_found_error"}})
@@ -154,7 +164,28 @@ class Handler(BaseHTTPRequestHandler):
             with lock:
                 script.clear()
                 requests_seen.clear()
+                web_script.clear()
+                web_seen.clear()
             return self.send_json(200, {"status": "reset"})
+        if self.path == "/_fake/web_script":
+            with lock:
+                web_script.clear()
+                web_script.extend(body.get("responses", []))
+            return self.send_json(200, {"queued": len(web_script)})
+        if self.path in ("/api/web_search", "/api/web_fetch"):
+            with lock:
+                web_seen.append({"path": self.path, "body": body, "authorization": self.headers.get("Authorization")})
+                entry = web_script.pop(0) if web_script else None
+            if entry is None:
+                if self.path == "/api/web_search":
+                    entry = {"results": [{"title": "Result for " + str(body.get("query")), "url": "https://example.org/r1",
+                                          "content": "Canned search result."}]}
+                else:
+                    entry = {"title": "Page", "content": "Canned page text for " + str(body.get("url")), "links": []}
+            if "error" in entry:
+                e = entry["error"]
+                return self.send_json(e.get("status", 500), e.get("body", ""))
+            return self.send_json(200, entry)
         if self.path != "/v1/chat/completions":
             return self.send_json(404, {"error": {"message": "not found", "type": "not_found_error"}})
 

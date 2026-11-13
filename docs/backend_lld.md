@@ -67,6 +67,19 @@ Coroutine rules learned in Stage 1 (GCC 13/14):
 - Runtime: the official **ONNX Runtime 1.26.0 linux-x64-gpu (CUDA 12)** prebuilt release, fetched by CMake with a pinned SHA-256, and the fp16 attention-fused bge-m3 from `spikes/embed/convert_fp16.py`. Tokenization: vcpkg `sentencepiece` with the XLM-R id mapping and whitespace normalization.
 - Startup fails unless `CUDAExecutionProvider` is active (guards against the silent CPU fallback found in the spike). A `--cpu` flag exists for development machines without a GPU and logs loudly.
 - The backend treats the embedder as optional: if it is down, `embeddings.upsert` jobs back off and retrieval falls back to recency plus keyword. Tests use a fake embedder that serves deterministic vectors on a temp socket.
+- **Implemented (Stage 2, increment 3b):** `backend/embedder/` (`thelife-embedder`, its tokenizer library and model
+  wrapper). The ONNX Runtime 1.26.0 GPU archive is fetched by CMake with a pinned SHA-256 (`THELIFE_ORT_ARCHIVE` can
+  point at a downloaded copy; the `ci` preset sets `THELIFE_BUILD_EMBEDDER=OFF`). The server is a small HTTP/1.1
+  implementation over the Unix socket (Drogon cannot listen on one), one inference at a time, batch ≤ 8,
+  ≤ 512 tokens. Measured on the RTX 3080 Ti: ~1.4 GB GPU memory, 6 texts in 33 ms including the round trip.
+  Parity (`tests/embedder/embedder_test.cc`, against `tests/fixtures/embed/reference.json` from the upstream
+  Hugging Face tokenizer and the fp32 model on the CPU): token ids identical for all 8 texts (English, Tamil,
+  Hindi, Japanese, emoji, SQL, messy whitespace), fp16 CUDA vectors at cosine ≥ 0.999, batching does not change a
+  vector. The backend has no CUDA dependency; `THELIFE_EMBEDDER_SOCKET` unset means keyword search only.
+- **Sync instead of per-row jobs:** `embeddings.sync` (one per tenant, coalesced) embeds whatever is missing or
+  changed: messages (90 days), activities, summaries and active facts, compared by `md5(text)` and model version,
+  in chunks of ≤ 1,500 characters. It is queued when a turn finishes and after a day summary; while the embedder is
+  down it is deferred, not failed.
 
 ## 3. Request Lifecycle
 
@@ -406,6 +419,8 @@ Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recomp
 | detection invariants | UPDATE/DELETE blocked, transitions recorded, claim → superseded | isolation (as `thelife_app`) + api |
 | manifest matrix (implemented) | every Stage 1 REST tool: device token → 403, API key without scope → 403, update/delete without If-Match → 428, target reads with an unknown id → 404 | `api/contract_test.cc`, driven by the embedded `tools.json` |
 | resource lifecycle (implemented) | every CRUD resource: create/get/list/patch/delete, ETag/412/428, other tenant 404 and empty list. A new resource fails CI until it has a case | `api/resources_test.cc` |
+| scoring (implemented, Stage 2) | golden days (workday, weekend, leave, unobserved, self-reported work, replanned item, overlap precedence and preemption, linked blocks, bonus cap, consistency) and properties (bounds, monotonic, non-applicable areas, hash idempotence); end to end: day score with adjustment, idempotent and late re-score reusing the adjustment, dispute re-run, provisional in manual mode, unobserved and leave days, settings, today's progress, week score | `unit/scoring_test.cc`; `api/scoring_test.cc` with a tenant-scoped worker and fake-llm |
+| embeddings and web search (implemented, Stage 2) | sync after turns, re-embedding of changed items, hybrid history search (keyword + vector, reciprocal rank fusion, `match` per hit), semantic fact recall, related-from-earlier context, keyword fallback and deferred sync without the embedder; web search/fetch results cleaned and marked untrusted, writes after web content held for approval, per-turn and daily limits, unconfigured and rejected-key errors | `api/embeddings_test.cc` with `docker/fake-embedder`; `api/web_test.cc` with fake-llm's web endpoints; `embedder/embedder_test.cc` on the GPU when the model files exist |
 | memory and jobs (implemented, Stage 2) | remember/recall/update/forget with provenance and approvals, mentioned-entity retrieval, history search, day close (summary, facts active vs proposed, conversation closed, routine missed, exactly once), deferral while the model is offline, week rollup; named policies in unit tests | `api/memory_test.cc` with a tenant-scoped worker against `docker/fake-llm`; `unit/tools_test.cc` |
 | agent (implemented, Stage 2) | chat capture provenance (`user_stated`, `source_message_id`) and audit, tool groups, approvals (held → approve runs pinned to the version, stale on change, reject, 72 h expiry), kill switch, `user_reported_progress` and undo, weekly limit → deterministic replies and commands, step limit, model and argument errors, idempotent sends, SSE events, turn merging, desktop notification long poll and ack | `api/agent_test.cc`: the real binary against `docker/fake-llm` with scripted conversations |
 | LLM gateway (implemented) | error classification against the recorded Stage 0 bodies, response and SSE parsing (split anywhere, leaked `</think>` retracted), provider state machine on a fake clock (transient backoff, weekly exhaustion → manual → probe → healthy, restart persistence, auth → disabled, rate limits), structured output (tool-as-output → repair → schema-in-prompt) | `unit/llm_test.cc`; `api/llm_test.cc` over libcurl against `docker/fake-llm` plus `ops.provider_state` / `llm_calls` / `llm_usage` in Postgres; `live/llm_live_test.cc` against the real endpoint when `THELIFE_LIVE_LLM_URL` is set |

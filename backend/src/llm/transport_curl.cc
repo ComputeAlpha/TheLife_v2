@@ -67,6 +67,7 @@ size_t onHeader(char* data, size_t size, size_t n, void* user) {
 
 class CurlTransport final : public Transport {
  public:
+  explicit CurlTransport(std::string unixSocket) : unixSocket_(std::move(unixSocket)) {}
   HttpResult post(const std::string& url, const std::map<std::string, std::string>& headers,
                   const std::string& body, int timeoutSec, int idleTimeoutSec,
                   const std::function<void(std::string_view)>& onChunk) override {
@@ -98,6 +99,7 @@ class CurlTransport final : public Transport {
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, static_cast<long>(idleTimeoutSec));
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 0L);
     curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+    if (!unixSocket_.empty()) curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, unixSocket_.c_str());
     const CURLcode rc = curl_easy_perform(curl);
     if (rc != CURLE_OK) {
       ex.result.status = 0;
@@ -111,10 +113,15 @@ class CurlTransport final : public Transport {
     curl_easy_cleanup(curl);
     return ex.result;
   }
+
+ private:
+  std::string unixSocket_;
 };
 
 }  // namespace
 
-std::unique_ptr<Transport> makeCurlTransport() { return std::make_unique<CurlTransport>(); }
+std::unique_ptr<Transport> makeCurlTransport(std::string unixSocket) {
+  return std::make_unique<CurlTransport>(std::move(unixSocket));
+}
 
 }  // namespace thelife::llm

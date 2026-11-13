@@ -184,6 +184,7 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
   }
   PolicyInput policyIn{principal, def, target, writesEnabled, false};
   policyIn.userTurn = opts.userTurn;
+  policyIn.untrustedContext = opts.untrustedContext;
   const auto decision = decide(policyIn);
   if (decision == Decision::Deny) {
     throw ApiError::forbidden(writesEnabled ? "Not allowed." : "Agent writes are disabled for this tenant.");
@@ -206,6 +207,7 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
     std::string argText = json::compact(args);
     if (argText.size() > 1500) argText = argText.substr(0, 1500) + "…";
     summary += " Arguments: " + argText;
+    if (opts.untrustedContext) summary += " (Proposed after reading web content: check it is what you asked for.)";
     const std::vector<std::optional<std::string>> params{
         approvalId, principal.tenantId, principal.userId, opts.conversationId, opts.turnId, name,
         json::compact(args), summary,

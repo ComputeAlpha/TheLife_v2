@@ -15,6 +15,8 @@
 #include "jobs/worker.h"
 #include "llm/gateway.h"
 #include "memory/registry.h"
+#include "memory/semantic.h"
+#include "scoring/jobs.h"
 #include "tools/registry.h"
 
 namespace thelife::memory {
@@ -166,6 +168,15 @@ Task<void> dayClose(const Job& job) {
 
   const bool sunday = w[0]["dow"].as<int>() == 7;
   const bool monthEnd = w[0]["month_end"].as<bool>();
+  co_await scoring::enqueueDayScoring(tx, user, day);
+  if (sunday) {
+    const auto ws = co_await tx.exec("SELECT to_char($1::date - 6, 'YYYY-MM-DD') AS s", day);
+    co_await scoring::enqueuePeriodScoring(tx, user, "week", ws[0]["s"].as<std::string>());
+  }
+  if (monthEnd) {
+    const auto ms = co_await tx.exec("SELECT to_char(date_trunc('month', $1::date), 'YYYY-MM-DD') AS s", day);
+    co_await scoring::enqueuePeriodScoring(tx, user, "month", ms[0]["s"].as<std::string>());
+  }
   if (sunday || monthEnd) {
     const auto all = co_await tx.exec(
         "SELECT DISTINCT channel FROM conversations WHERE user_id = $1::uuid AND local_day > $2::date - 31",
@@ -279,6 +290,7 @@ Task<void> compressDay(const Job& job) {
     nf.sourceRefs.append(ref);
     co_await addFact(tx, std::move(nf));
   }
+  co_await enqueueSync(tx);
   co_await tx.commit();
 }
 

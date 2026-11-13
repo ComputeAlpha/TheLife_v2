@@ -25,8 +25,8 @@ REPO = Path(__file__).resolve().parents[2]
 UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 SESSION_COOKIE = "tl_demo"
 LOGIN_CSRF_COOKIE = "tl_demo_login"
-LIST_COLUMNS = ("status", "kind", "area", "starts_at", "started_at", "due_at", "due_on", "period_start",
-                "last_seen_at", "revoked_at")
+LIST_COLUMNS = ("status", "kind", "area", "period", "starts_at", "started_at", "due_at", "due_on", "period_start",
+                "base", "final", "last_seen_at", "revoked_at")
 
 
 def create_app(config: dict | None = None) -> Flask:
@@ -194,7 +194,15 @@ def create_app(config: dict | None = None) -> Flask:
             by_day.setdefault(day, []).append(e)
         for v in by_day.values():
             v.sort(key=lambda e: (not e["all_day"], e["starts_at"]))
+        progress = None
+        if contract.ops.get("scores.today_progress") and start <= today < start + timedelta(days=days):
+            try:
+                progress = g.api.get("/api/v1/progress/today")
+            except ApiError as e:
+                if e.status == 401:
+                    raise
         return render_template("calendar.html", by_day=sorted(by_day.items()), start=start, days=days, today=today,
+                               progress=progress,
                                prev=(start - timedelta(days=days)).isoformat(),
                                next=(start + timedelta(days=days)).isoformat())
 
@@ -305,6 +313,8 @@ def create_app(config: dict | None = None) -> Flask:
                 "from": start, "to": request.args.get("to")})["items"]
         if r.prefix == "detections" and contract.ops.get("detections.history"):
             out["history"] = g.api.get(f"/api/v1/detections/{id}/history")
+        if r.prefix == "scores" and contract.ops.get("scores.history"):
+            out["score_history"] = g.api.get(f"/api/v1/scores/{id}/history")["items"]
         if r.prefix == "conversations" and contract.ops.get("conversations.messages"):
             out["transcript"] = transcript(g.api.get(f"/api/v1/conversations/{id}/messages")["items"])
         return out

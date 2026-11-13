@@ -20,6 +20,7 @@
     "gtest",
     "libical",
     "libsodium",
+    "sentencepiece",
     "valijson"
   ]
 }

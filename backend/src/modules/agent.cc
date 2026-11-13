@@ -5,6 +5,8 @@
 #include "core/json.h"
 #include "crud/resource.h"
 #include "modules/modules.h"
+#include "scoring/engine.h"
+#include "scoring/inputs.h"
 
 namespace thelife::modules {
 
@@ -131,6 +133,9 @@ Task<Json::Value> contextNow(ToolCall& c) {
   out["today"] = cal["items"];
   out["pending_approvals"] = pending[0]["n"].as<int>();
   out["agent_writes_enabled"] = now.agentWritesEnabled;
+  const auto epoch = co_await c.tx.exec("SELECT extract(epoch FROM now())::bigint AS n");
+  const auto day = co_await scoring::gatherDay(c.tx, c.principal.userId, now.localDay);
+  out["progress"] = scoring::progress(day, epoch[0]["n"].as<int64_t>());
   co_return out;
 }
 

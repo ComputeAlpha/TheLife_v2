@@ -4,7 +4,12 @@
 #include "core/ids.h"
 #include "core/json.h"
 #include "crud/resource.h"
+#include "memory/embedder.h"
 #include "memory/registry.h"
+#include "memory/semantic.h"
+
+#include <algorithm>
+#include <map>
 #include "modules/modules.h"
 
 namespace thelife::modules {
@@ -67,6 +72,36 @@ Task<Json::Value> recall(ToolCall& c) {
     used.push_back(f["id"].asString());
     out["items"].append(f);
   }
+  // Facts with a similar meaning (embeddings), after the direct matches.
+  const int limit = c.args.get("limit", 8).asInt();
+  if (static_cast<int>(out["items"].size()) < limit) {
+    std::vector<std::string> queryText{q};
+    const std::vector<std::string> factKind{"fact"};
+    if (const auto e = co_await memory::embed(queryText)) {
+      const auto bounds = co_await c.tx.exec("SELECT '-infinity'::timestamptz::text AS f, 'infinity'::timestamptz::text AS t");
+      const auto hits = co_await memory::semanticSearch(c.tx, c.principal.userId, e->vectors[0], factKind,
+                                                        bounds[0]["f"].as<std::string>(),
+                                                        bounds[0]["t"].as<std::string>(), limit);
+      for (const auto& h : hits) {
+        if (h.score < memory::minRecallScore() || static_cast<int>(out["items"].size()) >= limit) continue;
+        if (std::find(used.begin(), used.end(), h.id) != used.end()) continue;
+        const auto f = co_await c.tx.exec(
+            "SELECT e.name, f.confidence, f.origin::text AS origin FROM kg_facts f JOIN kg_entities e "
+            "ON e.id = f.subject_id WHERE f.id = $1::uuid",
+            h.id);
+        if (f.empty()) continue;
+        Json::Value item;
+        item["id"] = h.id;
+        item["subject"] = f[0]["name"].as<std::string>();
+        item["statement"] = h.text;
+        item["confidence"] = f[0]["confidence"].as<double>();
+        item["origin"] = f[0]["origin"].as<std::string>();
+        item["created_at"] = h.at;
+        used.push_back(h.id);
+        out["items"].append(item);
+      }
+    }
+  }
   co_await memory::touch(c.tx, used);
   co_return out;
 }
@@ -118,12 +153,12 @@ Task<Json::Value> forget(ToolCall& c) {
 }
 
 Task<Json::Value> historySearch(ToolCall& c) {
+  const int limit = c.args.get("limit", 10).asInt();
   std::vector<std::optional<std::string>> params{
       c.principal.userId, c.args["query"].asString(),
       c.args.isMember("from") ? std::optional(c.args["from"].asString()) : std::nullopt,
-      c.args.isMember("to") ? std::optional(c.args["to"].asString()) : std::nullopt,
-      std::to_string(c.args.get("limit", 10).asInt())};
-  // Keyword search (Postgres FTS, 'simple' config so any language works) until semantic search arrives.
+      c.args.isMember("to") ? std::optional(c.args["to"].asString()) : std::nullopt, std::to_string(limit * 2)};
+  // Keyword part: Postgres full text search ('simple' configuration, so any language works).
   const auto rows = co_await c.tx.execParams(
       "WITH q AS (SELECT plainto_tsquery('simple', $2) AS q, "
       "                  coalesce($3::timestamptz, now() - interval '3 months') AS f, "
@@ -144,14 +179,70 @@ Task<Json::Value> historySearch(ToolCall& c) {
       "  SELECT 'day_summary', s.id, s.period_start::timestamptz, s.channel, left(s.content, 600), "
       "         ts_rank(to_tsvector('simple', s.content), q.q) "
       "    FROM episodic_summaries s, q "
-      "   WHERE s.user_id = $1::uuid AND s.period = 'day' AND to_tsvector('simple', s.content) @@ q.q "
+      "   WHERE s.user_id = $1::uuid AND to_tsvector('simple', s.content) @@ q.q "
       "     AND s.period_start BETWEEN q.f::date AND q.t::date) "
-      "SELECT jsonb_build_object('kind', kind, 'id', id, 'at', at, 'channel', channel, 'text', text)::text AS j "
+      "SELECT kind, id::text AS id, to_jsonb(at) #>> '{}' AS at, channel, text, "
+      "  (SELECT f::text FROM q) AS f, (SELECT t::text FROM q) AS t "
       "FROM hits ORDER BY rank DESC, at DESC LIMIT $5::int",
       std::move(params));
+
+  // Reciprocal rank fusion of keyword and semantic hits (k = 60).
+  struct Item {
+    Json::Value v;
+    double score = 0;
+    bool keyword = false, semantic = false;
+  };
+  std::map<std::string, Item> merged;
+  int rank = 0;
+  for (const auto& r : rows) {
+    auto& it = merged[r["kind"].as<std::string>() + ":" + r["id"].as<std::string>()];
+    it.v["kind"] = r["kind"].as<std::string>();
+    it.v["id"] = r["id"].as<std::string>();
+    it.v["at"] = r["at"].as<std::string>();
+    it.v["channel"] = r["channel"].isNull() ? Json::Value() : Json::Value(r["channel"].as<std::string>());
+    it.v["text"] = r["text"].as<std::string>();
+    it.keyword = true;
+    it.score += 1.0 / (60 + ++rank);
+  }
+  std::vector<std::string> queryText{c.args["query"].asString()};
+  const std::vector<std::string> kinds{"message", "activity", "summary"};
+  if (const auto e = co_await memory::embed(queryText)) {
+    // The same window as the keyword part.
+    std::vector<std::optional<std::string>> window{
+        c.args.isMember("from") ? std::optional(c.args["from"].asString()) : std::nullopt,
+        c.args.isMember("to") ? std::optional(c.args["to"].asString()) : std::nullopt};
+    const auto w = co_await c.tx.execParams(
+        "SELECT coalesce($1::timestamptz, now() - interval '3 months')::text AS f, "
+        "coalesce($2::timestamptz, now() + interval '1 day')::text AS t",
+        std::move(window));
+    rank = 0;
+    const auto hits = co_await memory::semanticSearch(c.tx, c.principal.userId, e->vectors[0], kinds,
+                                                      w[0]["f"].as<std::string>(), w[0]["t"].as<std::string>(),
+                                                      limit * 2);
+    for (const auto& h : hits) {
+      const std::string kind = h.kind == "summary" ? "day_summary" : h.kind;
+      auto& it = merged[kind + ":" + h.id];
+      if (!it.keyword) {
+        it.v["kind"] = kind;
+        it.v["id"] = h.id;
+        it.v["at"] = h.at;
+        it.v["channel"] = h.channel.empty() ? Json::Value() : Json::Value(h.channel);
+        it.v["text"] = h.text;
+      }
+      it.semantic = true;
+      it.score += 1.0 / (60 + ++rank);
+    }
+  }
+  std::vector<Item> items;
+  for (auto& [_, it] : merged) items.push_back(std::move(it));
+  std::stable_sort(items.begin(), items.end(), [](const Item& a, const Item& b) { return a.score > b.score; });
   Json::Value out;
   out["items"] = Json::Value(Json::arrayValue);
-  for (const auto& r : rows) out["items"].append(json::parse(r["j"].as<std::string>()));
+  for (auto& it : items) {
+    if (static_cast<int>(out["items"].size()) >= limit) break;
+    it.v["match"] = it.keyword && it.semantic ? "both" : it.keyword ? "keyword" : "semantic";
+    out["items"].append(it.v);
+  }
   co_return out;
 }
 

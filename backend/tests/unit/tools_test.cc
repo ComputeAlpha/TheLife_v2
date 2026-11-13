@@ -114,3 +114,26 @@ TEST(Policy, NamedPoliciesAndUndo) {
   EXPECT_EQ(decide({agent, del, TargetProvenance{"agent", "user_stated", 1, false}}), Decision::RequireApproval);
   EXPECT_EQ(decide({agent, del, TargetProvenance{"user", "direct", 1, true}}), Decision::RequireApproval);
 }
+
+TEST(Policy, WebContentInTheTurnHoldsEveryAgentWrite) {
+  using K = auth::PrincipalKind;
+  const auto agent = as(K::Agent);
+  const auto create = toolWith(Effect::Create), read = toolWith(Effect::Read);
+  auto progress = toolWith(Effect::Update);
+  progress.policy = "user_reported_progress";
+  PolicyInput in{agent, create, std::nullopt};
+  in.untrustedContext = true;
+  in.userTurn = true;
+  EXPECT_EQ(decide(in), Decision::RequireApproval);
+  EXPECT_EQ(decide({agent, read, std::nullopt, true, false, true, true}), Decision::Allow);  // reads still run
+  PolicyInput p{agent, progress, TargetProvenance{"user", "direct", 1, false}};
+  p.userTurn = true;
+  p.untrustedContext = true;
+  EXPECT_EQ(decide(p), Decision::RequireApproval);  // even the named policy
+  p.agentWritesEnabled = false;
+  EXPECT_EQ(decide(p), Decision::Deny);  // the kill switch still wins
+  const auto user = as(K::User);
+  PolicyInput u{user, create, std::nullopt};
+  u.untrustedContext = true;
+  EXPECT_EQ(decide(u), Decision::Allow);  // only agent writes are affected
+}

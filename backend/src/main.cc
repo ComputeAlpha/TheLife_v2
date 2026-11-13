@@ -14,7 +14,11 @@
 #include "http/route.h"
 #include "jobs/worker.h"
 #include "llm/gateway.h"
+#include "memory/embedder.h"
 #include "memory/jobs.h"
+#include "memory/semantic.h"
+#include "scoring/jobs.h"
+#include "web/search.h"
 #include "modules/modules.h"
 #include "tools/registry.h"
 
@@ -31,6 +35,7 @@ int main() {
     thelife::http::registerHealthRoutes();
     thelife::http::registerAuthRoutes();
     thelife::llm::initGateway();
+    thelife::web::init();
     thelife::http::registerLlmRoutes();
     thelife::http::registerChatRoutes();
     auto& registry = thelife::tools::registry();
@@ -39,6 +44,9 @@ int main() {
     thelife::http::registerToolRoutes();
     thelife::http::installMethodNotAllowed();
     thelife::memory::registerJobs();
+    thelife::memory::registerSemanticJobs();
+    thelife::scoring::registerJobs();
+    thelife::memory::initEmbedder();
     if (thelife::db::Database::instance().configured()) thelife::jobs::startWorker();
 
     LOG_INFO << "thelife-backend " << thelife::build::kVersion << " listening on " << addr << ":" << port;

@@ -17,6 +17,8 @@ void bindAll(tools::ToolRegistry& reg) {
   bindAgent(reg);
   bindNotifications(reg);
   bindMemory(reg);
+  bindWeb(reg);
+  bindScoring(reg);
   bindTasks(reg);
   bindCalendar(reg);
   bindWork(reg);

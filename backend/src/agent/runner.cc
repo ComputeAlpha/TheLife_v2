@@ -14,7 +14,9 @@
 #include "core/json.h"
 #include "llm/classifier.h"
 #include "llm/gateway.h"
+#include "memory/embedder.h"
 #include "memory/registry.h"
+#include "memory/semantic.h"
 #include "tools/registry.h"
 
 namespace thelife::agent {
@@ -139,6 +141,7 @@ drogon::Task<void> finishTurn(const TurnRequest& r, const std::string& turnId, c
       "UPDATE turns SET status = $2, error = $3, steps = $4::int, tool_calls = $5::int, finished_at = now(), "
       "updated_at = now() WHERE id = $1::uuid",
       std::move(params));
+  co_await memory::enqueueSync(tx);  // embed the new messages (coalesced per tenant)
   co_await tx.commit();
   Json::Value d;
   d["turn_id"] = turnId;
@@ -189,10 +192,13 @@ drogon::Task<std::string> localText(const TurnRequest& r, std::optional<llm::Clo
 struct TurnState {
   std::string conversationId, turnId, userMessageId;
   std::set<std::string> groups{"core"};
+  std::map<std::string, int> webCalls;  // per-turn caps for web.search / web.fetch
+  bool untrusted = false;               // web content entered the context
+  std::optional<std::string> related;   // semantic recall for the user's message, computed once per turn
   std::string approvalNote;  // approval trigger: what happened
 };
 
-drogon::Task<llm::LlmRequest> buildRequest(const TurnRequest& r, const TurnState& st) {
+drogon::Task<llm::LlmRequest> buildRequest(const TurnRequest& r, TurnState& st) {
   auto tx = co_await db::TenantTx::begin(principalOf(r, PrincipalKind::Agent));
   const auto now = co_await loadNow(tx, r.userId);
   const auto memory = co_await loadWorkingMemory(tx, r.userId, r.channel, now.localDay);
@@ -251,10 +257,33 @@ drogon::Task<llm::LlmRequest> buildRequest(const TurnRequest& r, const TurnState
   }
   if (!recall.empty()) recall = "Earlier days on this channel (summaries):" + recall;
   const auto mentioned = co_await memory::factsMentionedIn(mtx, r.userId, lastUser, 10);
+  // Semantic recall (§6.1 section 6): older items close in meaning to the user's message. Before yesterday only,
+  // since yesterday and today are in the context verbatim. Skipped quietly without an embedder.
+  if (!st.related) {
+    st.related = std::string();
+    if (r.trigger == "user_message" && lastUser.size() >= 12) {
+      std::vector<std::string> queryText{lastUser};
+      const std::vector<std::string> kinds{"message", "summary", "activity"};
+      if (const auto e = co_await memory::embed(queryText)) {
+        const auto cut = co_await mtx.exec(
+            "SELECT ($1::timestamptz - interval '1 day')::text AS t, (now() - interval '3 months')::text AS f",
+            now.dayFrom);
+        const auto hits = co_await memory::semanticSearch(mtx, r.userId, e->vectors[0], kinds,
+                                                          cut[0]["f"].as<std::string>(), cut[0]["t"].as<std::string>(), 4);
+        for (const auto& h : hits) {
+          if (h.score < memory::minRecallScore()) continue;
+          *st.related += "\n- " + h.at.substr(0, 10) + " (" + h.kind + "): " + truncate(h.text, 300);
+        }
+      }
+    }
+  }
   co_await mtx.commit();
   if (!mentioned.empty()) {
     recall += std::string(recall.empty() ? "" : "\n\n") + "Remembered about things in the latest message:";
     for (const auto& f : mentioned) recall += "\n- " + f;
+  }
+  if (!st.related->empty()) {
+    recall += std::string(recall.empty() ? "" : "\n\n") + "Related from earlier (by meaning):" + *st.related;
   }
   if (!recall.empty()) req.messages.push_back(llm::Message::system(recall));
 
@@ -343,8 +372,16 @@ drogon::Task<CallOutcome> execute(const TurnRequest& r, TurnState& st, const llm
     co_return out;
   }
 
+  if (tool == "web.search" || tool == "web.fetch") {
+    if (++st.webCalls[tool] > kMaxWebCallsPerTool) {
+      fail("invalid", "Limit of " + std::to_string(kMaxWebCallsPerTool) + " " + tool +
+                          " calls per turn reached; answer with what you have.");
+      co_return out;
+    }
+  }
   tools::InvokeOptions opts;
   opts.requestId = st.turnId;
+  opts.untrustedContext = st.untrusted;
   opts.conversationId = st.conversationId;
   opts.turnId = st.turnId;
   opts.userTurn = r.trigger == "user_message";
@@ -368,6 +405,7 @@ drogon::Task<CallOutcome> execute(const TurnRequest& r, TurnState& st, const llm
       out.decision = "allow";
       out.outcome = "executed";
       out.result = res.value.isNull() ? Json::Value(Json::objectValue) : res.value;
+      if (tool == "web.search" || tool == "web.fetch") st.untrusted = true;
       if (res.value.isNull()) out.result["ok"] = true;
     }
   } catch (const ApiError& e) {

@@ -29,6 +29,7 @@ drogon::Task<void> runTurn(TurnRequest r);
 // Limits per turn (§5).
 inline constexpr int kMaxSteps = 8;
 inline constexpr int kMaxToolCalls = 30;
+inline constexpr int kMaxWebCallsPerTool = 3;  // web.search and web.fetch each
 
 // Deterministic command handling (§3.4): /help, /today, /tasks, /done N, /skip N, /approvals, /approve N,
 // /reject N. Runs as the user, with no model. Returns the reply text.

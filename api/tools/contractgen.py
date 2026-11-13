@@ -39,7 +39,7 @@ PRINCIPALS = {"user", "agent", "api_key", "device"}
 STANDARD_OPS = ("list", "get", "create", "update", "delete")
 OP_EFFECT = {"list": "read", "get": "read", "create": "create", "update": "update", "delete": "delete"}
 # Agent tool groups (docs/tool_registry.md §6): "core" is sent on every turn, the others on agent.load_tools.
-AGENT_GROUPS = {"core", "planning", "work", "skills", "entertainment", "detections"}
+AGENT_GROUPS = {"core", "planning", "work", "skills", "entertainment", "detections", "scoring"}
 POLICIES = {"user_reported_progress", "bulk_threshold", "user_stated_fact"}
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$")
 

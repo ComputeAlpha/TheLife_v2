@@ -1,0 +1,21 @@
+name: work_contexts
+agent_group: scoring
+schema: WorkContext
+noun: work context
+path: /work-contexts
+scope: scoring
+tag: Scoring
+stage: 2
+description: Where work happens and how it is evidenced (scoring_lld.md §5). observed - detections on the listed
+  devices count; self_reported - only logged activities count. Each active context adds a daily work target on
+  workdays.
+fields:
+  name: {$ref: Text200}
+  employer: {type: [string, "null"], maxLength: 200}
+  evidence_mode: {type: string, enum: [observed, self_reported]}
+  device_ids: {type: array, maxItems: 10, items: {type: string, format: uuid}, default: []}
+  workday_target_min: {type: integer, minimum: 0, maximum: 1440, default: 360}
+  active_from: {type: [string, "null"], format: date}
+  active_to: {type: [string, "null"], format: date}
+required: [name, evidence_mode]
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

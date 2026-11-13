@@ -19,5 +19,7 @@ void bindAccess(tools::ToolRegistry& reg);
 void bindAgent(tools::ToolRegistry& reg);
 void bindNotifications(tools::ToolRegistry& reg);
 void bindMemory(tools::ToolRegistry& reg);
+void bindWeb(tools::ToolRegistry& reg);
+void bindScoring(tools::ToolRegistry& reg);
 
 }  // namespace thelife::modules

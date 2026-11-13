@@ -12,6 +12,19 @@
     <a class="btn" href="{{ url_for('calendar', start=next, days=days) }}">→</a>
   </form>
 </div>
+{% if progress and progress.areas %}
+<section class="card progress">
+  <h2>Today so far <small>{{ progress.profile }}; plan progress, not a score</small></h2>
+  <table>
+    <tr><th>Area</th><th>Items done</th><th>Planned blocks covered</th><th>Targets</th></tr>
+    {% for area, p in progress.areas.items() %}
+    <tr><td>{{ area }}</td><td>{{ p.done_items }} / {{ p.planned_items }}</td>
+      <td>{% if p.block_minutes_so_far %}{{ p.block_minutes_covered }} of {{ p.block_minutes_so_far }} min{% else %}<span class="muted">none yet</span>{% endif %}</td>
+      <td>{% for t in p.targets %}{{ t.title }}: {{ t.achieved }} / {{ t.amount }} {{ t.metric }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
 {% for day, entries in by_day %}
 <section class="day{% if day == today.isoformat() %} today{% endif %}">
   <h2>{{ day }}{% if day == today.isoformat() %} <small>today</small>{% endif %}</h2>

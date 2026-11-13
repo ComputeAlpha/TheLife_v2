@@ -101,7 +101,7 @@ Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `met
 The full agent surface is **81 tools ≈ 11k tokens** per call (measured from `agent_tools.json`). That is too large to send on every turn, and tool-choice accuracy drops with that many options.
 
 **Decision: tool groups with on-demand loading.** The generator gains `agent_group` and emits a groups index in Stage 2.
-- Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`); an op or action may override it (`agent_group: core`). The generator rejects an agent tool without a group and emits the index as `agent_groups` in `tools.json`. **Implemented (Stage 2):** core is 13 tools; the loop sends core plus the groups loaded in the turn, and calls to an unloaded tool are answered with an error telling the model to load the group.
+- Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`); an op or action may override it (`agent_group: core`). The generator rejects an agent tool without a group and emits the index as `agent_groups` in `tools.json`. **Implemented (Stage 2):** core is 20 tools, about 3.7k tokens (all agent tools: 13.7k), with a test budget of 18,000 characters; the loop sends core plus the groups loaded in the turn, and calls to an unloaded tool are answered with an error telling the model to load the group.
 - Every turn sends `core`, about 15 tools / 2.5k tokens:
   - capture: `activities.create`, `tasks.create`, `tasks.update`, `reminders.create`, `skill_sessions.create`
   - `calendar.view`, `context.now`, `memory.recall` / `memory.remember`, `history.search`

@@ -49,6 +49,9 @@ tags:
     a change supersedes the old fact. Deleting a fact makes the assistant forget it.
 - name: Plans
   description: Plans for a period, optionally serving a goal.
+- name: Scoring
+  description: Sets the profile of one day ("tomorrow I'm on leave"). An all-day calendar event with category day_profile.<name>
+    does the same.
 - name: Skills
   description: Books (with page counts) and video courses (with sections and total duration).
 - name: System
@@ -1165,6 +1168,538 @@ paths:
         - rest
         principals:
         - user
+        stage: 2
+  /api/v1/day-profile-overrides:
+    get:
+      operationId: day_profile_overrides.list
+      tags:
+      - Scoring
+      summary: List day profile overrides
+      description: List day profile overrides.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverridePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: day_profile_overrides.create
+      tags:
+      - Scoring
+      summary: Create a day profile override
+      description: Create a day profile override.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverride'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayProfileOverrideCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/day-profile-overrides/{id}:
+    delete:
+      operationId: day_profile_overrides.delete
+      tags:
+      - Scoring
+      summary: Delete a day profile override (soft delete)
+      description: Delete a day profile override (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: day_profile_overrides.get
+      tags:
+      - Scoring
+      summary: Get a day profile override
+      description: Get a day profile override.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverride'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: day_profile_overrides.update
+      tags:
+      - Scoring
+      summary: Update a day profile override
+      description: Update a day profile override.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverride'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/DayProfileOverridePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/day-profiles:
+    get:
+      operationId: day_profiles.list
+      tags:
+      - Scoring
+      summary: List day profiles
+      description: List day profiles.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfilePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: day_profiles.create
+      tags:
+      - Scoring
+      summary: Create a day profile
+      description: Create a day profile.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfile'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayProfileCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/day-profiles/{id}:
+    delete:
+      operationId: day_profiles.delete
+      tags:
+      - Scoring
+      summary: Delete a day profile (soft delete)
+      description: Delete a day profile (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: day_profiles.get
+      tags:
+      - Scoring
+      summary: Get a day profile
+      description: Get a day profile.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfile'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: day_profiles.update
+      tags:
+      - Scoring
+      summary: Update a day profile
+      description: Update a day profile.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfile'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/DayProfilePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
         stage: 2
   /api/v1/detections:
     get:
@@ -3309,6 +3844,81 @@ paths:
         principals:
         - device
         stage: 4
+  /api/v1/insights/preemptions:
+    get:
+      operationId: scores.preemptions
+      tags:
+      - Scoring
+      summary: What entertainment displaced (planned items it overlapped or ran while due)
+      description: What entertainment displaced (planned items it overlapped or ran while due).
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - local_day
+                      - kind
+                      - displaced_type
+                      - displaced_id
+                      - minutes
+                      properties:
+                        local_day:
+                          $ref: '#/components/schemas/LocalDate'
+                        kind:
+                          type: string
+                          enum:
+                          - overlap
+                          - while_due
+                        displaced_type:
+                          type: string
+                        displaced_id:
+                          $ref: '#/components/schemas/Id'
+                        displaced_title:
+                          type:
+                          - string
+                          - 'null'
+                        minutes:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/me:
     get:
       operationId: auth.me
@@ -3886,6 +4496,348 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/progress/today:
+    get:
+      operationId: scores.today_progress
+      tags:
+      - Scoring
+      summary: 'Deterministic plan progress so far today: no score number, no assistant call'
+      description: 'Deterministic plan progress so far today: no score number, no assistant call.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProgress'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores:
+    get:
+      operationId: scores.list
+      tags:
+      - Scoring
+      summary: List scores
+      description: List scores.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScorePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores/{id}:
+    get:
+      operationId: scores.get
+      tags:
+      - Scoring
+      summary: Get a score
+      description: Get a score.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Score'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores/{id}/history:
+    get:
+      operationId: scores.history
+      tags:
+      - Scoring
+      summary: Every version of this score's period, newest first
+      description: Every version of this score's period, newest first.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Score'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores/{id}:dispute:
+    post:
+      operationId: scores.dispute
+      tags:
+      - Scoring
+      summary: Dispute the assistant's adjustment; it is re-run once with your reason
+      description: Dispute the assistant's adjustment; it is re-run once with your reason.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - queued
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/settings/scoring:
+    get:
+      operationId: scores.settings
+      tags:
+      - Scoring
+      summary: Area weights and plan-versus-target balance
+      description: Area weights and plan-versus-target balance.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+    patch:
+      operationId: scores.update_settings
+      tags:
+      - Scoring
+      summary: Change area weights or the plan-versus-target balance
+      description: Change area weights or the plan-versus-target balance.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringSettings'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ScoringSettingsPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/skills/resources:
     get:
       operationId: skill_resources.list
@@ -4820,6 +5772,280 @@ paths:
         principals:
         - user
         stage: 2
+  /api/v1/targets:
+    get:
+      operationId: targets.list
+      tags:
+      - Scoring
+      summary: List targets
+      description: List targets.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: area
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Area'
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - day
+          - week
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: targets.create
+      tags:
+      - Scoring
+      summary: Create a target
+      description: Create a target.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/targets/{id}:
+    delete:
+      operationId: targets.delete
+      tags:
+      - Scoring
+      summary: Delete a target (soft delete)
+      description: Delete a target (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: targets.get
+      tags:
+      - Scoring
+      summary: Get a target
+      description: Get a target.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: targets.update
+      tags:
+      - Scoring
+      summary: Update a target
+      description: Update a target.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/TargetPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/tasks:
     get:
       operationId: tasks.list
@@ -5315,6 +6541,267 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/work-contexts:
+    get:
+      operationId: work_contexts.list
+      tags:
+      - Scoring
+      summary: List work contexts
+      description: List work contexts.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContextPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: work_contexts.create
+      tags:
+      - Scoring
+      summary: Create a work context
+      description: Create a work context.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContext'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkContextCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/work-contexts/{id}:
+    delete:
+      operationId: work_contexts.delete
+      tags:
+      - Scoring
+      summary: Delete a work context (soft delete)
+      description: Delete a work context (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: work_contexts.get
+      tags:
+      - Scoring
+      summary: Get a work context
+      description: Get a work context.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContext'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: work_contexts.update
+      tags:
+      - Scoring
+      summary: Update a work context
+      description: Update a work context.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContext'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/WorkContextPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/work/deliverables:
     get:
       operationId: work_deliverables.list
@@ -7624,6 +9111,237 @@ components:
           maximum: 360000
       additionalProperties: false
       minProperties: 1
+    DayProfile:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        name:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        scored:
+          type: boolean
+          default: true
+        freezes_streaks:
+          type: boolean
+          default: false
+        description:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - name
+      description: Kinds of day (scoring_lld.md §3). Built in, unless redefined here under the same name - workday, weekend
+        and holiday (scored) and leave and sick (not scored, streaks frozen). Workdays come from the profile setting workdays;
+        other days are weekends.
+    DayProfileCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        scored:
+          type: boolean
+          default: true
+        freezes_streaks:
+          type: boolean
+          default: false
+        description:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - name
+    DayProfileOverride:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: workday, weekend, holiday, leave, sick or a custom profile.
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - local_day
+      - profile
+      description: Sets the profile of one day ("tomorrow I'm on leave"). An all-day calendar event with category day_profile.<name>
+        does the same.
+    DayProfileOverrideCreate:
+      type: object
+      properties:
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: workday, weekend, holiday, leave, sick or a custom profile.
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+      additionalProperties: false
+      required:
+      - local_day
+      - profile
+    DayProfileOverridePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProfileOverride'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    DayProfileOverridePatch:
+      type: object
+      properties:
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: workday, weekend, holiday, leave, sick or a custom profile.
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+      additionalProperties: false
+      minProperties: 1
+    DayProfilePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProfile'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    DayProfilePatch:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        scored:
+          type: boolean
+        freezes_streaks:
+          type: boolean
+        description:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      minProperties: 1
+    DayProgress:
+      type: object
+      required:
+      - local_day
+      - profile
+      - areas
+      properties:
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+        areas:
+          type: object
+          description: 'Per area: planned items, done, planned and covered block minutes so far, target progress.'
     Detection:
       type: object
       properties:
@@ -8914,12 +10632,238 @@ components:
       - entertainment:write
       - planning:read
       - planning:write
+      - scoring:read
+      - scoring:write
       - skills:read
       - skills:write
       - tasks:read
       - tasks:write
       - work:read
       - work:write
+    Score:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        period:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+        period_start:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          enum:
+          - provisional
+          - final
+          - unobserved
+          - not_scored
+          description: 'provisional: base only, the adjustment follows when the assistant is back. unobserved: no evidence
+            that day. not_scored: leave or sick.'
+        base:
+          type:
+          - number
+          - 'null'
+        adjustment_pct:
+          type:
+          - number
+          - 'null'
+        adjustment:
+          type:
+          - object
+          - 'null'
+          description: '{adjustment_pct, reasons[{text, direction, refs}], goal_alignment}'
+        final:
+          type:
+          - number
+          - 'null'
+        breakdown:
+          type: object
+          description: 'Per area: adherence, quantity, alpha, items with weight and completion, targets.'
+        consistency:
+          type: object
+        coverage:
+          type:
+          - object
+          - 'null'
+          description: 'Periods: scored days and calendar days.'
+        formula_version:
+          type: string
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: Day, week and month scores (scoring_lld.md). A day score is computed when the day closes - a deterministic
+        base from plan adherence, targets and consistency, then one assistant adjustment of at most ±30 % with stated reasons.
+        Scores are versioned; this list shows the current version.
+    ScoreCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ScorePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Score'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ScorePatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
+    ScoringSettings:
+      type: object
+      required:
+      - weights
+      - plan_share
+      properties:
+        weights:
+          type: object
+          description: Relative area weights (normalised over the areas that apply on a day).
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
+            consistency:
+              type: number
+              minimum: 0
+              maximum: 1
+        plan_share:
+          type: object
+          description: 'alpha per area: share of plan adherence next to targets (1 - alpha). Default 0.8.'
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
+    ScoringSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        weights:
+          type: object
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
+            consistency:
+              type: number
+              minimum: 0
+              maximum: 1
+        plan_share:
+          type: object
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
     Session:
       type: object
       required:
@@ -9368,6 +11312,318 @@ components:
           - agent
       additionalProperties: false
       minProperties: 1
+    Target:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        title:
+          $ref: '#/components/schemas/Text200'
+        area:
+          $ref: '#/components/schemas/Area'
+        metric:
+          type: string
+          enum:
+          - minutes
+          - pages
+          - sections
+          - sessions
+          - count
+          description: minutes of matching evidence, pages or sections read, sessions or items logged.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        period:
+          type: string
+          enum:
+          - day
+          - week
+          default: day
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: Day profiles it applies to; empty means every scored profile.
+        goal_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        match:
+          type: object
+          additionalProperties: false
+          description: 'Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole
+            area.'
+          properties:
+            category:
+              type:
+              - string
+              - 'null'
+              maxLength: 80
+            link_type:
+              type:
+              - string
+              - 'null'
+              enum:
+              - task
+              - goal
+              - plan
+              - skill_resource
+              - project
+              - deliverable
+              - entertainment_item
+              - null
+            link_id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+          default: {}
+        track_consistency:
+          type: boolean
+          default: false
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - title
+      - area
+      - metric
+      - amount
+      description: Quantity targets scored next to the plan (scoring_lld.md §4.2). Daily targets count in the day score (20
+        % next to 80 % plan adherence by default); weekly targets count in the week score.
+    TargetCreate:
+      type: object
+      properties:
+        title:
+          $ref: '#/components/schemas/Text200'
+        area:
+          $ref: '#/components/schemas/Area'
+        metric:
+          type: string
+          enum:
+          - minutes
+          - pages
+          - sections
+          - sessions
+          - count
+          description: minutes of matching evidence, pages or sections read, sessions or items logged.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        period:
+          type: string
+          enum:
+          - day
+          - week
+          default: day
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: Day profiles it applies to; empty means every scored profile.
+        goal_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        match:
+          type: object
+          additionalProperties: false
+          description: 'Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole
+            area.'
+          properties:
+            category:
+              type:
+              - string
+              - 'null'
+              maxLength: 80
+            link_type:
+              type:
+              - string
+              - 'null'
+              enum:
+              - task
+              - goal
+              - plan
+              - skill_resource
+              - project
+              - deliverable
+              - entertainment_item
+              - null
+            link_id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+          default: {}
+        track_consistency:
+          type: boolean
+          default: false
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - title
+      - area
+      - metric
+      - amount
+    TargetPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Target'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    TargetPatch:
+      type: object
+      properties:
+        title:
+          $ref: '#/components/schemas/Text200'
+        area:
+          $ref: '#/components/schemas/Area'
+        metric:
+          type: string
+          enum:
+          - minutes
+          - pages
+          - sections
+          - sessions
+          - count
+          description: minutes of matching evidence, pages or sections read, sessions or items logged.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        period:
+          type: string
+          enum:
+          - day
+          - week
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: Day profiles it applies to; empty means every scored profile.
+        goal_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        match:
+          type: object
+          additionalProperties: false
+          description: 'Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole
+            area.'
+          properties:
+            category:
+              type:
+              - string
+              - 'null'
+              maxLength: 80
+            link_type:
+              type:
+              - string
+              - 'null'
+              enum:
+              - task
+              - goal
+              - plan
+              - skill_resource
+              - project
+              - deliverable
+              - entertainment_item
+              - null
+            link_id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        track_consistency:
+          type: boolean
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      minProperties: 1
     Task:
       type: object
       properties:
@@ -9712,6 +11968,183 @@ components:
             - FR
             - SA
             - SU
+    WorkContext:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        name:
+          $ref: '#/components/schemas/Text200'
+        employer:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        evidence_mode:
+          type: string
+          enum:
+          - observed
+          - self_reported
+        device_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+          default: []
+        workday_target_min:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          default: 360
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - name
+      - evidence_mode
+      description: Where work happens and how it is evidenced (scoring_lld.md §5). observed - detections on the listed devices
+        count; self_reported - only logged activities count. Each active context adds a daily work target on workdays.
+    WorkContextCreate:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/Text200'
+        employer:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        evidence_mode:
+          type: string
+          enum:
+          - observed
+          - self_reported
+        device_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+          default: []
+        workday_target_min:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          default: 360
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - name
+      - evidence_mode
+    WorkContextPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkContext'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    WorkContextPatch:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/Text200'
+        employer:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        evidence_mode:
+          type: string
+          enum:
+          - observed
+          - self_reported
+        device_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+        workday_target_min:
+          type: integer
+          minimum: 0
+          maximum: 1440
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      minProperties: 1
     WorkDeliverable:
       type: object
       properties:

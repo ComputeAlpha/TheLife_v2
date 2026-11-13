@@ -64,7 +64,7 @@ schemas:
     type: string
     description: A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys may call.
     enum: [activities:read, activities:write, calendar:read, calendar:write, detections:read, detections:write,
-           entertainment:read, entertainment:write, planning:read, planning:write, skills:read, skills:write,
+           entertainment:read, entertainment:write, planning:read, planning:write, scoring:read, scoring:write, skills:read, skills:write,
            tasks:read, tasks:write, work:read, work:write]
   ResourceMeta:
     type: object
