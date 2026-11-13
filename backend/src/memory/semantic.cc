@@ -5,6 +5,7 @@
 #include "core/env.h"
 #include "core/ids.h"
 #include "core/json.h"
+#include "db/field_crypt.h"
 #include "db/job_store.h"
 #include "jobs/worker.h"
 #include "memory/embedder.h"
@@ -40,6 +41,7 @@ std::vector<std::string> chunks(const std::string& text) {
 
 struct Candidate {
   std::string type, id, text, hash;
+  std::string notes;  // activities: the encrypted notes ("\\x..."), appended to the text once opened
 };
 
 // One round: what is missing or stale, embedded outside any transaction, then written. Returns how many it saw.
@@ -49,24 +51,31 @@ Task<int> syncRound(const std::string& tenant) {
     auto tx = co_await db::TenantTx::beginSystem(tenant);
     const auto rows = co_await tx.exec(
         "WITH src AS ("
-        "  SELECT 'message' AS t, m.id, m.content AS text FROM messages m "
+        "  SELECT 'message' AS t, m.id, m.content AS text, NULL::bytea AS enc FROM messages m "
         "   WHERE m.role IN ('user', 'assistant') AND m.kind = 'normal' AND length(m.content) >= 12 "
         "     AND m.created_at > now() - interval '90 days' "
-        "  UNION ALL SELECT 'activity', a.id, a.title || coalesce('. ' || a.notes, '') FROM activities a "
+        "  UNION ALL SELECT 'activity', a.id, a.title, a.notes FROM activities a "
         "   WHERE a.deleted_at IS NULL "
-        "  UNION ALL SELECT 'summary', s.id, s.content FROM episodic_summaries s "
-        "  UNION ALL SELECT 'fact', f.id, f.statement FROM kg_facts f WHERE f.status = 'active' AND f.deleted_at IS NULL) "
-        "SELECT src.t, src.id::text AS id, src.text, md5(src.text) AS h FROM src "
+        "  UNION ALL SELECT 'summary', s.id, s.content, NULL FROM episodic_summaries s "
+        "  UNION ALL SELECT 'fact', f.id, f.statement, NULL FROM kg_facts f WHERE f.status = 'active' AND f.deleted_at IS NULL), "
+        // The hash of encrypted notes covers their ciphertext: any change (even a reseal) embeds the owner again.
+        "hashed AS (SELECT src.*, md5(src.text || coalesce(encode(src.enc, 'hex'), '')) AS h FROM src) "
+        "SELECT src.t, src.id::text AS id, src.text, src.h, coalesce('\\x' || encode(src.enc, 'hex'), '') AS enc "
+        "FROM hashed src "
         "WHERE NOT EXISTS (SELECT 1 FROM embeddings e WHERE e.owner_type = src.t AND e.owner_id = src.id "
-        "                  AND e.chunk_ix = 0 AND e.content_hash = md5(src.text) "
+        "                  AND e.chunk_ix = 0 AND e.content_hash = src.h "
         "                  AND ($1 = '' OR e.model_version = $1)) "
         "LIMIT $2::int",
         knownModelVersion, std::to_string(kBatch));
-    co_await tx.commit();
     for (const auto& r : rows) {
-      todo.push_back({r["t"].as<std::string>(), r["id"].as<std::string>(), r["text"].as<std::string>(),
-                      r["h"].as<std::string>()});
+      Candidate c{r["t"].as<std::string>(), r["id"].as<std::string>(), r["text"].as<std::string>(),
+                  r["h"].as<std::string>(), r["enc"].as<std::string>()};
+      if (!c.notes.empty()) {
+        c.text += ". " + (co_await fieldcrypt::openText(tx, "activities", "notes", c.notes)).asString();
+      }
+      todo.push_back(std::move(c));
     }
+    co_await tx.commit();
   }
   if (todo.empty()) co_return 0;
 
@@ -113,6 +122,14 @@ Task<void> sync(const jobs::Job& job) {
 
 }  // namespace
 
+std::string utf8Prefix(const std::string& text, std::size_t maxChars) {
+  std::size_t chars = 0, i = 0;
+  for (; i < text.size(); ++i) {
+    if ((static_cast<unsigned char>(text[i]) & 0xC0) != 0x80 && chars++ == maxChars) break;
+  }
+  return text.substr(0, i);
+}
+
 double minRecallScore() {
   static const double v = [] {
     const auto s = env::get("THELIFE_RECALL_MIN_SCORE");
@@ -148,7 +165,8 @@ Task<std::vector<SemanticHit>> semanticSearch(db::TenantTx& tx, const std::strin
       "SELECT near.owner_type AS kind, near.owner_id::text AS id, 1 - near.d AS score, "
       "  to_jsonb(coalesce(m.created_at, a.started_at, s.period_start::timestamptz, f.created_at)) #>> '{}' AS at, "
       "  coalesce(c.channel, s.channel, '') AS channel, "
-      "  left(coalesce(m.content, a.title || coalesce('. ' || a.notes, ''), s.content, f.statement), 400) AS text "
+      "  left(coalesce(m.content, a.title, s.content, f.statement), 400) AS text, "
+      "  coalesce('\\x' || encode(a.notes, 'hex'), '') AS enc "
       "FROM near "
       "LEFT JOIN messages m ON near.owner_type = 'message' AND m.id = near.owner_id "
       "LEFT JOIN conversations c ON c.id = m.conversation_id "
@@ -164,8 +182,12 @@ Task<std::vector<SemanticHit>> semanticSearch(db::TenantTx& tx, const std::strin
       vectorLiteral(query), arr, userId, from, to, std::to_string(k));
   std::vector<SemanticHit> out;
   for (const auto& r : rows) {
+    std::string text = r["text"].as<std::string>();
+    if (const auto enc = r["enc"].as<std::string>(); !enc.empty()) {
+      text = utf8Prefix(text + ". " + (co_await fieldcrypt::openText(tx, "activities", "notes", enc)).asString(), 400);
+    }
     out.push_back({r["kind"].as<std::string>(), r["id"].as<std::string>(), r["at"].as<std::string>(),
-                   r["channel"].as<std::string>(), r["text"].as<std::string>(), r["score"].as<double>()});
+                   r["channel"].as<std::string>(), std::move(text), r["score"].as<double>()});
   }
   co_return out;
 }

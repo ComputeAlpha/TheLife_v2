@@ -67,7 +67,7 @@ double blockCompletion(const DayInputs& in, const std::vector<int>& owner, const
 }  // namespace
 
 double finalScore(double base, double pct) {
-  return std::clamp(std::round(base * (1.0 + pct / 100.0)), 0.0, 100.0);
+  return std::clamp(std::round(base + kAdjustmentPointsPerPct * pct), 0.0, 100.0);
 }
 
 std::string hashInputs(const DayInputs& in) {

@@ -19,6 +19,8 @@ void bindAll(tools::ToolRegistry& reg) {
   bindMemory(reg);
   bindWeb(reg);
   bindScoring(reg);
+  bindProactive(reg);
+  bindTelegram(reg);
   bindTasks(reg);
   bindCalendar(reg);
   bindWork(reg);

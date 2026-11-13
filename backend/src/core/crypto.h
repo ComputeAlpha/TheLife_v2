@@ -10,6 +10,7 @@ void ensureInit();  // idempotent sodium_init(); throws if libsodium cannot init
 
 std::string base64Url(const unsigned char* data, size_t len);  // no padding
 std::vector<unsigned char> sha256(std::string_view data);
+std::string hex(const std::vector<unsigned char>& bytes);  // lower-case
 // "\\x<hex>" literal for passing bytea as a text parameter.
 std::string pgByteaHex(const std::vector<unsigned char>& bytes);
 

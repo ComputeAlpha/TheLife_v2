@@ -79,6 +79,13 @@ add_library(thelife_core STATIC
   src/scoring/inputs.cc
   src/scoring/jobs.cc
   src/modules/scoring.cc
+  src/modules/proactive.cc
+  src/modules/telegram.cc
+  src/proactive/notifier.cc
+  src/proactive/tick.cc
+  src/telegram/bot.cc
+  src/db/telegram_store.cc
+  src/db/field_crypt.cc
   src/modules/memory.cc
   src/modules/web.cc
   src/web/search.cc

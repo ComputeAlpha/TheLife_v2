@@ -9,6 +9,7 @@
 #include "core/errors.h"
 #include "core/ids.h"
 #include "core/json.h"
+#include "db/field_crypt.h"
 
 namespace thelife::crud {
 
@@ -90,7 +91,9 @@ Task<Json::Value> fetchOne(db::TenantTx& tx, const std::string& table, const std
   const auto rows = co_await tx.exec(
       "SELECT to_jsonb(r)::text AS j FROM " + quoted(table) + " r WHERE r.id = $1::uuid AND r.deleted_at IS NULL", id);
   if (rows.empty()) co_return Json::Value();
-  co_return json::parse(rows[0]["j"].as<std::string>());
+  auto row = json::parse(rows[0]["j"].as<std::string>());
+  co_await fieldcrypt::openRow(tx, table, row);
+  co_return row;
 }
 
 // After an UPDATE matched nothing: 404 if the row is gone, 412 if only the version differed.
@@ -239,7 +242,8 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
       out["items"] = Json::Value(Json::arrayValue);
       std::string lastId;
       for (size_t i = 0; i < rows.size() && i < static_cast<size_t>(limit); ++i) {
-        const auto row = json::parse(rows[i]["j"].as<std::string>());
+        auto row = json::parse(rows[i]["j"].as<std::string>());
+        co_await fieldcrypt::openRow(c.tx, table, row);
         lastId = row["id"].asString();
         out["items"].append(toApi(row, shape->projection));
       }
@@ -264,13 +268,16 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
       if (c.sourceMessageId) doc["source_message_id"] = *c.sourceMessageId;
       const auto* cols = co_await columns().get(c.tx, table);
       checkColumns(*cols, doc, table);
+      co_await fieldcrypt::sealFields(c.tx, table, doc);
       std::string list;
       for (const auto& k : doc.getMemberNames()) list += (list.empty() ? "" : ", ") + quoted(k);
       const auto rows = co_await c.tx.exec("INSERT INTO " + quoted(table) + " AS r (" + list + ") SELECT " + list +
                                                " FROM jsonb_populate_record(NULL::" + quoted(table) +
                                                ", $1::jsonb) RETURNING to_jsonb(r)::text AS j",
                                            json::compact(doc));
-      co_return toApi(json::parse(rows[0]["j"].as<std::string>()), shape->projection);
+      auto row = json::parse(rows[0]["j"].as<std::string>());
+      co_await fieldcrypt::openRow(c.tx, table, row);
+      co_return toApi(row, shape->projection);
     });
   }
 
@@ -284,6 +291,7 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
       if (binding->validate) binding->validate(patch, false);
       const auto* cols = co_await columns().get(c.tx, table);
       checkColumns(*cols, patch, table);
+      co_await fieldcrypt::sealFields(c.tx, table, patch);
       std::string list;
       for (const auto& k : patch.getMemberNames()) list += (list.empty() ? "" : ", ") + quoted(k);
       const auto id = c.args["id"].asString();
@@ -295,7 +303,9 @@ void bindCrud(tools::ToolRegistry& reg, ResourceBinding b) {
           params);
       if (rows.empty()) co_await explainMiss(c.tx, table, id);
       // Cross-field rules that depend on unchanged columns are enforced by table CHECK constraints.
-      co_return toApi(json::parse(rows[0]["j"].as<std::string>()), shape->projection);
+      auto row = json::parse(rows[0]["j"].as<std::string>());
+      co_await fieldcrypt::openRow(c.tx, table, row);
+      co_return toApi(row, shape->projection);
     }, resolver);
   }
 

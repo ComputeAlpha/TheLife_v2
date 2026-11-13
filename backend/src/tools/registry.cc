@@ -231,7 +231,7 @@ drogon::Task<InvokeResult> ToolRegistry::invoke(const std::string& name, const a
 
   // 5. execute
   ToolCall call{def, principal, tx, std::move(args), expectedVersion, opts.requestId, opts.origin,
-                opts.sourceMessageId, {}};
+                opts.sourceMessageId, {}, opts.conversationId};
   InvokeResult result;
   std::optional<ApiError> mapped;
   try {
@@ -270,7 +270,7 @@ drogon::Task<Json::Value> ToolRegistry::runInTx(const std::string& name, const a
     expectedVersion = args["expected_version"].asInt();
     args.removeMember("expected_version");
   }
-  ToolCall call{def, principal, tx, std::move(args), expectedVersion, "", std::move(origin), std::move(sourceMessageId), {}};
+  ToolCall call{def, principal, tx, std::move(args), expectedVersion, "", std::move(origin), std::move(sourceMessageId), {}, std::nullopt};
   std::optional<ApiError> mapped;
   try {
     co_return co_await it->second.handler(call);

@@ -1,0 +1,40 @@
+name: notifications
+schema: Notification
+noun: notification
+path: /notifications
+scope: notifications
+tag: Notifications
+stage: 2
+exposure: [rest]
+principals: [user]
+description: What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any
+  channel resolves it everywhere.
+fields: {}
+readonly:
+  kind: {type: string}
+  urgency: {type: string, enum: [low, normal, critical]}
+  title: {type: string}
+  body: {type: string}
+  action: {type: [string, "null"], enum: [open_chat, open_approval, null]}
+  ref_type: {type: [string, "null"]}
+  ref_id: {type: [string, "null"], format: uuid}
+  conversation_id: {type: [string, "null"], format: uuid}
+  resolved_at: {type: [string, "null"], format: date-time}
+  deliveries: {type: array, items: {type: object}, description: "Channel and status of each delivery."}
+filters:
+  open: {type: boolean, description: Only unresolved notifications.}
+ops: {list: {}, get: {}}
+actions:
+  - name: ack
+    method: post
+    path: /notifications/{id}:ack
+    effect: update
+    summary: Mark a notification seen (resolves it on every channel)
+    target: true
+    params: {id: {$ref: Id}}
+    body:
+      type: object
+      additionalProperties: false
+      properties:
+        clicked: {type: boolean, default: false}
+    returns: Notification

@@ -62,7 +62,13 @@ std::optional<Json::Value> extractJsonObject(const std::string& text) {
 }  // namespace
 
 std::string stateKey(const ProviderConfig& c) {
-  if (c.kind == "stub") return c.name;
+  // THELIFE_LLM_STATE_SCOPE separates deployments sharing one database (test servers): without it, a fake model
+  // server given a port an earlier test's exhausted fake used inherited "quota exhausted until Monday".
+  static const std::string scope = [] {
+    const auto s = env::get("THELIFE_LLM_STATE_SCOPE");
+    return s.empty() ? std::string() : s.substr(0, 12) + ":";
+  }();
+  if (c.kind == "stub") return scope + c.name;
   const auto digest = crypto::sha256(c.kind + "\n" + c.baseUrl + "\n" + c.chatModel);
   static constexpr char kHex[] = "0123456789abcdef";
   std::string h;
@@ -70,7 +76,7 @@ std::string stateKey(const ProviderConfig& c) {
     h += kHex[digest[i] >> 4];
     h += kHex[digest[i] & 0x0F];
   }
-  return c.name.substr(0, 40) + "#" + h;
+  return scope + c.name.substr(0, 40) + "#" + h;
 }
 
 Gateway::Gateway(GatewayConfig cfg, std::vector<std::unique_ptr<Provider>> providers,

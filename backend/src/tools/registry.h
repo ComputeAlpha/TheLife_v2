@@ -28,6 +28,7 @@ struct ToolCall {
   std::string origin = "direct";        // provenance of created rows (agent chat capture: user_stated)
   std::optional<std::string> sourceMessageId;
   std::vector<std::function<void()>> afterCommit;  // run once the call's transaction has committed
+  std::optional<std::string> conversationId;       // agent calls: the conversation of the turn
 };
 
 using ToolHandler = std::function<drogon::Task<Json::Value>(ToolCall&)>;

@@ -32,6 +32,9 @@ drogon::Task<std::vector<SemanticHit>> semanticSearch(db::TenantTx& tx, const st
 // measured 0.47-0.61 and unrelated ones 0.38-0.42 in the Stage 2 live check.
 double minRecallScore();
 
+// The first `maxChars` UTF-8 characters of `text`.
+std::string utf8Prefix(const std::string& text, std::size_t maxChars);
+
 void registerSemanticJobs();
 
 }  // namespace thelife::memory

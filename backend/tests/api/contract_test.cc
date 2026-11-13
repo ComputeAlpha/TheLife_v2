@@ -105,7 +105,14 @@ TEST_F(ContractMatrix, ApiKeyNeedsTheToolsScope) {
       EXPECT_EQ(r.status, 403) << def->name << " " << r.body;
     }
   }
-  EXPECT_EQ(allowed, 4);  // goals.list/get, plans.list/get
+  // Every planning:read tool an API key may call (goals, plans, reminders, routines: list and get).
+  int expected = 0;
+  for (const auto* def : stage1RestTools()) {
+    expected += def->principals.count("api_key") &&
+                std::find(def->scopes.begin(), def->scopes.end(), "planning:read") != def->scopes.end();
+  }
+  EXPECT_GE(expected, 4);
+  EXPECT_EQ(allowed, expected);
 }
 
 TEST_F(ContractMatrix, WritesRequireIfMatch) {

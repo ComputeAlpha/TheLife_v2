@@ -102,6 +102,7 @@ class Memory : public ::testing::Test {
 
 TEST_F(Memory, RememberedFactsComeBackInContextAndRecall) {
   start(false);
+  if (IsSkipped()) return;
   fake->script(J(R"([
     {"content":"","tool_calls":[{"name":"memory_remember","arguments":{"subject":"Priya","subject_kind":"person",
       "statement":"Priya is the user's manager at Acme"}}]},
@@ -137,6 +138,7 @@ TEST_F(Memory, RememberedFactsComeBackInContextAndRecall) {
 
 TEST_F(Memory, UpdatingAndForgettingFollowProvenance) {
   start(false);
+  if (IsSkipped()) return;
   fake->script(J(R"([
     {"content":"","tool_calls":[{"name":"memory_remember","arguments":{"subject":"me","statement":"Prefers deep work before noon"}}]},
     {"content":"Noted."}])"));
@@ -186,6 +188,7 @@ TEST_F(Memory, UpdatingAndForgettingFollowProvenance) {
 
 TEST_F(Memory, HistorySearchFindsMessagesAndActivities) {
   start(false);
+  if (IsSkipped()) return;
   ASSERT_EQ(api->post("/activities", J(R"({"title":"Flamingo design review","area":"work",
       "started_at":"2026-11-10T10:00:00+05:30","ended_at":"2026-11-10T11:00:00+05:30"})")).status, 201);
   fake->script(J(R"([{"content":"Noted the flamingo budget."},
@@ -202,6 +205,7 @@ TEST_F(Memory, HistorySearchFindsMessagesAndActivities) {
 
 TEST_F(Memory, DayCloseSummarisesExtractsFactsClosesAndMarksMissed) {
   start(true);
+  if (IsSkipped()) return;
   const auto yesterday = day(-1);
   const auto routine = api->post("/tasks", J(R"({"title":"Meditate","area":"personal","rrule":"FREQ=DAILY",
       "rrule_dtstart":"2026-01-01T00:00:00+00:00"})"));
@@ -277,6 +281,7 @@ TEST_F(Memory, DayCloseSummarisesExtractsFactsClosesAndMarksMissed) {
 
 TEST_F(Memory, JobsWaitForTheQuotaResetInsteadOfFailing) {
   start(true);
+  if (IsSkipped()) return;
   const auto conv = ids::newUuidV7();
   const auto yesterday = day(-1);
   sql(user.tenantId,
@@ -308,6 +313,7 @@ TEST_F(Memory, JobsWaitForTheQuotaResetInsteadOfFailing) {
 
 TEST_F(Memory, WeekRollupCombinesDaySummaries) {
   start(true);
+  if (IsSkipped()) return;
   for (int d : {-9, -8}) {
     sql(user.tenantId,
         "INSERT INTO episodic_summaries (id, tenant_id, user_id, channel, period, period_start, content, model, "

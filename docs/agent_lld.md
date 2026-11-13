@@ -170,6 +170,43 @@ routines(id, tenant_id, user_id, kind morning|evening|weekly|custom,
   - Calendar: a calendar event with `category = routine.<kind>` fixes that occurrence's time and becomes a planned block for scoring.
 - Changing a user-set fixed time follows the edit-user-entered rule (approval required); adaptive shifts within the window are automatic and logged.
 
+### 4.4a Implementation (Stage 2, increment 5a)
+`backend/src/proactive/` (`notifier.*`, `tick.cc`), `backend/src/modules/proactive.cc`, migration `0012_proactive.sql`,
+`prompts/agent/triggers/*.md`.
+- **Scheduling:** housekeeping calls `ops.enqueue_proactive_ticks()` (SECURITY DEFINER) every minute. It seeds the
+  default routines of tenants without any (morning adaptive 06:00–10:00, evening adaptive 19:00–22:00, weekly fixed
+  Sunday 18:00) and queues one `proactive.tick` per user with something due: a reminder, follow-up or trigger,
+  unprocessed events, a routine whose window or time has come, a reply deferred while offline; every 10 minutes all
+  users (for the scans). Rules are code for now (`trigger_rules` per tenant is not built).
+- **Events → triggers:** `task.missed` (day close), `day.unobserved` (score job), `detection.disputed` (dispute
+  action; a silent review with the detections tools, at most one per detection). Triggers dedupe forever by key.
+  Scans add `deliverable_due` (24 h, and an urgent one at 2 h) and `entertainment_warning` (15+ minutes of
+  entertainment evidence still running while a non-recurring block is on or a one-off task is due today; recurring
+  items are not checked yet).
+- **Proactive turns** are recorded as `turns` rows in the tick's transaction (none is lost to a crash), run in the
+  user's web lane with the trigger's preamble. The preamble goes in as a user message labelled "[Event from TheLife,
+  not typed by the user]" placed before the turn's own steps: as a system message glm-5.3-flash answered nothing, and
+  after the steps it re-read the request after every tool result. `agent.no_message` ends the turn without another
+  model call; `notify.urgent` marks the message urgent. While the assistant is offline proactive turns do not run.
+- **Notifier gate** (§4.3): quiet hours 22:30–07:30 hold everything unless the user was active in the last
+  10 minutes (they are up); at most 6 proactive notifications a day; 45 minutes apart unless urgent. A held message is
+  stored with `kind = suppressed` and the turn's error says why (`quiet_hours`, `daily_cap`, `spacing`). Failed
+  proactive turns are silent. Routines do not fire into quiet hours; one whose moment passed (window end, or 3 h
+  after a fixed time) is dropped for the day.
+- **Routines:** calendar event `routine.<kind>` today overrides the time; fixed mode uses `default_time`; adaptive
+  morning fires at the first activity inside the window, else at the learned or default time; evening at the learned
+  or default time. `day.close` learns `learned_time` from the last 14 days (5+ days needed): morning = median first
+  activity, evening = median last activity − 30 min, capped at 22:00. `routines.skip_once` runs under
+  `user_reported_progress`.
+- **Reminders** are delivered by the tick from a template (message `kind = deterministic` plus a notification), with
+  no model, so they also work while the assistant is offline; repeating ones advance through the RRULE expander; one
+  linked to a done task is cancelled silently. Reminders the user set are not subject to the gate.
+- **Deferred replies** (§3.4 catch-up): once the gateway is online, every user message answered by the offline reply
+  in the last 7 days gets a `deferred_reply` turn (runs as a user turn, with a note that it was sent earlier),
+  queued before other proactive work.
+- **Notifications:** `/notifications` (open filter, deliveries), `:ack` resolves on every channel. Browser delivery is
+  the `notification` SSE event to open tabs; desktop is the collector's long poll; Telegram arrives in 5b.
+
 ### 4.5 Concurrency
 One active turn per `(user, channel)`. Messages arriving mid-turn are appended and included in the next loop iteration. Proactive triggers wait if a turn is active on that channel.
 
@@ -277,7 +314,8 @@ max_results ≤ 10}`, `POST …/web_fetch {url}`, `Authorization: Bearer $OLLAMA
 - **Tools:** `memory.remember` (dedupes; `user_stated` from a user's message), `memory.recall` (name, alias and
   full-text match; marks facts used and raises salience), `memory.update_fact` (supersedes; approval for facts the
   user stated), `memory.forget` (named policy `user_stated_fact`), `history.search` (keyword search over messages,
-  activities and day summaries, 3-month default window). An approved change keeps the origin of the request.
+  activity titles and day summaries, 3-month default window; activity notes are encrypted since 2026-11-13, so
+  only the semantic part finds them). An approved change keeps the origin of the request.
   Users see and delete facts at `/memory/facts`.
 - **Semantic tier (increment 3b):** `history.search` merges keyword and vector hits (reciprocal rank fusion; each
   hit says `keyword`, `semantic` or `both`); `memory.recall` adds facts close in meaning; the context gains
@@ -324,11 +362,13 @@ kg_facts(id, tenant_id, subject_id, predicate text, object_id NULL, value text N
 - **Long polling** (`getUpdates`) from the backend, so there is no public webhook endpoint and nothing inbound to expose. Bot token from env.
 - **Linking:** the web UI issues a one-time code (10 min); the user sends `/link <code>` to the bot; the backend stores `telegram_links(user_id, chat_id, linked_at, revoked_at)`.
 - Only **private chats** from linked `chat_id`s are processed. Everything else is dropped without a reply (no information leak) and counted.
-- Messages → `channel=telegram` conversation. Replies are sent after the turn finishes (with a "typing…" chat action meanwhile), converted to MarkdownV2 with escaping.
-- Approvals use inline keyboards. `callback_data` = `ap:<approval_id>:<HMAC(user_id, approval_id)>` truncated to the 64-byte limit, and it is verified before acting.
+- Messages → `channel=telegram` conversation. Replies are sent when the turn's final message is written (with a "typing…" chat action at each step meanwhile), as **plain text** split at line breaks under the 4096-character limit (MarkdownV2 escaping was dropped: one missed character makes Telegram reject the whole message). Telegram's `message_id` is the message's `client_msg_id`, so an update redelivered after a restart is not processed twice.
+- Approvals use inline keyboards. `callback_data` = `ap:<approval_id>:<a|r>:<mac>` (58 bytes, under the 64-byte limit), where `mac` is HMAC-SHA256(user_id:approval_id:action) with a key derived from the bot token, truncated to 96 bits (base64url). A button whose mac, action or sender does not match is answered "not valid" and does nothing. The approval's follow-up turn runs on the channel the request came from, so its reply also lands in Telegram.
 - Deterministic commands (§3.4) work here too, which matters most when the LLM is down and you are away from home.
 - Telegram is a first-class **data entry** channel (§7.4): everything logged there shows up in the platform immediately.
 - Privacy note: Telegram bot chats are not end-to-end encrypted, so message content passes through Telegram's servers.
+
+**Implemented (increment 5b):** `telegram/bot.cc` (poll thread, update handling, sending), `modules/telegram.cc` (`GET /telegram/link`, `POST /telegram/link-code`, `DELETE /telegram/link`), migration `0013_telegram.sql`. Linking codes are 8 characters from an unambiguous alphabet, stored as sha256 only, single use, 10 minutes; a new code voids the user's earlier ones; linking replaces any earlier link of that chat or that user. Unlinked chats get an answer only to `/start` and `/link`; everything else (and every group or channel update) is dropped and counted in `ops.telegram_state.dropped`. The poll position is kept per bot (keyed by a hash of API base and token, never the token) and saved before updates are handled, so a crash drops at most the batch in flight rather than replaying it. Environment: `THELIFE_TELEGRAM_BOT_TOKEN` (unset: off), `THELIFE_TELEGRAM_API` (tests point it at `docker/fake-telegram/fake_telegram.py`), `THELIFE_TELEGRAM_POLL_S` (default 25). Proactive turns stay on the web channel; when the user is away their message reaches Telegram through the Notifier (§8) and is copied into the Telegram conversation, so a reply there has it in context.
 
 ### 7.3 Isolation semantics
 | Shared across channels | Isolated per channel |
@@ -339,6 +379,8 @@ kg_facts(id, tenant_id, subject_id, predicate text, object_id NULL, value text N
 | Today's cross-channel digest (both directions) | |
 
 - **Cross-channel digest (decided):** each channel's turn sees a rolling digest of the *other* channel's conversation today: topics, decisions, data changed, open follow-ups, about 200 tokens. It is refreshed by a cheap job after each turn that changed data or ran 6+ messages; outside those cases the last digest is reused. Example: on web in the evening the agent knows "on Telegram at 14:10 you logged 40 min gym and asked to be reminded to call the bank at 18:00".
+
+**Implemented (increment 5b):** the `digest.refresh` job (prompt `jobs/channel_digest`, structured output `{digest}`, at most 2000 characters) upserts `channel_digests(user_id, channel, local_day)`. `finishTurn` queues it only while a Telegram link exists (with one channel there is nothing to digest for), when the turn ran a non-read tool (executed or held for approval) or 6+ messages with text arrived since the last digest; coalesced per user and channel with a 5 s delay. The other channel's digest of today is a system message after the Now note: "Today on the telegram channel (digest as of HH:MM; the data it mentions is already saved)".
 
 ### 7.4 Chat as data entry (core differentiator)
 Any message on any channel may carry data. The agent's job on every user turn is to **capture first, then converse**:
@@ -370,9 +412,14 @@ Routing, evaluated per notification:
 2. **Browser** if a web UI tab holds the SSE stream (Notification API in the tab). Web Push with VAPID for closed tabs comes later **(proposed)**.
 3. **Telegram** if neither of the above acks within 3 min, or immediately when the user is away (no fresh heartbeat).
 
-**Implemented so far (increment 2):** the `notifications` and `notification_deliveries` tables, and the collector's
-long poll (`GET /devices/self/notifications?wait=`, repeated in short transactions by the REST adapter) and ack. The
-Notifier that creates notifications and routes them arrives with triggers and reminders.
+**Implemented:** the `notifications` and `notification_deliveries` tables, the collector's long poll
+(`GET /devices/self/notifications?wait=`, repeated in short transactions by the REST adapter) and ack (increment 2);
+the Notifier gate and browser routing (5a); Telegram routing (5b). With a live Telegram link, `notify()` records a
+`telegram` delivery as `queued` and queues a `notify.telegram` job: due at once when the user is away (no web tab on
+the stream and no collector heartbeat in 2 minutes), otherwise in 180 s. The job skips (`skipped`) a notification
+that was acked or expired meanwhile; otherwise it sends the full message (not the 400-character notification body),
+marks the delivery `sent`, and copies an agent or reminder message into the Telegram conversation. A failed send is
+retried by the job queue. Turns on the telegram channel already wrote to the chat, so their notifications skip this.
 
 An ack on any channel resolves the notification, so it is not delivered again elsewhere. The message content lives in the conversation of the channel where it was **first delivered**. A desktop click opens the web chat, so desktop and browser deliveries belong to the web conversation.
 
@@ -392,7 +439,7 @@ prompts/
 
 ## 10. New Tables (Stage 2)
 
-`conversations(user_id, channel, local_day, status open|closed, closed_at)` · `messages(conversation_id, role, kind normal|rolling_summary|suppressed|deterministic, content, tool_calls, tool_call_id, prompt_version, tokens)` · `episodic_summaries(user_id, channel, period day|week|month, period_start, content, model, prompt_version)` · `kg_entities`, `kg_facts` · `agent_triggers`, `trigger_rules`, `agent_followups` · `events` (outbox) · `notifications`, `notification_deliveries` · `telegram_links`, `link_codes` · `reminders` · `routines` · `channel_digests(user_id, channel, local_day, content, updated_at)` · `llm_calls`, `llm_usage`, `provider_state` · `approvals` (extends backend_lld §6.7).
+`conversations(user_id, channel, local_day, status open|closed, closed_at)` · `messages(conversation_id, role, kind normal|rolling_summary|suppressed|deterministic, content, tool_calls, tool_call_id, prompt_version, tokens)` · `episodic_summaries(user_id, channel, period day|week|month, period_start, content, model, prompt_version)` · `kg_entities`, `kg_facts` · `agent_triggers`, `trigger_rules`, `agent_followups` · `events` (outbox) · `notifications`, `notification_deliveries` · `telegram_links`, `telegram_link_codes` · `reminders` · `routines` · `channel_digests(user_id, channel, local_day, content, updated_at)` · `llm_calls`, `llm_usage`, `provider_state` · `approvals` (extends backend_lld §6.7).
 
 Every table follows the RLS pattern and catalog tests in `backend_lld.md` §4.
 

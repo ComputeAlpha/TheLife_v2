@@ -12,7 +12,7 @@
 // tests drive it directly and recomputing with unchanged inputs gives the same hash and numbers.
 namespace thelife::scoring {
 
-inline constexpr const char* kFormulaVersion = "1";
+inline constexpr const char* kFormulaVersion = "2";
 // Areas scored from plan and targets; entertainment and other carry no weight (§1, decision G).
 inline const std::vector<std::string>& scoredAreas() {
   static const std::vector<std::string> a{"work", "skill", "fitness", "personal"};
@@ -89,7 +89,9 @@ struct DayResult {
 DayResult scoreDay(const DayInputs& in);
 // Progress so far (no score number): evidence and blocks up to `now`.
 Json::Value progress(const DayInputs& in, int64_t now);
-// final = clamp(round(base · (1 + pct/100)), 0, 100) (§8).
+// final = clamp(round(base + 0.3 · pct), 0, 100) (§8): additive, so the adjustment can lift a 0-base day
+// (decided 2026-11-13). pct is -30..30, so at most ±9 points.
+inline constexpr double kAdjustmentPointsPerPct = 0.3;
 double finalScore(double base, double adjustmentPct);
 std::string hashInputs(const DayInputs& in);
 

@@ -93,6 +93,7 @@ drogon::Task<Housekeeping> housekeeping() {
   h.dayCloses = (co_await c->execSqlCoro("SELECT ops.enqueue_day_closes() AS n"))[0]["n"].as<int>();
   h.staleTurns = (co_await c->execSqlCoro("SELECT ops.fail_stale_turns() AS n"))[0]["n"].as<int>();
   h.idempotencyKeys = (co_await c->execSqlCoro("SELECT ops.gc_idempotency_keys() AS n"))[0]["n"].as<int>();
+  h.ticks = (co_await c->execSqlCoro("SELECT ops.enqueue_proactive_ticks() AS n"))[0]["n"].as<int>();
   // A worker that died mid-job leaves it running; after 15 minutes it is retried (counted as an attempt).
   const auto r = co_await c->execSqlCoro(
       "UPDATE ops.jobs SET status = 'queued', locked_by = NULL, last_error = 'worker lost', updated_at = now() "

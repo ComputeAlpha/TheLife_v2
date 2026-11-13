@@ -16,6 +16,7 @@
 #include "llm/gateway.h"
 #include "memory/registry.h"
 #include "memory/semantic.h"
+#include "proactive/notifier.h"
 #include "scoring/jobs.h"
 #include "tools/registry.h"
 
@@ -88,6 +89,12 @@ const Json::Value& rollupSchema() {
   return s;
 }
 
+const Json::Value& digestSchema() {
+  static const Json::Value s = json::parse(R"({"type": "object", "additionalProperties": false,
+    "required": ["digest"], "properties": {"digest": {"type": "string", "minLength": 1, "maxLength": 1500}}})");
+  return s;
+}
+
 Task<void> storeSummary(db::TenantTx& tx, const std::string& user, const std::string& channel,
                         const std::string& period, const std::string& start, const std::string& content,
                         const Json::Value& topics, const std::string& promptVer) {
@@ -140,16 +147,53 @@ Task<void> dayClose(const Job& job) {
   args["from"] = w[0]["f"].as<std::string>();
   args["to"] = w[0]["t"].as<std::string>();
   const auto cal = co_await tools::registry().runInTx("calendar.view", systemFor(job.tenantId, user), tx, args);
+  Json::Value missed(Json::arrayValue);
   for (const auto& e : cal["items"]) {
     if (e["kind"].asString() != "task_occurrence" || !e["all_day"].asBool() || e["status"].asString() != "todo" ||
         e["occurs_on"].asString() != day) {
       continue;
     }
+    missed.append(e["title"].asString());
     co_await tx.exec(
         "INSERT INTO task_occurrences (id, tenant_id, created_by_kind, task_id, occurs_on, status) "
         "VALUES ($1::uuid, $2::uuid, 'system', $3::uuid, $4::date, 'missed') "
         "ON CONFLICT (tenant_id, task_id, occurs_on) DO NOTHING",
         ids::newUuidV7(), job.tenantId, e["id"].asString(), day);
+  }
+
+  if (!missed.empty()) {
+    Json::Value p;
+    p["day"] = day;
+    p["titles"] = missed;
+    co_await proactive::emit(tx, user, "task.missed", "day", std::nullopt, p);
+  }
+  // Adaptive routines learn the user's rhythm from the last 14 days with data (§4.4): morning at the typical
+  // first activity, evening 30 min before the typical last one (never inside quiet hours). Needs 5+ days.
+  const auto rhythm = co_await tx.exec(
+      "WITH u AS (SELECT timezone AS tz, day_start_hour AS dsh FROM users WHERE id = $1::uuid), "
+      "ts AS (SELECT m.created_at AS t FROM messages m JOIN conversations c ON c.id = m.conversation_id "
+      "         WHERE c.user_id = $1::uuid AND m.role = 'user' AND m.created_at > now() - interval '14 days' "
+      "       UNION ALL SELECT started_at FROM activities WHERE deleted_at IS NULL AND started_at > now() - interval '14 days' "
+      "       UNION ALL SELECT ended_at FROM activities WHERE deleted_at IS NULL AND ended_at > now() - interval '14 days'), "
+      "d AS (SELECT ((ts.t AT TIME ZONE u.tz) - make_interval(hours => u.dsh))::date AS day, "
+      "        min(extract(epoch FROM (ts.t AT TIME ZONE u.tz)::time)) FILTER (WHERE (ts.t AT TIME ZONE u.tz)::time >= '05:00') AS f, "
+      "        max(extract(epoch FROM (ts.t AT TIME ZONE u.tz)::time)) FILTER (WHERE (ts.t AT TIME ZONE u.tz)::time >= '12:00') AS l "
+      "      FROM ts, u GROUP BY 1) "
+      "SELECT count(f)::int AS nf, count(l)::int AS nl, "
+      "  to_char(make_interval(secs => percentile_cont(0.5) WITHIN GROUP (ORDER BY f)), 'HH24:MI') AS first, "
+      "  to_char(make_interval(secs => percentile_cont(0.5) WITHIN GROUP (ORDER BY l) - 1800), 'HH24:MI') AS last FROM d",
+      user);
+  if (!rhythm.empty() && rhythm[0]["nf"].as<int>() >= 5) {
+    co_await tx.exec(
+        "UPDATE routines SET learned_time = greatest(coalesce(window_start, $1), least(coalesce(window_end, $1), $1)) "
+        "WHERE kind = 'morning' AND mode = 'adaptive' AND deleted_at IS NULL",
+        rhythm[0]["first"].as<std::string>());
+  }
+  if (!rhythm.empty() && rhythm[0]["nl"].as<int>() >= 5 && !rhythm[0]["last"].isNull()) {
+    co_await tx.exec(
+        "UPDATE routines SET learned_time = least('22:00', greatest(coalesce(window_start, $1), "
+        "  least(coalesce(window_end, $1), $1))) WHERE kind = 'evening' AND mode = 'adaptive' AND deleted_at IS NULL",
+        rhythm[0]["last"].as<std::string>());
   }
 
   const auto channels = co_await tx.exec(
@@ -294,6 +338,68 @@ Task<void> compressDay(const Job& job) {
   co_await tx.commit();
 }
 
+// ------------------------------------------------------------------------------------------------ channel digest
+
+// Today's short digest of one channel for the other channel's turns (agent_lld.md §7.3).
+Task<void> channelDigest(const Job& job) {
+  const auto user = job.payload["user_id"].asString();
+  const auto channel = job.payload["channel"].asString();
+  std::string transcript, userName, day;
+  int seen = 0;
+  {
+    auto tx = co_await db::TenantTx::beginSystem(job.tenantId);
+    const auto conv = co_await tx.exec(
+        "SELECT c.id::text AS id, to_char(c.local_day, 'YYYY-MM-DD') AS day, u.display_name FROM conversations c "
+        "JOIN users u ON u.id = c.user_id WHERE c.user_id = $1::uuid AND c.channel = $2 AND c.deleted_at IS NULL "
+        "ORDER BY c.local_day DESC LIMIT 1",
+        user, channel);
+    if (conv.empty()) {
+      co_await tx.commit();
+      co_return;
+    }
+    day = conv[0]["day"].as<std::string>();
+    userName = conv[0]["display_name"].as<std::string>();
+    const auto msgs = co_await tx.exec(
+        "SELECT role, content, to_char(created_at AT TIME ZONE (SELECT timezone FROM users WHERE id = $2::uuid), "
+        "  'HH24:MI') AS at, tool_calls::text AS calls FROM messages WHERE conversation_id = $1::uuid "
+        "  AND role IN ('user', 'assistant') AND kind IN ('normal', 'deterministic') ORDER BY created_at, id",
+        conv[0]["id"].as<std::string>(), user);
+    for (const auto& m : msgs) {
+      const auto content = m["content"].as<std::string>();
+      if (!content.empty()) ++seen;  // counted like the trigger counts them (messages with text)
+      const auto who = m["role"].as<std::string>() == "user" ? "User" : "Assistant";
+      if (!content.empty()) transcript += m["at"].as<std::string>() + " " + who + ": " + content + "\n";
+      for (const auto& c : json::parse(m["calls"].as<std::string>())) {
+        transcript += "[" + c["name"].asString() + " " + c["arguments"].asString().substr(0, 200) + "]\n";
+      }
+    }
+    co_await tx.commit();
+  }
+  if (transcript.empty()) co_return;
+  if (transcript.size() > 30000) transcript = transcript.substr(0, 5000) + "\n[...]\n" + transcript.substr(transcript.size() - 25000);
+
+  const auto p = agent::prompt("jobs/channel_digest");
+  llm::LlmRequest req;
+  req.tenantId = job.tenantId;
+  req.purpose = "memory.channel_digest";
+  req.priority = llm::Priority::Background;
+  req.reasoningEffort = "low";
+  req.promptId = p.id;
+  req.promptVersion = promptVersion(p);
+  req.maxTokens = 800;
+  req.messages = {llm::Message::system(p.render({{"user_name", userName}, {"channel", channel}, {"day", day}})),
+                  llm::Message::user(transcript)};
+  const auto out = co_await structured(std::move(req), "channel_digest", digestSchema());
+
+  auto tx = co_await db::TenantTx::beginSystem(job.tenantId);
+  co_await tx.exec(
+      "INSERT INTO channel_digests (tenant_id, user_id, channel, local_day, content, messages_seen) "
+      "VALUES ($1::uuid, $2::uuid, $3, $4::date, $5, $6::int) ON CONFLICT (user_id, channel, local_day) DO UPDATE "
+      "SET content = EXCLUDED.content, messages_seen = EXCLUDED.messages_seen, updated_at = now()",
+      job.tenantId, user, channel, day, out["digest"].asString().substr(0, 2000), std::to_string(seen));
+  co_await tx.commit();
+}
+
 // ------------------------------------------------------------------------------------------------ rollup
 
 Task<void> rollup(const Job& job) {
@@ -342,6 +448,7 @@ void registerJobs() {
   jobs::registerHandler("day.close", dayClose);
   jobs::registerHandler("memory.compress_day", compressDay);
   jobs::registerHandler("memory.rollup", rollup);
+  jobs::registerHandler("digest.refresh", channelDigest);
 }
 
 }  // namespace thelife::memory

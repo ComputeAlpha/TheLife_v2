@@ -467,7 +467,22 @@ def create_app(config: dict | None = None) -> Flask:
                     raise
                 flash(describe(e), "error")
             return redirect(url_for("settings"))
-        return render_template("settings.html", fields=fields)
+        link_code = None
+        if request.method == "POST" and request.form.get("form") == "telegram_code":
+            # Shown in this response only: Flask's cookie (where flashes live) is signed, not encrypted.
+            link_code = g.api.call("POST", "/api/v1/telegram/link-code", body={}).body
+        if request.method == "POST" and request.form.get("form") == "telegram_unlink":
+            g.api.call("DELETE", "/api/v1/telegram/link")
+            flash("Telegram unlinked.", "ok")
+            return redirect(url_for("settings"))
+        telegram = None
+        if "telegram.link_status" in contract.ops:
+            try:
+                telegram = g.api.get("/api/v1/telegram/link")
+            except ApiError as e:  # an older backend: the section is just not shown
+                if e.status == 401:
+                    raise
+        return render_template("settings.html", fields=fields, telegram=telegram, link_code=link_code)
 
     # ------------------------------------------------------------------ helpers
     def form_error(e, fields, template, **ctx):

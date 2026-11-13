@@ -22,5 +22,28 @@
     <div class="actions"><button>Change password</button> <span class="muted">signs out your other sessions</span></div>
   </form>
 </section>
+{% if telegram %}
+<section class="card">
+  <h2>Telegram</h2>
+  {% if not telegram.enabled %}
+    <p class="muted">No bot is configured on this server (THELIFE_TELEGRAM_BOT_TOKEN).</p>
+  {% elif telegram.linked %}
+    <p>Linked{% if telegram.username %} to @{{ telegram.username }}{% endif %} since {{ telegram.linked_at|local }}.</p>
+    <form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="form" value="telegram_unlink">
+      <div class="actions"><button class="danger">Unlink</button></div></form>
+  {% else %}
+    {% if link_code %}
+      <p>Send this to the bot within 10 minutes:</p>
+      <p><code class="big">/link {{ link_code.code }}</code></p>
+      <p class="muted">Valid until {{ link_code.expires_at|local }}. Reload this page after linking.</p>
+    {% else %}
+      <p class="muted">Chat with the assistant from Telegram, get reminders there when you are away, and approve its
+        changes with buttons. Telegram chats are not end-to-end encrypted.</p>
+      <form method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="form" value="telegram_code">
+        <div class="actions"><button>Get a link code</button></div></form>
+    {% endif %}
+  {% endif %}
+</section>
+{% endif %}
 </div>
 {% endblock %}

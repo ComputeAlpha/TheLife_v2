@@ -47,6 +47,12 @@ tags:
 - name: Memory
   description: The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only;
     a change supersedes the old fact. Deleting a fact makes the assistant forget it.
+- name: Notifications
+  description: What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel resolves
+    it everywhere.
+- name: Planning
+  description: Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant call,
+    so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already done.
 - name: Plans
   description: Plans for a period, optionally serving a goal.
 - name: Scoring
@@ -59,6 +65,9 @@ tags:
 - name: Tasks
   description: Ad hoc and recurring tasks. A task with an rrule is recurring; its occurrences are expanded on read and materialized
     only when acted on (backend_lld.md §6.3).
+- name: Telegram
+  description: Link a Telegram chat to the account (agent_lld.md §7.2). Ask for a code here, then send "/link CODE" to the
+    bot within 10 minutes. Telegram chats are not end-to-end encrypted.
 - name: Work
   description: Dated deliverables of a project; milestones due on a day count in plan adherence.
 paths:
@@ -4214,6 +4223,165 @@ paths:
         principals:
         - user
         stage: 2
+  /api/v1/notifications:
+    get:
+      operationId: notifications.list
+      tags:
+      - Notifications
+      summary: List notifications
+      description: List notifications.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: open
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Only unresolved notifications.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - notifications:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/notifications/{id}:
+    get:
+      operationId: notifications.get
+      tags:
+      - Notifications
+      summary: Get a notification
+      description: Get a notification.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - notifications:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/notifications/{id}:ack:
+    post:
+      operationId: notifications.ack
+      tags:
+      - Notifications
+      summary: Mark a notification seen (resolves it on every channel)
+      description: Mark a notification seen (resolves it on every channel).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                clicked:
+                  type: boolean
+                  default: false
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - notifications:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/plans:
     get:
       operationId: plans.list
@@ -4518,6 +4686,601 @@ paths:
         effect: read
         scopes:
         - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/reminders:
+    get:
+      operationId: reminders.list
+      tags:
+      - Planning
+      summary: List reminders
+      description: List reminders.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: reminders.create
+      tags:
+      - Planning
+      summary: Create a reminder
+      description: Create a reminder.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/reminders/{id}:
+    delete:
+      operationId: reminders.delete
+      tags:
+      - Planning
+      summary: Delete a reminder (soft delete)
+      description: Delete a reminder (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: reminders.get
+      tags:
+      - Planning
+      summary: Get a reminder
+      description: Get a reminder.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: reminders.update
+      tags:
+      - Planning
+      summary: Update a reminder
+      description: Update a reminder.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ReminderPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/routines:
+    get:
+      operationId: routines.list
+      tags:
+      - Planning
+      summary: List routines
+      description: List routines.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutinePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: routines.create
+      tags:
+      - Planning
+      summary: Create a routine
+      description: Create a routine.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutineCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/routines/{id}:
+    delete:
+      operationId: routines.delete
+      tags:
+      - Planning
+      summary: Delete a routine (soft delete)
+      description: Delete a routine (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: routines.get
+      tags:
+      - Planning
+      summary: Get a routine
+      description: Get a routine.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: routines.update
+      tags:
+      - Planning
+      summary: Update a routine
+      description: Update a routine.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/RoutinePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/routines/{id}:skip:
+    post:
+      operationId: routines.skip_once
+      tags:
+      - Planning
+      summary: Skip the routine once (today, or the given day)
+      description: Skip the routine once (today, or the given day).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                date:
+                  $ref: '#/components/schemas/LocalDate'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - planning:write
         exposure:
         - rest
         - agent
@@ -6541,6 +7304,101 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/telegram/link:
+    delete:
+      operationId: telegram.unlink
+      tags:
+      - Telegram
+      summary: Unlink the Telegram chat
+      description: Unlink the Telegram chat.
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - chat:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+    get:
+      operationId: telegram.link_status
+      tags:
+      - Telegram
+      summary: Whether a Telegram chat is linked
+      description: Whether a Telegram chat is linked.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLink'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/telegram/link-code:
+    post:
+      operationId: telegram.create_link_code
+      tags:
+      - Telegram
+      summary: One-time code to link a Telegram chat (send /link CODE to the bot within 10 minutes)
+      description: One-time code to link a Telegram chat (send /link CODE to the bot within 10 minutes).
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - code
+                - expires_at
+                properties:
+                  code:
+                    type: string
+                  expires_at:
+                    $ref: '#/components/schemas/Timestamp'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - chat:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/work-contexts:
     get:
       operationId: work_contexts.list
@@ -10331,6 +11189,122 @@ components:
       - string
       - 'null'
       maxLength: 10000
+    Notification:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        kind:
+          type: string
+        urgency:
+          type: string
+          enum:
+          - low
+          - normal
+          - critical
+        title:
+          type: string
+        body:
+          type: string
+        action:
+          type:
+          - string
+          - 'null'
+          enum:
+          - open_chat
+          - open_approval
+          - null
+        ref_type:
+          type:
+          - string
+          - 'null'
+        ref_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        conversation_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        resolved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        deliveries:
+          type: array
+          items:
+            type: object
+          description: Channel and status of each delivery.
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel
+        resolves it everywhere.
+    NotificationCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    NotificationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    NotificationPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     Observation:
       type: object
       additionalProperties: false
@@ -10572,6 +11546,232 @@ components:
       maxLength: 500
       pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
       description: RFC 5545 recurrence rule, for example FREQ=WEEKLY;BYDAY=MO,WE,FR.
+    Reminder:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_sent_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        due_at:
+          $ref: '#/components/schemas/Timestamp'
+        rrule:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: Repeat rule; the next due time follows each delivery.
+        channel_pref:
+          type:
+          - string
+          - 'null'
+          enum:
+          - web
+          - telegram
+          - desktop
+          - null
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+          default: pending
+        link_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - task
+          - goal
+          - plan
+          - skill_resource
+          - project
+          - deliverable
+          - entertainment_item
+          - null
+        link_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - text
+      - due_at
+      description: Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant
+        call, so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already
+        done.
+    ReminderCreate:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        due_at:
+          $ref: '#/components/schemas/Timestamp'
+        rrule:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: Repeat rule; the next due time follows each delivery.
+        channel_pref:
+          type:
+          - string
+          - 'null'
+          enum:
+          - web
+          - telegram
+          - desktop
+          - null
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+          default: pending
+        link_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - task
+          - goal
+          - plan
+          - skill_resource
+          - project
+          - deliverable
+          - entertainment_item
+          - null
+        link_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      required:
+      - text
+      - due_at
+    ReminderPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reminder'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ReminderPatch:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        due_at:
+          $ref: '#/components/schemas/Timestamp'
+        rrule:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: Repeat rule; the next due time follows each delivery.
+        channel_pref:
+          type:
+          - string
+          - 'null'
+          enum:
+          - web
+          - telegram
+          - desktop
+          - null
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+        link_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - task
+          - goal
+          - plan
+          - skill_resource
+          - project
+          - deliverable
+          - entertainment_item
+          - null
+        link_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      minProperties: 1
     ResourceMeta:
       type: object
       required:
@@ -10617,6 +11817,262 @@ components:
           - string
           - 'null'
           format: date-time
+    Routine:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        learned_time:
+          type:
+          - string
+          - 'null'
+          description: Adaptive time learned from the last 14 applicable days (HH:MM).
+        last_fired_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        skip_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        kind:
+          type: string
+          enum:
+          - morning
+          - evening
+          - weekly
+          - custom
+        title:
+          $ref: '#/components/schemas/Text200'
+        mode:
+          type: string
+          enum:
+          - adaptive
+          - fixed
+          default: adaptive
+        default_time:
+          $ref: '#/components/schemas/TimeOfDay'
+        window_start:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        window_end:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items:
+            type: string
+            enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+          default: []
+          description: Days it runs; empty means every day.
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          default: []
+        enabled:
+          type: boolean
+          default: true
+        instructions:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - kind
+      - title
+      - default_time
+      description: Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review.
+        Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening
+        time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time.
+    RoutineCreate:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - morning
+          - evening
+          - weekly
+          - custom
+        title:
+          $ref: '#/components/schemas/Text200'
+        mode:
+          type: string
+          enum:
+          - adaptive
+          - fixed
+          default: adaptive
+        default_time:
+          $ref: '#/components/schemas/TimeOfDay'
+        window_start:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        window_end:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items:
+            type: string
+            enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+          default: []
+          description: Days it runs; empty means every day.
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          default: []
+        enabled:
+          type: boolean
+          default: true
+        instructions:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - kind
+      - title
+      - default_time
+    RoutinePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Routine'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    RoutinePatch:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - morning
+          - evening
+          - weekly
+          - custom
+        title:
+          $ref: '#/components/schemas/Text200'
+        mode:
+          type: string
+          enum:
+          - adaptive
+          - fixed
+        default_time:
+          $ref: '#/components/schemas/TimeOfDay'
+        window_start:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        window_end:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items:
+            type: string
+            enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+          description: Days it runs; empty means every day.
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+        enabled:
+          type: boolean
+        instructions:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      minProperties: 1
     Scope:
       type: string
       description: A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys
@@ -11912,6 +13368,26 @@ components:
           type: boolean
       additionalProperties: false
       minProperties: 1
+    TelegramLink:
+      type: object
+      required:
+      - linked
+      - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: The server has a bot configured.
+        linked:
+          type: boolean
+        username:
+          type:
+          - string
+          - 'null'
+        linked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
     Text200:
       type: string
       minLength: 1

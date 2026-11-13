@@ -144,7 +144,7 @@ TEST_F(Scoring, DayScoreWithAdjustmentRecomputeAndDispute) {
   // (0.30·0 + 0.25·100 + 0.15·50 + 0.15·100) / 0.85
   EXPECT_DOUBLE_EQ(s["base"].asDouble(), 55.88);
   EXPECT_DOUBLE_EQ(s["adjustment_pct"].asDouble(), 5);
-  EXPECT_DOUBLE_EQ(s["final"].asDouble(), 59);  // round(55.88 · 1.05)
+  EXPECT_DOUBLE_EQ(s["final"].asDouble(), 57);  // round(55.88 + 0.3 · 5)
   EXPECT_EQ(s["adjustment"]["reasons"][0]["direction"].asString(), "up");
 
   // What the adjustment saw.

@@ -303,6 +303,32 @@
   {
     "type": "function",
     "function": {
+      "name": "agent_cancel_followup",
+      "description": "Cancel a follow-up you scheduled.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "agent_load_tools",
       "description": "Load a group of tools for the rest of this turn: planning (goals, plans, tasks, events, activities), work, skills, entertainment, detections.",
       "parameters": {
@@ -322,6 +348,44 @@
         "additionalProperties": false,
         "required": [
           "group"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "agent_no_message",
+      "description": "On a turn you started yourself (routine, follow-up, event): end it without messaging the user, when nothing is worth saying now.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "agent_schedule_followup",
+      "description": "Come back to something later: at that time a new turn starts with your reason (to ask how it went, check progress). Not for plain reminders - use reminders_create.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "at",
+          "reason"
         ]
       }
     }
@@ -2147,6 +2211,18 @@
   {
     "type": "function",
     "function": {
+      "name": "notify_urgent",
+      "description": "Mark this turn's message urgent: something is due within 2 hours or an approval is about to expire. It then skips the spacing between messages (not quiet hours).",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "plans_create",
       "description": "Create a plan.",
       "parameters": {
@@ -2348,6 +2424,568 @@
               "done",
               "abandoned"
             ]
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "reminders_create",
+      "description": "Create a reminder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ],
+            "default": "pending"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "due_at"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "reminders_delete",
+      "description": "Delete a reminder (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "reminders_get",
+      "description": "Get a reminder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "reminders_list",
+      "description": "List reminders.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "reminders_update",
+      "description": "Update a reminder.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ]
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "routines_create",
+      "description": "Create a routine.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ],
+            "default": "adaptive"
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "default": [],
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            },
+            "default": []
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "title",
+          "default_time"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "routines_delete",
+      "description": "Delete a routine (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "routines_get",
+      "description": "Get a routine.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "routines_list",
+      "description": "List routines.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "routines_skip_once",
+      "description": "Skip the routine once (today, or the given day).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "routines_update",
+      "description": "Update a routine.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ]
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
           },
           "expected_version": {
             "type": "integer",

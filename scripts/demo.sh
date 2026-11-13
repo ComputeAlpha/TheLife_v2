@@ -17,6 +17,16 @@ BIN=build/dev/backend
 export THELIFE_DB_URL="${THELIFE_DB_URL:-postgresql://thelife_app:${THELIFE_APP_PASSWORD:-app-dev-only}@127.0.0.1:${PG_PORT}/thelife}"
 export THELIFE_LLM_CONFIG="${THELIFE_LLM_CONFIG:-config/llm.json}"
 export THELIFE_ADMIN_DB_URL="${THELIFE_ADMIN_DB_URL:-postgresql://thelife_admin:${THELIFE_ADMIN_PASSWORD:-admin-dev-only}@127.0.0.1:${PG_PORT}/thelife}"
+# Encryption key (KEK) of the dev database: created once under build/. Deleting it makes the encrypted fields of
+# the dev database unreadable (notes, descriptions, detection text).
+if [[ -z "${THELIFE_KEK:-}" ]]; then
+  export THELIFE_KEK_FILE="${THELIFE_KEK_FILE:-build/dev-kek}"
+  if [[ ! -s "$THELIFE_KEK_FILE" ]]; then
+    mkdir -p "$(dirname "$THELIFE_KEK_FILE")"
+    (umask 077 && head -c 32 /dev/urandom | base64 > "$THELIFE_KEK_FILE")
+    echo "created a dev encryption key in $THELIFE_KEK_FILE (keep it with the dev database)" >&2
+  fi
+fi
 
 database() {
   scripts/db.sh up >/dev/null

@@ -91,3 +91,4 @@ form.send textarea { flex: 1; }
 .approvals .approval p { flex-basis: 100%; margin: 0; }
 .assistant-online { border-color: var(--ok); } .assistant-manual { border-color: var(--warn); }
 .assistant-unconfigured { border-color: var(--muted); }
+code.big { font-size: 1.4em; padding: .3em .6em; letter-spacing: .08em; }

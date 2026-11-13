@@ -15,9 +15,14 @@ namespace thelife::agent {
 struct TurnRequest {
   std::string tenantId, userId;
   std::string channel = "web";
-  std::string trigger = "user_message";  // user_message | approval
-  std::string turnId;                     // user_message
+  std::string trigger = "user_message";  // user_message | approval | proactive | deferred_reply
+  std::string turnId;                     // user_message, deferred_reply (an existing turns row)
   std::string approvalId;                 // approval
+  // proactive (§4.1): what started it, with details for its preamble (prompts/agent/triggers/<kind>.md)
+  std::string triggerKind;                // routine.morning | followup | tasks_missed | dispute_review | ...
+  std::string details;
+  bool silent = false;                    // never message the user (dispute review)
+  bool urgent = false;
 };
 
 // Queues the turn; turns of one (user, channel) run one at a time, in order (§4.5).

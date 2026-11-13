@@ -26,7 +26,9 @@ class DbStateStore final : public llm::StateStore {
     for (const auto& row : r) {
       llm::ProviderStatus s;
       s.key = row["provider"].as<std::string>();
-      s.provider = s.key.substr(0, s.key.find('#'));
+      const auto colon = s.key.find(':');
+      const auto name = colon == std::string::npos ? s.key : s.key.substr(colon + 1);
+      s.provider = name.substr(0, name.find('#'));
       s.state = row["state"].as<std::string>();
       if (!row["until_s"].isNull()) s.until = llm::Clock::from_time_t(row["until_s"].as<long long>());
       s.quotaScope = row["scope"].as<std::string>();

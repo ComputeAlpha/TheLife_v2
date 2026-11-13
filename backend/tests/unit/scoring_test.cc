@@ -175,9 +175,12 @@ TEST(ScoringGolden, ConsistencyTargetsCountToday) {
 }
 
 TEST(ScoringFinal, AdjustmentIsClampedAndRounded) {
-  EXPECT_DOUBLE_EQ(finalScore(75.42, 10), 83);
-  EXPECT_DOUBLE_EQ(finalScore(90, 30), 100);
-  EXPECT_DOUBLE_EQ(finalScore(10, -30), 7);
+  EXPECT_DOUBLE_EQ(finalScore(75.42, 10), 78);  // + 3 points
+  EXPECT_DOUBLE_EQ(finalScore(90, 30), 99);
+  EXPECT_DOUBLE_EQ(finalScore(98, 30), 100);    // clamped
+  EXPECT_DOUBLE_EQ(finalScore(10, -30), 1);
+  EXPECT_DOUBLE_EQ(finalScore(5, -30), 0);      // clamped
+  EXPECT_DOUBLE_EQ(finalScore(0, 25), 8);       // a 0-base day can be lifted (round(7.5))
 }
 
 TEST(ScoringProperties, BoundsMonotonicityApplicabilityAndIdempotence) {

@@ -21,5 +21,7 @@ void bindNotifications(tools::ToolRegistry& reg);
 void bindMemory(tools::ToolRegistry& reg);
 void bindWeb(tools::ToolRegistry& reg);
 void bindScoring(tools::ToolRegistry& reg);
+void bindProactive(tools::ToolRegistry& reg);
+void bindTelegram(tools::ToolRegistry& reg);
 
 }  // namespace thelife::modules

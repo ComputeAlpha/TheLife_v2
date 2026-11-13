@@ -1,0 +1,25 @@
+name: reminders
+agent_group: planning
+schema: Reminder
+noun: reminder
+path: /reminders
+scope: planning
+tag: Planning
+stage: 2
+description: Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no
+  assistant call, so they also work while the assistant is offline. One linked to a task is dropped silently
+  if the task is already done.
+fields:
+  text: {type: string, minLength: 1, maxLength: 300}
+  due_at: {$ref: Timestamp}
+  rrule: {type: [string, "null"], maxLength: 500, pattern: '^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$', description: "Repeat rule; the next due time follows each delivery."}
+  channel_pref: {type: [string, "null"], enum: [web, telegram, desktop, null]}
+  status: {type: string, enum: [pending, sent, done, cancelled], default: pending}
+  link_type: {type: [string, "null"], enum: [task, goal, plan, skill_resource, project, deliverable, entertainment_item, null]}
+  link_id: {type: [string, "null"], format: uuid}
+readonly:
+  last_sent_at: {type: [string, "null"], format: date-time}
+required: [text, due_at]
+filters:
+  status: {type: string, enum: [pending, sent, done, cancelled]}
+ops: {list: {}, get: {}, create: {agent_group: core}, update: {}, delete: {}}

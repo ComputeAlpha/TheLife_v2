@@ -1,9 +1,12 @@
 {
-  "contract_version": "0e6e1f8d4727e545",
+  "contract_version": "678b717b7303cf80",
   "agent_groups": {
     "core": [
       "activities.create",
+      "agent.cancel_followup",
       "agent.load_tools",
+      "agent.no_message",
+      "agent.schedule_followup",
       "calendar.view",
       "context.now",
       "day_profile_overrides.create",
@@ -15,6 +18,9 @@
       "memory.recall",
       "memory.remember",
       "memory.update_fact",
+      "notify.urgent",
+      "reminders.create",
+      "routines.skip_once",
       "skill_sessions.create",
       "tasks.complete_occurrence",
       "tasks.create",
@@ -43,6 +49,15 @@
       "plans.get",
       "plans.list",
       "plans.update",
+      "reminders.delete",
+      "reminders.get",
+      "reminders.list",
+      "reminders.update",
+      "routines.create",
+      "routines.delete",
+      "routines.get",
+      "routines.list",
+      "routines.update",
       "tasks.delete",
       "tasks.get",
       "tasks.occurrences"
@@ -1279,6 +1294,48 @@
       }
     },
     {
+      "name": "agent.cancel_followup",
+      "description": "Cancel a follow-up you scheduled.",
+      "effect": "delete",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Followup",
+        "id_arg": "id"
+      },
+      "policy": "agent_owned",
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": null
+    },
+    {
       "name": "agent.load_tools",
       "description": "Load a group of tools for the rest of this turn: planning (goals, plans, tasks, events, activities), work, skills, entertainment, detections.",
       "effect": "read",
@@ -1323,6 +1380,90 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "rest": null
+    },
+    {
+      "name": "agent.no_message",
+      "description": "On a turn you started yourself (routine, follow-up, event): end it without messaging the user, when nothing is worth saying now.",
+      "effect": "read",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "rest": null
+    },
+    {
+      "name": "agent.schedule_followup",
+      "description": "Come back to something later: at that time a new turn starts with your reason (to ask how it went, check progress). Not for plain reminders - use reminders_create.",
+      "effect": "create",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "at",
+          "reason"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "id",
+          "due_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -13438,6 +13579,657 @@
       }
     },
     {
+      "name": "notifications.ack",
+      "description": "Mark a notification seen (resolves it on every channel).",
+      "effect": "update",
+      "scopes": [
+        "notifications:write"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Notification",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "clicked": {
+            "type": "boolean",
+            "default": false
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "critical"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "open_chat",
+              "open_approval",
+              null
+            ]
+          },
+          "ref_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ref_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Channel and status of each delivery."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel resolves it everywhere."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/notifications/{id}:ack",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [
+          "clicked"
+        ],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "notifications.get",
+      "description": "Get a notification.",
+      "effect": "read",
+      "scopes": [
+        "notifications:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Notification",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "urgency": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "critical"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "action": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "open_chat",
+              "open_approval",
+              null
+            ]
+          },
+          "ref_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ref_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "conversation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "resolved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deliveries": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Channel and status of each delivery."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin"
+        ],
+        "description": "What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel resolves it everywhere."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/notifications/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "notifications.list",
+      "description": "List notifications.",
+      "effect": "read",
+      "scopes": [
+        "notifications:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "open": {
+            "type": "boolean",
+            "description": "Only unresolved notifications."
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "urgency": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "normal",
+                    "critical"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "action": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "open_chat",
+                    "open_approval",
+                    null
+                  ]
+                },
+                "ref_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ref_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "conversation_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "resolved_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "deliveries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "description": "Channel and status of each delivery."
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin"
+              ],
+              "description": "What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel resolves it everywhere."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/notifications",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted",
+          "open"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "notify.urgent",
+      "description": "Mark this turn's message urgent: something is due within 2 hours or an approval is about to expire. It then skips the spacing between messages (not quiet hours).",
+      "effect": "read",
+      "scopes": [],
+      "exposure": [
+        "agent"
+      ],
+      "principals": [
+        "agent"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "rest": null
+    },
+    {
       "name": "plans.create",
       "description": "Create a plan.",
       "effect": "create",
@@ -14334,6 +15126,2523 @@
           "period_start",
           "period_end",
           "status"
+        ],
+        "if_match": true,
+        "content_type": null
+      }
+    },
+    {
+      "name": "reminders.create",
+      "description": "Create a reminder.",
+      "effect": "create",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ],
+            "default": "pending"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "text",
+          "due_at"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_sent_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ],
+            "default": "pending"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "text",
+          "due_at"
+        ],
+        "description": "Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant call, so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already done."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/reminders",
+        "success_status": 201,
+        "path_args": [],
+        "query_args": [],
+        "body_args": [
+          "text",
+          "due_at",
+          "rrule",
+          "channel_pref",
+          "status",
+          "link_type",
+          "link_id"
+        ],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "reminders.delete",
+      "description": "Delete a reminder (soft delete).",
+      "effect": "delete",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Reminder",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": {
+        "method": "DELETE",
+        "path": "/api/v1/reminders/{id}",
+        "success_status": 204,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": true,
+        "content_type": null
+      }
+    },
+    {
+      "name": "reminders.get",
+      "description": "Get a reminder.",
+      "effect": "read",
+      "scopes": [
+        "planning:read"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Reminder",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_sent_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ],
+            "default": "pending"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "text",
+          "due_at"
+        ],
+        "description": "Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant call, so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already done."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/reminders/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "reminders.list",
+      "description": "List reminders.",
+      "effect": "read",
+      "scopes": [
+        "planning:read"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "last_sent_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "due_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "rrule": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 500,
+                  "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+                  "description": "Repeat rule; the next due time follows each delivery."
+                },
+                "channel_pref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "web",
+                    "telegram",
+                    "desktop",
+                    null
+                  ]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "sent",
+                    "done",
+                    "cancelled"
+                  ],
+                  "default": "pending"
+                },
+                "link_type": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "task",
+                    "goal",
+                    "plan",
+                    "skill_resource",
+                    "project",
+                    "deliverable",
+                    "entertainment_item",
+                    null
+                  ]
+                },
+                "link_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin",
+                "text",
+                "due_at"
+              ],
+              "description": "Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant call, so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already done."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/reminders",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted",
+          "status"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "reminders.update",
+      "description": "Update a reminder.",
+      "effect": "update",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Reminder",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ]
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "last_sent_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rrule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "pattern": "^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$",
+            "description": "Repeat rule; the next due time follows each delivery."
+          },
+          "channel_pref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "web",
+              "telegram",
+              "desktop",
+              null
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "done",
+              "cancelled"
+            ],
+            "default": "pending"
+          },
+          "link_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "task",
+              "goal",
+              "plan",
+              "skill_resource",
+              "project",
+              "deliverable",
+              "entertainment_item",
+              null
+            ]
+          },
+          "link_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "text",
+          "due_at"
+        ],
+        "description": "Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant call, so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already done."
+      },
+      "rest": {
+        "method": "PATCH",
+        "path": "/api/v1/reminders/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [
+          "text",
+          "due_at",
+          "rrule",
+          "channel_pref",
+          "status",
+          "link_type",
+          "link_id"
+        ],
+        "if_match": true,
+        "content_type": null
+      }
+    },
+    {
+      "name": "routines.create",
+      "description": "Create a routine.",
+      "effect": "create",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ],
+            "default": "adaptive"
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "default": [],
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            },
+            "default": []
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "title",
+          "default_time"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "learned_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Adaptive time learned from the last 14 applicable days (HH:MM)."
+          },
+          "last_fired_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "skip_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ],
+            "default": "adaptive"
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "default": [],
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            },
+            "default": []
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "kind",
+          "title",
+          "default_time"
+        ],
+        "description": "Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review. Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/routines",
+        "success_status": 201,
+        "path_args": [],
+        "query_args": [],
+        "body_args": [
+          "kind",
+          "title",
+          "mode",
+          "default_time",
+          "window_start",
+          "window_end",
+          "weekdays",
+          "day_profiles",
+          "enabled",
+          "instructions"
+        ],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "routines.delete",
+      "description": "Delete a routine (soft delete).",
+      "effect": "delete",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Routine",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": {
+        "method": "DELETE",
+        "path": "/api/v1/routines/{id}",
+        "success_status": 204,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": true,
+        "content_type": null
+      }
+    },
+    {
+      "name": "routines.get",
+      "description": "Get a routine.",
+      "effect": "read",
+      "scopes": [
+        "planning:read"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Routine",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "learned_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Adaptive time learned from the last 14 applicable days (HH:MM)."
+          },
+          "last_fired_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "skip_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ],
+            "default": "adaptive"
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "default": [],
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            },
+            "default": []
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "kind",
+          "title",
+          "default_time"
+        ],
+        "description": "Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review. Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/routines/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "routines.list",
+      "description": "List routines.",
+      "effect": "read",
+      "scopes": [
+        "planning:read"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "learned_time": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "Adaptive time learned from the last 14 applicable days (HH:MM)."
+                },
+                "last_fired_on": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                },
+                "skip_on": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "morning",
+                    "evening",
+                    "weekly",
+                    "custom"
+                  ]
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "adaptive",
+                    "fixed"
+                  ],
+                  "default": "adaptive"
+                },
+                "default_time": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "window_start": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "window_end": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "weekdays": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "maxItems": 7,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "MO",
+                      "TU",
+                      "WE",
+                      "TH",
+                      "FR",
+                      "SA",
+                      "SU"
+                    ]
+                  },
+                  "default": [],
+                  "description": "Days it runs; empty means every day."
+                },
+                "day_profiles": {
+                  "type": "array",
+                  "maxItems": 10,
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,39}$"
+                  },
+                  "default": []
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "instructions": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 10000
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin",
+                "kind",
+                "title",
+                "default_time"
+              ],
+              "description": "Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review. Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/routines",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "routines.skip_once",
+      "description": "Skip the routine once (today, or the given day).",
+      "effect": "update",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Routine",
+        "id_arg": "id"
+      },
+      "policy": "user_reported_progress",
+      "agent_group": "core",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "A calendar day in the user's timezone, honouring day_start_hour."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "learned_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Adaptive time learned from the last 14 applicable days (HH:MM)."
+          },
+          "last_fired_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "skip_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ],
+            "default": "adaptive"
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "default": [],
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            },
+            "default": []
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "kind",
+          "title",
+          "default_time"
+        ],
+        "description": "Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review. Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/routines/{id}:skip",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [
+          "date"
+        ],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "routines.update",
+      "description": "Update a routine.",
+      "effect": "update",
+      "scopes": [
+        "planning:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 2,
+      "target": {
+        "resource": "Routine",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "planning",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ]
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "learned_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Adaptive time learned from the last 14 applicable days (HH:MM)."
+          },
+          "last_fired_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "skip_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "morning",
+              "evening",
+              "weekly",
+              "custom"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "adaptive",
+              "fixed"
+            ],
+            "default": "adaptive"
+          },
+          "default_time": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "window_end": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "weekdays": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 7,
+            "items": {
+              "type": "string",
+              "enum": [
+                "MO",
+                "TU",
+                "WE",
+                "TH",
+                "FR",
+                "SA",
+                "SU"
+              ]
+            },
+            "default": [],
+            "description": "Days it runs; empty means every day."
+          },
+          "day_profiles": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,39}$"
+            },
+            "default": []
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "kind",
+          "title",
+          "default_time"
+        ],
+        "description": "Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review. Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time."
+      },
+      "rest": {
+        "method": "PATCH",
+        "path": "/api/v1/routines/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [
+          "kind",
+          "title",
+          "mode",
+          "default_time",
+          "window_start",
+          "window_end",
+          "weekdays",
+          "day_profiles",
+          "enabled",
+          "instructions"
         ],
         "if_match": true,
         "content_type": null
@@ -21518,6 +24827,153 @@
           "track_consistency"
         ],
         "if_match": true,
+        "content_type": null
+      }
+    },
+    {
+      "name": "telegram.create_link_code",
+      "description": "One-time code to link a Telegram chat (send /link CODE to the bot within 10 minutes).",
+      "effect": "create",
+      "scopes": [
+        "chat:write"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "code",
+          "expires_at"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/telegram/link-code",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "telegram.link_status",
+      "description": "Whether a Telegram chat is linked.",
+      "effect": "read",
+      "scopes": [
+        "chat:read"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "required": [
+          "linked",
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "The server has a bot configured."
+          },
+          "linked": {
+            "type": "boolean"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "linked_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/telegram/link",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null
+      }
+    },
+    {
+      "name": "telegram.unlink",
+      "description": "Unlink the Telegram chat.",
+      "effect": "delete",
+      "scopes": [
+        "chat:write"
+      ],
+      "exposure": [
+        "rest"
+      ],
+      "principals": [
+        "user"
+      ],
+      "stage": 2,
+      "target": null,
+      "policy": null,
+      "agent_group": null,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": {
+        "method": "DELETE",
+        "path": "/api/v1/telegram/link",
+        "success_status": 204,
+        "path_args": [],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
         "content_type": null
       }
     },

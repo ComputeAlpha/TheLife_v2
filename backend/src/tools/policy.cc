@@ -21,6 +21,10 @@ Decision decide(const PolicyInput& in) {
       // Named policy (docs/tool_registry.md §4): logging "done"/"skipped" for a routine is data entry when the
       // user's own message reports it, so it runs (and is audited) instead of waiting for approval.
       if (in.tool.policy == "user_reported_progress" && in.userTurn) return Decision::Allow;
+      // The agent's own bookkeeping (follow-ups it scheduled) needs nobody's approval.
+      if (in.tool.policy == "agent_owned") {
+        return in.target && in.target->createdByKind == "agent" ? Decision::Allow : Decision::RequireApproval;
+      }
       // Forgetting a fact the user stated needs their approval; inferred facts the agent may drop (spec 5.3).
       if (in.tool.policy == "user_stated_fact" && in.tool.effect == Effect::Delete) {
         return in.target && in.target->origin != "user_stated" ? Decision::Allow : Decision::RequireApproval;

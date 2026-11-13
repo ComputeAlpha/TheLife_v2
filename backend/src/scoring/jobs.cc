@@ -17,6 +17,7 @@
 #include "llm/gateway.h"
 #include "scoring/engine.h"
 #include "scoring/inputs.h"
+#include "proactive/notifier.h"
 
 namespace thelife::scoring {
 
@@ -260,6 +261,11 @@ Task<void> closeDay(const jobs::Job& job) {
 
   auto tx = co_await db::TenantTx::beginSystem(job.tenantId);
   co_await insertVersion(tx, v);
+  if (v.status == "unobserved" && (!current || current->status != "unobserved")) {
+    Json::Value p;
+    p["day"] = day;
+    co_await proactive::emit(tx, user, "day.unobserved", "day", std::nullopt, p);  // the agent asks (§4.6)
+  }
   co_await tx.exec("DELETE FROM preemptions WHERE user_id = $1::uuid AND local_day = $2::date", user, day);
   for (const auto& p : r.preemptions) {
     co_await tx.exec(

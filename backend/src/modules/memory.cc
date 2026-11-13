@@ -4,6 +4,7 @@
 #include "core/ids.h"
 #include "core/json.h"
 #include "crud/resource.h"
+#include "db/field_crypt.h"
 #include "memory/embedder.h"
 #include "memory/registry.h"
 #include "memory/semantic.h"
@@ -165,23 +166,26 @@ Task<Json::Value> historySearch(ToolCall& c) {
       "                  coalesce($4::timestamptz, now() + interval '1 day') AS t), "
       "hits AS ("
       "  SELECT 'message' AS kind, m.id, m.created_at AS at, c.channel, left(m.content, 400) AS text, "
-      "         ts_rank(to_tsvector('simple', m.content), q.q) AS rank "
+      "         ts_rank(to_tsvector('simple', m.content), q.q) AS rank, NULL::bytea AS enc "
       "    FROM messages m JOIN conversations c ON c.id = m.conversation_id, q "
       "   WHERE c.user_id = $1::uuid AND m.role IN ('user', 'assistant') "
       "     AND to_tsvector('simple', m.content) @@ q.q AND m.created_at BETWEEN q.f AND q.t "
       "  UNION ALL "
-      "  SELECT 'activity', a.id, a.started_at, NULL, left(a.title || coalesce(': ' || a.notes, ''), 400), "
-      "         ts_rank(to_tsvector('simple', a.title || ' ' || coalesce(a.notes, '')), q.q) "
+      // Activity notes are encrypted (backend_lld §9): keyword search matches the title, semantic search the
+      // embedded notes too.
+      "  SELECT 'activity', a.id, a.started_at, NULL, a.title, "
+      "         ts_rank(to_tsvector('simple', a.title), q.q), a.notes "
       "    FROM activities a, q "
-      "   WHERE a.deleted_at IS NULL AND to_tsvector('simple', a.title || ' ' || coalesce(a.notes, '')) @@ q.q "
+      "   WHERE a.deleted_at IS NULL AND to_tsvector('simple', a.title) @@ q.q "
       "     AND a.started_at BETWEEN q.f AND q.t "
       "  UNION ALL "
       "  SELECT 'day_summary', s.id, s.period_start::timestamptz, s.channel, left(s.content, 600), "
-      "         ts_rank(to_tsvector('simple', s.content), q.q) "
+      "         ts_rank(to_tsvector('simple', s.content), q.q), NULL "
       "    FROM episodic_summaries s, q "
       "   WHERE s.user_id = $1::uuid AND to_tsvector('simple', s.content) @@ q.q "
       "     AND s.period_start BETWEEN q.f::date AND q.t::date) "
       "SELECT kind, id::text AS id, to_jsonb(at) #>> '{}' AS at, channel, text, "
+      "  coalesce('\\x' || encode(enc, 'hex'), '') AS enc, "
       "  (SELECT f::text FROM q) AS f, (SELECT t::text FROM q) AS t "
       "FROM hits ORDER BY rank DESC, at DESC LIMIT $5::int",
       std::move(params));
@@ -200,7 +204,12 @@ Task<Json::Value> historySearch(ToolCall& c) {
     it.v["id"] = r["id"].as<std::string>();
     it.v["at"] = r["at"].as<std::string>();
     it.v["channel"] = r["channel"].isNull() ? Json::Value() : Json::Value(r["channel"].as<std::string>());
-    it.v["text"] = r["text"].as<std::string>();
+    std::string text = r["text"].as<std::string>();
+    if (const auto enc = r["enc"].as<std::string>(); !enc.empty()) {
+      text = memory::utf8Prefix(
+          text + ": " + (co_await fieldcrypt::openText(c.tx, "activities", "notes", enc)).asString(), 400);
+    }
+    it.v["text"] = std::move(text);
     it.keyword = true;
     it.score += 1.0 / (60 + ++rank);
   }

@@ -189,3 +189,29 @@ def test_calendar_shows_todays_progress(signed_in, backend):
                            "targets": [{"title": "Workday", "achieved": 120, "amount": 360, "metric": "minutes"}]}}}))
     html = signed_in.get("/").get_data(as_text=True)
     assert "Today so far" in html and "30 of 60 min" in html and "Workday: 120 / 360 minutes" in html
+
+
+def test_settings_links_telegram_with_a_code_shown_once(signed_in, backend):
+    state = {"linked": False}
+    backend.on("GET", r"/api/v1/telegram/link", lambda req: (200, {
+        "enabled": True, "linked": state["linked"], "username": "me_tg" if state["linked"] else None,
+        "linked_at": "2026-11-13T10:00:00Z" if state["linked"] else None}))
+    backend.on("POST", r"/api/v1/telegram/link-code",
+               lambda req: (200, {"code": "ABCD2345", "expires_at": "2026-11-13T10:10:00Z"}))
+    backend.on("DELETE", r"/api/v1/telegram/link", lambda req: (204, None))
+    page = signed_in.get("/settings").get_data(as_text=True)
+    assert "Get a link code" in page and "not end-to-end encrypted" in page
+    r = signed_in.post("/settings", data={"form": "telegram_code", "csrf": csrf_of(page)})
+    html = r.get_data(as_text=True)
+    assert r.status_code == 200 and "/link ABCD2345" in html
+    assert "ABCD2345" not in signed_in.get("/settings").get_data(as_text=True)  # not kept anywhere
+    state["linked"] = True
+    page = signed_in.get("/settings").get_data(as_text=True)
+    assert "Linked to @me_tg" in page
+    r = signed_in.post("/settings", data={"form": "telegram_unlink", "csrf": csrf_of(page)})
+    assert r.status_code == 302 and backend.last("DELETE", r"/api/v1/telegram/link")
+
+
+def test_settings_without_a_bot_says_so(signed_in, backend):
+    backend.on("GET", r"/api/v1/telegram/link", lambda req: (200, {"enabled": False, "linked": False}))
+    assert "No bot is configured" in signed_in.get("/settings").get_data(as_text=True)

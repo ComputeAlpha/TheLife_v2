@@ -107,4 +107,12 @@ std::string randomPassword() {
   return out;
 }
 
+std::string hex(const std::vector<unsigned char>& bytes) {
+  static constexpr char k[] = "0123456789abcdef";
+  std::string s;
+  s.reserve(bytes.size() * 2);
+  for (const auto c : bytes) s += std::string{k[c >> 4], k[c & 0x0F]};
+  return s;
+}
+
 }  // namespace thelife::crypto

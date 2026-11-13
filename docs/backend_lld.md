@@ -129,6 +129,7 @@ Login and token resolution happen before the tenant is known. They go through `S
 - `auth.resolve_token(hash bytea) → (tenant_id, kind, principal_id, user_id, scopes, expires_at)`
 - `auth.find_login(email citext) → (tenant_id, user_id, password_hash, status)`
 - `jobs.claim(worker text, kinds text[], n int)`: cross-tenant job claim (§10)
+- `ops.telegram_chat_user(chat_id bigint) → (tenant_id, user_id)`: an incoming Telegram chat to its live link (active user and tenant only); `ops.telegram_link(code_hash, chat_id, username)`: consumes a one-time link code and links the chat (`agent_lld.md` §7.2). Owned by `thelife_definer`, executable by `thelife_app` only; covered by `api/telegram_test.cc`.
 
 These are the only cross-tenant paths. Each has its own tests.
 
@@ -381,6 +382,14 @@ REST controllers are thin: map path/query/body to `args`, call `invoke`, map the
 - Passwords: argon2id (libsodium `crypto_pwhash`, moderate limits). Login is rate-limited per email and per IP (in-memory token bucket while single-process).
 - User session tokens: 30-day sliding expiry **(proposed)**; `last_used_at` is updated at most once per minute per token.
 - **Envelope encryption: deferred to Stage 2 (decision C).** Stage 1 holds no encrypted columns. Stage 2 adds a per-tenant DEK in `tenant_keys`, wrapped by a KEK from a file or env var. Encrypted fields become `bytea` and opaque to SQL (no `ILIKE`, no FTS), so the field list is chosen in Stage 2. Free-text columns are kept in their own column (never folded into jsonb) so they can be converted in place later.
+- **Implemented (2026-11-13, migration 0014, `src/db/field_crypt.*`).**
+  - **What is encrypted** (decided 2026-11-13: what is sensitive and never searched): free-text notes and descriptions (`goals.description`, `plans.body`, `work_roles/responsibilities/projects/deliverables.description`, `tasks.notes`, `calendar_events.notes`, `activities.notes`, `skill_sessions.notes`, `entertainment_slots.notes`), detection `summary` and `evidence`, and (Stage 4) collector observations from the start. Chat messages, memory facts, day summaries, digests and all titles stay plaintext so keyword search keeps working.
+  - **Threat model:** protects dumps, backups and direct database access. The KEK sits with the app, so a compromised app reads everything.
+  - **Keys:** `THELIFE_KEK_FILE` (preferred) or `THELIFE_KEK`, 32 bytes as base64 or hex; the backend refuses to start without one when a database is configured. Each tenant's DEK is random, created on first use in its own committed transaction, and stored wrapped (XChaCha20-Poly1305, AD `tenant_keys|<tenant>`) with `kek_id` (a sha256 prefix of the KEK) so a wrong KEK fails with a clear message. The app may insert and read `tenant_keys`, never change it; rotation is a future operator task.
+  - **Values:** `0x01 | nonce(24) | ciphertext` of the value's JSON text, AD `<tenant>|<table>.<column>`: a value copied to another tenant or column does not open. Rows are not bound (a value moved between two rows of the same column still opens). The old length checks became an `octet_length ≤ 65536` cap; the contract still enforces the character limits.
+  - **Where:** the generic CRUD layer seals on write and opens on read, so the API is unchanged. Other readers open explicitly: detection claim and history (`app.detection_claim` now takes the sealed summary), `history.search` (activity notes no longer match keywords, only titles; the hit text shows the opened notes) and embeddings (activity text = title + opened notes; the change hash covers the ciphertext). The `detection.disputed` outbox event carries the category instead of the summary.
+  - **Existing data:** the migration rewrote each value as `0x00 | JSON text` (still readable) and queued one `fieldcrypt.reseal` job per tenant, which seals them (detections through `app.detection_reseal`, the only exception to append-only). The down migration works while no value is sealed.
+  - **Dev:** `scripts/demo.sh` creates `build/dev-kek` on first use; tests use a fixed test KEK (`tests/support/server_process.h`).
 - Analytics: a `usage_events(kind, count, duration_ms)` table with no free text. Content never goes to logs; titles and notes are logged as lengths only.
 
 ## 10. Background Jobs
@@ -399,11 +408,14 @@ enqueued inside the tenant transaction that causes them. Knobs: `THELIFE_JOBS=of
 `THELIFE_JOBS_POLL_MS`, `THELIFE_JOBS_HOUSEKEEPING=off`, `THELIFE_JOBS_TENANT` (claim one tenant's jobs only;
 tests on the shared database use it, and test servers default to `THELIFE_JOBS=off`). `observations.retention`
 arrives with Stage 4.
+Stage 2 job kinds: `day.close`, `memory.compress_day`, `memory.rollup`, `embeddings.sync`,
+`scores.close_day`, `scores.close_period`, `proactive.tick`, `notify.telegram` (Telegram delivery and the 3-minute fallback,
+`agent_lld.md` §8) and `digest.refresh` (cross-channel digest, §7.3).
 Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recompute` (triggered on detection or activity change, debounced per tenant-day).
 
 ## 11. Configuration and Observability
 
-- `config/*.json` for Drogon (listeners, threads, DB pool size); secrets only from env (`THELIFE_DB_URL`, `THELIFE_KEK_FILE`, `THELIFE_LLM_*`).
+- `config/*.json` for Drogon (listeners, threads, DB pool size); secrets only from env (`THELIFE_DB_URL`, `THELIFE_KEK_FILE`, `THELIFE_LLM_*`, `OLLAMA_API_KEY`, `THELIFE_TELEGRAM_BOT_TOKEN`). The bot token is part of every Bot API URL, so request URLs to Telegram are never logged.
 - Structured logs (one line, key=value) with request id, principal kind and tenant id hash.
 - `GET /metrics` (Prometheus text) **(proposed)**: request counts and latency, DB pool, job queue depth, LLM tokens.
 
@@ -419,6 +431,7 @@ Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recomp
 | detection invariants | UPDATE/DELETE blocked, transitions recorded, claim → superseded | isolation (as `thelife_app`) + api |
 | manifest matrix (implemented) | every Stage 1 REST tool: device token → 403, API key without scope → 403, update/delete without If-Match → 428, target reads with an unknown id → 404 | `api/contract_test.cc`, driven by the embedded `tools.json` |
 | resource lifecycle (implemented) | every CRUD resource: create/get/list/patch/delete, ETag/412/428, other tenant 404 and empty list. A new resource fails CI until it has a case | `api/resources_test.cc` |
+| proactivity (implemented, Stage 2) | reminders from templates (once, repeating, cancelled when the task is done), follow-ups as proactive turns, gate spacing and urgent bypass, suppressed messages, no_message without another model call, routines once a day and skip_once without approval, silent dispute review with the detections tools, missed-task triggers coalesced, entertainment warning once per session, deferred replies after the reset, notification acks, turn context on a day without user messages | `api/proactive_test.cc` (scheduling function called by the test, tenant-scoped worker, fake-llm) |
 | scoring (implemented, Stage 2) | golden days (workday, weekend, leave, unobserved, self-reported work, replanned item, overlap precedence and preemption, linked blocks, bonus cap, consistency) and properties (bounds, monotonic, non-applicable areas, hash idempotence); end to end: day score with adjustment, idempotent and late re-score reusing the adjustment, dispute re-run, provisional in manual mode, unobserved and leave days, settings, today's progress, week score | `unit/scoring_test.cc`; `api/scoring_test.cc` with a tenant-scoped worker and fake-llm |
 | embeddings and web search (implemented, Stage 2) | sync after turns, re-embedding of changed items, hybrid history search (keyword + vector, reciprocal rank fusion, `match` per hit), semantic fact recall, related-from-earlier context, keyword fallback and deferred sync without the embedder; web search/fetch results cleaned and marked untrusted, writes after web content held for approval, per-turn and daily limits, unconfigured and rejected-key errors | `api/embeddings_test.cc` with `docker/fake-embedder`; `api/web_test.cc` with fake-llm's web endpoints; `embedder/embedder_test.cc` on the GPU when the model files exist |
 | memory and jobs (implemented, Stage 2) | remember/recall/update/forget with provenance and approvals, mentioned-entity retrieval, history search, day close (summary, facts active vs proposed, conversation closed, routine missed, exactly once), deferral while the model is offline, week rollup; named policies in unit tests | `api/memory_test.cc` with a tenant-scoped worker against `docker/fake-llm`; `unit/tools_test.cc` |
@@ -434,7 +447,7 @@ Cross-tenant reads return **404, not 403**, so ids from other tenants cannot be 
 |---|---|---|
 | A | Where the vision call runs | **Backend only.** The collector is a headless capture-and-upload agent. Interpretation (title parsing, process classification, vision, detection derivation) all happens server-side (§7.4) |
 | B | Package manager | vcpkg (manifest mode) |
-| C | Envelope encryption | Deferred to Stage 2 |
+| C | Envelope encryption | Deferred to Stage 2; implemented 2026-11-13 for notes, descriptions and detection text (§9) |
 | D | Migrations tool | dbmate |
 | E | Detection overlap precedence | `user > vision > process > external` per minute bucket |
 | F | Day boundary | per-user `day_start_hour`, default 4 |

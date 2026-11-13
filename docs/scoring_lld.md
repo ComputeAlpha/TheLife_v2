@@ -190,7 +190,9 @@ preemptions(id, tenant_id, user_id, local_day, entertainment_ref, displaced_type
    "goal_alignment": "low|medium|high"}
   ```
   At least one reason is required whenever `adjustment_pct ≠ 0`; the output is rejected and repaired otherwise.
-- `final = clamp(round(base · (1 + adjustment_pct/100)), 0, 100)`.
+- `final = clamp(round(base + 0.3 · adjustment_pct), 0, 100)`: additive, at most ±9 points. Decided 2026-11-13
+  (formula version 2) so that the adjustment can lift a day whose base is 0; the earlier multiplicative form
+  `base · (1 + pct/100)` could not.
 - The adjustment is meant to capture **long-term goal alignment** that the formula cannot see (for example a low-adherence day spent on an unplanned but goal-critical deliverable).
 - The user can dispute the adjustment (`POST /scores/{id}:dispute {reason}`). The agent re-runs it once with the reason; the outcome goes into `dispute_stats`.
 
@@ -273,8 +275,9 @@ user-day), `jobs.*`; `backend/src/modules/scoring.cc`; migration `0011_scoring.s
   not applied at week level yet); other metrics are counted from the records of the week.
 - **Not yet:** dispute statistics and flags (§7), the intraday entertainment warning (§6.1, with triggers), the
   unobserved-day question (§4.6, with triggers), year scores, formula re-application jobs.
-- **Open question (from the live check):** with `final = base · (1 + pct/100)` a day whose base is 0 stays 0 even at
-  +30 %; the live model gave +25 % to an unplanned 8-hour goal-critical day that still showed 0.
+- **Resolved (from the live check):** with `final = base · (1 + pct/100)` a day whose base is 0 stayed 0 even at
+  +30 %; the live model gave +25 % to an unplanned 8-hour goal-critical day that still showed 0. Now additive
+  (§8): that day scores 8.
 
 ## 13. Decisions (review round 4, 2026-11-11)
 

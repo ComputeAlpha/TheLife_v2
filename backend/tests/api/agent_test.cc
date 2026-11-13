@@ -166,8 +166,8 @@ TEST_F(Agent, ChatCaptureCreatesUserStatedItemsWithAuditAndReceipt) {
   EXPECT_TRUE(tools.count("context_now"));
   EXPECT_TRUE(tools.count("agent_load_tools"));
   EXPECT_FALSE(tools.count("goals_create"));
-  // Budget for the always-sent core group (docs/tool_registry.md §6): about 3.7k tokens today.
-  EXPECT_LT(json::compact(req["tools"]).size(), 18000u);
+  // Budget for the always-sent core group (docs/tool_registry.md §6): about 4.7k tokens.
+  EXPECT_LT(json::compact(req["tools"]).size(), 20000u);
   EXPECT_TRUE(req["stream"].asBool());
 
   const auto usage = sql(user.tenantId, "SELECT sum(requests)::int AS n FROM llm_usage WHERE purpose = 'agent.turn'");

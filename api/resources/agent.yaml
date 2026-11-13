@@ -174,3 +174,42 @@ actions:
         title: {type: string}
         content: {type: string}
         links: {type: array, items: {type: string}, maxItems: 20}
+  - name: agent.schedule_followup
+    effect: create
+    summary: "Come back to something later: at that time a new turn starts with your reason (to ask how it went, check progress). Not for plain reminders - use reminders_create"
+    body:
+      type: object
+      additionalProperties: false
+      required: [at, reason]
+      properties:
+        at: {$ref: Timestamp}
+        reason: {type: string, minLength: 1, maxLength: 300}
+    returns:
+      type: object
+      required: [id, due_at]
+      properties:
+        id: {$ref: Id}
+        due_at: {$ref: Timestamp}
+  - name: agent.cancel_followup
+    effect: delete
+    summary: Cancel a follow-up you scheduled
+    target: true
+    target_resource: Followup
+    policy: agent_owned
+    body:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: {$ref: Id}
+    returns: {type: "null"}
+  - name: agent.no_message
+    effect: read
+    summary: "On a turn you started yourself (routine, follow-up, event): end it without messaging the user, when nothing is worth saying now"
+    body: {type: object, additionalProperties: false, properties: {}}
+    returns: {type: object, properties: {ok: {type: boolean}}}
+  - name: notify.urgent
+    effect: read
+    summary: "Mark this turn's message urgent: something is due within 2 hours or an approval is about to expire. It then skips the spacing between messages (not quiet hours)"
+    body: {type: object, additionalProperties: false, properties: {}}
+    returns: {type: object, properties: {ok: {type: boolean}}}

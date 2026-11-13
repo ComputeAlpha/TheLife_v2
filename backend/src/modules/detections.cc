@@ -5,9 +5,12 @@
 
 #include "core/errors.h"
 #include "core/json.h"
+#include "core/crypto.h"
 #include "crud/resource.h"
+#include "db/field_crypt.h"
 #include "modules/common.h"
 #include "modules/modules.h"
+#include "proactive/notifier.h"
 
 namespace thelife::modules {
 
@@ -50,7 +53,11 @@ Task<Json::Value> history(ToolCall& c, const Projection& projection) {
       "ids AS (SELECT id, depth FROM back UNION SELECT id, depth FROM fwd) "
       "SELECT to_jsonb(d)::text AS j FROM ids JOIN detections d ON d.id = ids.id ORDER BY ids.depth",
       id);
-  for (const auto& r : chain) out["chain"].append(crud::toApi(json::parse(r["j"].as<std::string>()), *projection));
+  for (const auto& r : chain) {
+    auto row = json::parse(r["j"].as<std::string>());
+    co_await fieldcrypt::openRow(c.tx, "detections", row);
+    out["chain"].append(crud::toApi(row, *projection));
+  }
   co_return out;
 }
 
@@ -59,18 +66,34 @@ Task<Json::Value> transition(ToolCall& c, const Projection& projection, const ch
                                                        opt(c.args, "reason")};
   const auto rows = co_await c.tx.execParams(
       "SELECT to_jsonb(d)::text AS j FROM app.detection_transition($1::uuid, $2::text, $3::text) d", params);
-  co_return crud::toApi(json::parse(rows[0]["j"].as<std::string>()), *projection);
+  auto row = json::parse(rows[0]["j"].as<std::string>());
+  co_await fieldcrypt::openRow(c.tx, "detections", row);
+  if (std::string(action) == "dispute") {
+    // The agent re-evaluates disputed evidence in a silent review (spec 5.7, agent_lld.md §4.2). The outbox
+    // payload carries the category, not the (encrypted) summary; the review reads the detection itself.
+    Json::Value p;
+    p["reason"] = c.args["reason"].asString();
+    p["category"] = row["category"].asString();
+    co_await proactive::emit(c.tx, c.principal.userId.empty() ? std::nullopt : std::optional(c.principal.userId),
+                             "detection.disputed", "detection", c.args["id"].asString(), p);
+  }
+  co_return crud::toApi(row, *projection);
 }
 
 Task<Json::Value> claim(ToolCall& c, const Projection& projection) {
+  const auto dek = co_await fieldcrypt::dekFor(c.tx);
+  const auto summary =
+      crypto::pgByteaHex(fieldcrypt::seal(dek, c.tx.tenantId(), "detections", "summary", c.args["summary"]));
   const std::vector<std::optional<std::string>> params{
-      c.args["id"].asString(),      c.args["area"].asString(),  c.args["category"].asString(),
-      c.args["summary"].asString(), opt(c.args, "started_at"), opt(c.args, "ended_at")};
+      c.args["id"].asString(), c.args["area"].asString(),  c.args["category"].asString(),
+      summary,                 opt(c.args, "started_at"), opt(c.args, "ended_at")};
   const auto rows = co_await c.tx.execParams(
       "SELECT to_jsonb(d)::text AS j "
-      "FROM app.detection_claim($1::uuid, $2::text, $3::text, $4::text, $5::timestamptz, $6::timestamptz) d",
+      "FROM app.detection_claim($1::uuid, $2::text, $3::text, $4::bytea, $5::timestamptz, $6::timestamptz) d",
       params);
-  co_return crud::toApi(json::parse(rows[0]["j"].as<std::string>()), *projection);
+  auto row = json::parse(rows[0]["j"].as<std::string>());
+  co_await fieldcrypt::openRow(c.tx, "detections", row);
+  co_return crud::toApi(row, *projection);
 }
 
 }  // namespace
