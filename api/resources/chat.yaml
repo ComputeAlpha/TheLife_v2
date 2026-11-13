@@ -1,0 +1,54 @@
+name: chat
+tag: Chat
+description: Web chat with the agent (agent_lld.md §7.1). Sending returns at once; the reply streams over the SSE
+  stream and is stored in the day's conversation.
+stage: 2
+exposure: [rest]
+principals: [user]
+extra_schemas:
+  ChatTurn:
+    type: object
+    required: [id, conversation_id, message_id, status]
+    properties:
+      id: {$ref: Id}
+      conversation_id: {$ref: Id}
+      message_id: {$ref: Id, description: The user message that started the turn.}
+      status:
+        type: string
+        enum: [queued, running, done, failed, manual, merged]
+        description: "manual: answered without the model (deterministic command, or the assistant is offline). merged: answered by a turn that started later and saw this message too."
+      error: {type: [string, "null"]}
+      created_at: {$ref: Timestamp}
+      finished_at: {type: [string, "null"], format: date-time}
+actions:
+  - name: send
+    tool: false
+    method: post
+    path: /chat/web/messages
+    effect: create
+    summary: Send a message to the agent
+    status: 202
+    body:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: {type: string, minLength: 1, maxLength: 8000}
+        client_msg_id: {type: string, minLength: 8, maxLength: 128, pattern: "^[!-~]+$", description: "Retrying with the same id returns the original turn."}
+    returns: ChatTurn
+  - name: turn
+    tool: false
+    method: get
+    path: /chat/turns/{id}
+    effect: read
+    summary: State of a turn (for clients without the stream)
+    params: {id: {$ref: Id}}
+    returns: ChatTurn
+  - name: stream
+    tool: false
+    method: get
+    path: /chat/web/stream
+    effect: read
+    summary: "Server-sent events for this user: turn.started, token, reset, tool.started, tool.finished, approval.requested, turn.finished"
+    response_content_type: text/event-stream
+    returns: {type: string}

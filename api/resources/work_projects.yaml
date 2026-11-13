@@ -1,4 +1,5 @@
 name: work_projects
+agent_group: work
 schema: WorkProject
 noun: project
 path: /work/projects

@@ -1,0 +1,38 @@
+{% macro field(f, prefix='') %}
+<label class="field{% if f.error %} invalid{% endif %}{% if f.kind in ('textarea', 'json') %} wide{% endif %}">
+  <span class="name">{{ f.name }}{% if f.required %} <em>*</em>{% endif %}</span>
+  {% set id = prefix ~ f.name %}
+  {% if f.kind == 'select' %}
+    <select name="{{ f.name }}">
+      {% if not f.required or f.nullable %}<option value=""{% if f.value in ('', none) %} selected{% endif %}>—</option>{% endif %}
+      {% for v, label in f.options %}<option value="{{ v }}"{% if v == f.value|string %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  {% elif f.kind == 'multiselect' %}
+    <span class="checks">
+    {% for v, label in f.options %}
+      <label><input type="checkbox" name="{{ f.name }}" value="{{ v }}"{% if v in f.value %} checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+    </span>
+  {% elif f.kind == 'checkbox' %}
+    <input type="checkbox" name="{{ f.name }}"{% if f.value %} checked{% endif %}>
+  {% elif f.kind == 'number' %}
+    <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="{{ f.step }}">
+  {% elif f.kind == 'datetime' %}
+    <input type="datetime-local" name="{{ f.name }}" value="{{ f.value }}" step="1">
+  {% elif f.kind == 'date' %}
+    <input type="date" name="{{ f.name }}" value="{{ f.value }}">
+  {% elif f.kind in ('textarea', 'json') %}
+    <textarea name="{{ f.name }}" rows="{{ 6 if f.kind == 'json' else 4 }}"{% if f.kind == 'json' %} class="mono" placeholder="{}"{% endif %}>{{ f.value }}</textarea>
+  {% else %}
+    <input type="text" name="{{ f.name }}" value="{{ f.value }}"{% if f.kind == 'csv' %} placeholder="comma, separated"{% endif %}>
+  {% endif %}
+  {% if f.error %}<span class="error">{{ f.error }}</span>{% elif f.help %}<span class="help">{{ f.help }}</span>{% endif %}
+</label>
+{% endmacro %}
+
+{% macro value(v, kind=none) %}
+{%- if v is none %}<span class="muted">—</span>
+{%- elif v is mapping or (v is iterable and v is not string) %}<pre class="mono">{{ v|pretty }}</pre>
+{%- elif v is string and v|length >= 20 and v[4:5] == '-' and v[10:11] == 'T' %}<time title="{{ v }}">{{ v|local }}</time>
+{%- else %}{{ v }}{% endif %}
+{% endmacro %}

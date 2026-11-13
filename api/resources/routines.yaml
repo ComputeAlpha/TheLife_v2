@@ -1,0 +1,51 @@
+name: routines
+agent_group: planning
+schema: Routine
+noun: routine
+path: /routines
+scope: planning
+tag: Planning
+stage: 2
+description: Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly
+  review. Adaptive routines move within their window to the user's actual rhythm (first activity of the day,
+  learned evening time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes
+  that day's time.
+fields:
+  kind: {type: string, enum: [morning, evening, weekly, custom]}
+  title: {$ref: Text200}
+  mode: {type: string, enum: [adaptive, fixed], default: adaptive}
+  default_time: {$ref: TimeOfDay}
+  window_start: {type: [string, "null"], pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"}
+  window_end: {type: [string, "null"], pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"}
+  weekdays:
+    type: array
+    uniqueItems: true
+    maxItems: 7
+    items: {type: string, enum: [MO, TU, WE, TH, FR, SA, SU]}
+    default: []
+    description: Days it runs; empty means every day.
+  day_profiles: {type: array, maxItems: 10, items: {type: string, pattern: "^[a-z][a-z0-9_]{0,39}$"}, default: []}
+  enabled: {type: boolean, default: true}
+  instructions: {$ref: Notes}
+readonly:
+  learned_time: {type: [string, "null"], description: "Adaptive time learned from the last 14 applicable days (HH:MM)."}
+  last_fired_on: {type: [string, "null"], format: date}
+  skip_on: {type: [string, "null"], format: date}
+required: [kind, title, default_time]
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}
+actions:
+  - name: skip_once
+    method: post
+    path: /routines/{id}:skip
+    effect: update
+    summary: Skip the routine once (today, or the given day)
+    target: true
+    agent_group: core
+    policy: user_reported_progress
+    params: {id: {$ref: Id}}
+    body:
+      type: object
+      additionalProperties: false
+      properties:
+        date: {$ref: LocalDate}
+    returns: Routine

@@ -1,4 +1,5 @@
 name: plans
+agent_group: planning
 schema: Plan
 noun: plan
 path: /plans

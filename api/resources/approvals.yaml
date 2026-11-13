@@ -1,0 +1,54 @@
+name: approvals
+schema: Approval
+noun: approval
+path: /approvals
+scope: approvals
+tag: Approvals
+stage: 2
+exposure: [rest]
+principals: [user]
+description: Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call
+  exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes
+  stale and nothing runs. Pending approvals expire after 72 h.
+fields: {}
+readonly:
+  tool: {type: string, description: "Tool name, for example tasks.update."}
+  args: {type: object, description: The exact arguments that run on approval.}
+  summary: {type: string, description: Human-readable description of the change.}
+  status: {type: string, enum: [pending, approved, rejected, expired, stale, failed]}
+  target_type: {type: [string, "null"]}
+  target_id: {type: [string, "null"], format: uuid}
+  target_version: {type: [integer, "null"]}
+  conversation_id: {type: [string, "null"], format: uuid}
+  expires_at: {$ref: Timestamp}
+  decided_at: {type: [string, "null"], format: date-time}
+  decision_reason: {type: [string, "null"]}
+  result: {description: "Result of the executed call (approved), otherwise null."}
+  error: {type: [string, "null"]}
+filters:
+  status: {type: string, enum: [pending, approved, rejected, expired, stale, failed]}
+ops: {list: {}, get: {}}
+actions:
+  - name: approve
+    method: post
+    path: /approvals/{id}:approve
+    effect: update
+    summary: Approve and run the held action
+    target: true
+    params: {id: {$ref: Id}}
+    extra_responses: {409: Conflict}
+    returns: Approval
+  - name: reject
+    method: post
+    path: /approvals/{id}:reject
+    effect: update
+    summary: Reject the held action; nothing runs
+    target: true
+    params: {id: {$ref: Id}}
+    extra_responses: {409: Conflict}
+    body:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: {type: string, maxLength: 500}
+    returns: Approval

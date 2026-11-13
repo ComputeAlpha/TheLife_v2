@@ -49,12 +49,17 @@ TheLife_v2/
 | JSON | jsoncpp (Drogon's native type). Avoid a second JSON library |
 | JSON Schema | valijson with its jsoncpp adapter, used by the tool registry and request validation |
 | Crypto | libsodium: argon2id passwords, CSPRNG tokens, `crypto_secretbox` for envelope encryption |
-| Recurrence | libical for RFC 5545 RRULE expansion |
+| LLM HTTP | libcurl (vcpkg, OpenSSL) for model calls only: streaming SSE bodies, which Drogon 1.9's `HttpClient` cannot deliver incrementally. Runs on the LLM gateway's own thread pool (`agent_lld.md` §3) |
+| Recurrence | libical 3.0 (vcpkg) for RFC 5545 RRULE parsing and expansion (`core/recurrence`). Rules are expanded in **floating local time** and converted to instants by Postgres (`AT TIME ZONE`), so a 09:00 routine stays at 09:00 across DST. Accepted: `FREQ=DAILY\|WEEKLY\|MONTHLY\|YEARLY`, INTERVAL 1–1000; rules that can never occur are rejected. libical's fatal-error mode is switched off at first use |
 | Tests | GoogleTest + real PostgreSQL 17 with pgvector from docker compose |
 | Migrations | **dbmate (decided)**: plain SQL, one static binary, no ORM coupling |
 | CI | GitHub Actions: build, unit, integration (service container), isolation, contract tests |
 
 Async model: Drogon C++20 coroutines (`drogon::Task<>`, `co_await` on DB and HTTP clients) throughout. No blocking calls on event-loop threads.
+
+Coroutine rules learned in Stage 1 (GCC 13/14):
+- `TenantTx::exec(sql, args...)` copies its arguments into the coroutine frame and **rejects `std::optional` at compile time**. A nullable value passed through that parameter pack reached Postgres as `''` instead of NULL. Nullable parameters go through `TenantTx::execParams(sql, std::vector<std::optional<std::string>>)` with explicit casts in SQL.
+- No braced initializer lists inside a `co_await` expression (internal compiler error); build the value first.
 
 ### 2.1 Embedding service (decided 2026-11-12, see `spikes/embed/REPORT.md`)
 - A separate process, **`thelife-embedder`**, owns the GPU. The backend talks to it over a **Unix domain socket** (`$XDG_RUNTIME_DIR/thelife/embedder.sock`, mode 0660, owner-only directory), so a CUDA fault or OOM cannot take down the API and the backend binary carries no CUDA dependency.
@@ -62,6 +67,19 @@ Async model: Drogon C++20 coroutines (`drogon::Task<>`, `co_await` on DB and HTT
 - Runtime: the official **ONNX Runtime 1.26.0 linux-x64-gpu (CUDA 12)** prebuilt release, fetched by CMake with a pinned SHA-256, and the fp16 attention-fused bge-m3 from `spikes/embed/convert_fp16.py`. Tokenization: vcpkg `sentencepiece` with the XLM-R id mapping and whitespace normalization.
 - Startup fails unless `CUDAExecutionProvider` is active (guards against the silent CPU fallback found in the spike). A `--cpu` flag exists for development machines without a GPU and logs loudly.
 - The backend treats the embedder as optional: if it is down, `embeddings.upsert` jobs back off and retrieval falls back to recency plus keyword. Tests use a fake embedder that serves deterministic vectors on a temp socket.
+- **Implemented (Stage 2, increment 3b):** `backend/embedder/` (`thelife-embedder`, its tokenizer library and model
+  wrapper). The ONNX Runtime 1.26.0 GPU archive is fetched by CMake with a pinned SHA-256 (`THELIFE_ORT_ARCHIVE` can
+  point at a downloaded copy; the `ci` preset sets `THELIFE_BUILD_EMBEDDER=OFF`). The server is a small HTTP/1.1
+  implementation over the Unix socket (Drogon cannot listen on one), one inference at a time, batch ≤ 8,
+  ≤ 512 tokens. Measured on the RTX 3080 Ti: ~1.4 GB GPU memory, 6 texts in 33 ms including the round trip.
+  Parity (`tests/embedder/embedder_test.cc`, against `tests/fixtures/embed/reference.json` from the upstream
+  Hugging Face tokenizer and the fp32 model on the CPU): token ids identical for all 8 texts (English, Tamil,
+  Hindi, Japanese, emoji, SQL, messy whitespace), fp16 CUDA vectors at cosine ≥ 0.999, batching does not change a
+  vector. The backend has no CUDA dependency; `THELIFE_EMBEDDER_SOCKET` unset means keyword search only.
+- **Sync instead of per-row jobs:** `embeddings.sync` (one per tenant, coalesced) embeds whatever is missing or
+  changed: messages (90 days), activities, summaries and active facts, compared by `md5(text)` and model version,
+  in chunks of ≤ 1,500 characters. It is queued when a turn finishes and after a day summary; while the embedder is
+  down it is deferred, not failed.
 
 ## 3. Request Lifecycle
 
@@ -111,6 +129,7 @@ Login and token resolution happen before the tenant is known. They go through `S
 - `auth.resolve_token(hash bytea) → (tenant_id, kind, principal_id, user_id, scopes, expires_at)`
 - `auth.find_login(email citext) → (tenant_id, user_id, password_hash, status)`
 - `jobs.claim(worker text, kinds text[], n int)`: cross-tenant job claim (§10)
+- `ops.telegram_chat_user(chat_id bigint) → (tenant_id, user_id)`: an incoming Telegram chat to its live link (active user and tenant only); `ops.telegram_link(code_hash, chat_id, username)`: consumes a one-time link code and links the chat (`agent_lld.md` §7.2). Owned by `thelife_definer`, executable by `thelife_app` only; covered by `api/telegram_test.cc`.
 
 These are the only cross-tenant paths. Each has its own tests.
 
@@ -156,6 +175,8 @@ devices(id, tenant_id, user_id, name, platform, hostname,
         collector_version, last_seen_at, config jsonb, revoked_at)
 ```
 Tokens are 32 random bytes, base64url, with a kind prefix (`tlu_`, `tld_`, `tlk_`) so leaked tokens are easy to identify. Only the SHA-256 hash is stored. The plaintext is returned once, at creation.
+- **Devices (implemented):** `POST /devices` creates the device and its `tld_` credential, scoped to `ingest:write devices:self notifications:read`. Revoking a device revokes its credentials, and `auth.authenticate` also rejects tokens of revoked devices. Revocation is idempotent.
+- **API keys (implemented):** stored as `credentials(kind = api_key)` and served through the `api_keys` view (`security_invoker`, so the credentials RLS policy applies; `token_hash` is not exposed). A key may only hold scopes of tools that `api_key` principals can call, so it can never mint keys, manage devices or act as a collector. `expires_at` must be in the future.
 
 ### 6.2 Planning
 ```
@@ -165,25 +186,37 @@ plans(…common, goal_id NULL, title, body, period_start, period_end, status)
 ```
 `area` enum: `work | skill | fitness | personal | entertainment | other`. It lines up with the scoring weights (5.7); entertainment is tracked but weighted 0 **(decided)**.
 
-### 6.3 Tasks and calendar
+### 6.3 Tasks and calendar (implemented: migration 0004)
 ```
 tasks(…common, title, notes, area, goal_id, project_id, priority 0-3,
-      estimate_min, due_at, status open|done|cancelled,
-      rrule text NULL, rrule_dtstart timestamptz NULL)       -- recurring if rrule set
+      estimate_min, due_at, status open|done|cancelled, completed_at,
+      rrule text NULL, rrule_dtstart timestamptz NULL,       -- recurring if rrule set
+      day_profiles text[], track_consistency)
 task_occurrences(…common, task_id, occurs_on date, status todo|done|skipped|missed,
-                 completed_at, UNIQUE(task_id, occurs_on))
+                 completed_at, skip_reason, UNIQUE(tenant_id, task_id, occurs_on))
 calendar_events(…common, title, notes, starts_at, ends_at, all_day,
-                rrule, location, area, link_type, link_id)
+                rrule, location, area, category, link_type, link_id)
 ```
-Recurrence is expanded on read for ranges. Occurrence rows are materialized lazily, either when the user or agent acts on one or when the nightly job marks `missed`, so the table only holds occurrences that have a state.
+- Recurrence is expanded on read for ranges. Occurrence rows are materialized lazily, either when the user or agent acts on one (`:complete`, `:skip`) or when the nightly job marks `missed`, so the table only holds occurrences that have a state.
+- **Occurrence day:** the rule is expanded from `rrule_dtstart` in the user's timezone shifted back by `day_start_hour`, so a 02:00 session belongs to the previous day when the day starts at 04:00.
+- Triggers keep derived columns honest: `completed_at` follows `status = done`, `rrule_dtstart` defaults to `now()` when a rule is set without one.
+- `calendar.view` merges, for a window of at most 62 days (default: the next 7):
+  - events, with recurring ones expanded;
+  - open recurring tasks, as all-day entries per local day, with any stored occurrence status;
+  - one-off tasks due in the window;
+  - entertainment slots;
+  - skill sessions.
+- **Links** (`link_type`/`link_id` on events and activities) are checked by the `app.check_link` trigger: the target must be a live row of the named type. RLS makes another tenant's id look missing.
 
-### 6.4 Activities, work, skills, entertainment
+### 6.4 Activities, work, skills, entertainment (implemented: migrations 0004, 0005)
+Tables are named after the contract prefix: `work_roles`, `work_responsibilities` (`cadence` is an RRULE), `work_projects`, `work_deliverables` (`delivered_at` set by trigger), `skill_resources`, `skill_sections`, `skill_sessions`, `entertainment_items`, `entertainment_slots`, `activities`.
 ```
 activities(…common, area, category, title, started_at, ended_at,
-           source manual|detection|agent, detection_id NULL, notes)
-work_roles / responsibilities(role_id) / projects(role_id) / deliverables(project_id, due_at, status)
-skill_resources(…common, kind book|course, title, author, total_pages, total_duration_s, status)
-course_sections(…common, resource_id, ordinal, title, duration_s)
+           source manual|detection|agent, detection_id NULL, link_type, link_id, notes)
+work_roles / work_responsibilities(role_id) / work_projects(role_id) / work_deliverables(project_id, due_at, status)
+skill_resources(…common, kind book|course, title, author, url, total_pages, total_duration_s, goal_id, status,
+                progress jsonb)                     -- derived, maintained by triggers
+skill_sections(…common, resource_id, ordinal, title, duration_s)   -- ordinal unique per live resource
 skill_sessions(…common, resource_id, started_at, ended_at,
                page_from, page_to,                 -- books
                section_id, pos_from_s, pos_to_s,    -- courses
@@ -191,6 +224,8 @@ skill_sessions(…common, resource_id, started_at, ended_at,
 entertainment_items(…common, kind game|movie|series, title, meta jsonb, status)
 entertainment_slots(…common, item_id, starts_at, ends_at, consumed bool)
 ```
+- **Skill progress** is derived, never written by clients. Books: furthest `page_to`. Courses: furthest timeline position (sum of the durations of earlier sections plus `pos_to_s`). Percent uses `total_pages` / `total_duration_s`. Triggers on sessions and sections recompute the parent resource, which also bumps its version and ETag.
+- Book sessions record pages only, course sessions record sections and positions only, and sections exist only on courses (trigger). A session's section must belong to its resource (composite FK).
 
 ### 6.5 Detections (append-only)
 ```
@@ -205,8 +240,14 @@ detections(id, tenant_id, created_at,
 detection_events(id, tenant_id, detection_id, at, actor_kind, actor_id,
                  from_status, to_status, reason text)
 ```
-- A trigger rejects `UPDATE` on any column except `status`, and only allows `status` to change together with a matching `detection_events` insert (done in one SQL function, `detections_transition()`). `DELETE` is revoked from `thelife_app`.
-- A user claim inserts a new `source=user` detection with `supersedes_id`, and the old one moves to `superseded`.
+- **Enforcement (implemented, migration 0005):**
+  - `thelife_app` may INSERT detections but holds no UPDATE or DELETE on them, and no write privilege on `detection_events`.
+  - Status moves only through `app.detection_transition(id, 'confirm'|'dispute', reason)` and `app.detection_claim(...)`. These are SECURITY DEFINER functions owned by the table owner. The owner is not BYPASSRLS, so the forced tenant policy still applies inside them.
+  - A trigger rejects any change to content columns (everything except `status`, `superseded_by_id`, `updated_at`, `version`).
+  - An AFTER UPDATE trigger writes the `detection_events` row, with the actor taken from the TenantTx settings and the reason from a transaction-local setting. History cannot be skipped.
+  - New rows start as `detected`, or `confirmed` when `source = user`. `supersedes_id` can be set only by the claim function.
+- **Transitions:** `confirm` (detected/disputed → confirmed), `dispute` (detected/confirmed → disputed, reason required) and `claim` (any but superseded). Repeating the current state, or acting on a superseded detection, answers 409.
+- A user claim inserts a new `source=user` detection with `supersedes_id`, inheriting the time window unless one is given. The old one moves to `superseded` with `superseded_by_id` set. `GET /detections/{id}/history` returns the events and the whole supersede chain.
 - Overlap policy **(decided)**: process and vision detections over the same window are both kept. Scoring uses the highest-precedence non-superseded detection per minute bucket, in the order `user > vision > process > external`.
 
 ### 6.6 Collector raw data (Stage 4, contract fixed now)
@@ -238,8 +279,13 @@ idempotency_keys(principal_id, key, request_hash, status_code, response, created
 - **Errors:** RFC 9457 `application/problem+json` with a stable `type` URI, `title`, `detail`, `request_id`, and `errors[]` for validation failures.
 - **Lists:** `?limit=` (default 50, max 200) and `?cursor=` (opaque, encodes `(sort_key, id)`); the response is `{ items, next_cursor }`. `?updated_since=` on every collection supports client sync.
 - **Updates:** `PATCH` with JSON Merge Patch (RFC 7396). Responses carry `ETag: "<version>"`; `If-Match` is required on PATCH/DELETE, and a mismatch returns 412.
-- **Idempotency:** `Idempotency-Key` header is accepted on all POSTs and required on collector ingest. The stored response is replayed for 24 h.
+- **Idempotency:** `Idempotency-Key` header is accepted on all POSTs and required on collector ingest. The stored response is replayed for 24 h. Keys are 8–128 visible ASCII characters; a header that is present but empty is a 422, not an absent key.
 - **Deletes:** soft (`deleted_at`). `?include_deleted=true` for admins and sync.
+- **Database-raised errors:** SQL functions and triggers raise SQLSTATE class `TL` with a client-safe message: `TL422` maps to 422, `TL409` to 409 and `TL404` to 404. Constraint violations map generically: not-null to 422 on the column, check and FK violations to 422, unique to 409. All of SQLSTATE class 22 (data exceptions: a UTC offset beyond ±15:59, `\u0000` in text, out-of-range values) is 422, never 500.
+- **Secrets are never replayed:** tools whose response carries a `token` (`devices.register`, `api_keys.issue`) refuse `Idempotency-Key` with 422, so plaintext tokens never sit in `idempotency_keys`. The contract does not offer the header on those operations (or on login).
+- **Input normalisation:** integral JSON numbers (`8246.0`) become integers before validation, as JSON Schema already treats them.
+- **Query parameters:** a parameter that is present but empty (`?to=`) is validated like any other value, so it is rejected rather than ignored.
+- **405:** a known path called with a method it does not serve answers problem+json 405 with an `Allow` header. Methods Drogon's parser does not know (TRACE, CONNECT) get Drogon's bare 405 before application code runs.
 - **Provenance:** every resource returns `created_by: {kind, id}`.
 - **Versioning:** breaking changes go to `/api/v2`; additive changes stay in v1.
 
@@ -336,17 +382,40 @@ REST controllers are thin: map path/query/body to `args`, call `invoke`, map the
 - Passwords: argon2id (libsodium `crypto_pwhash`, moderate limits). Login is rate-limited per email and per IP (in-memory token bucket while single-process).
 - User session tokens: 30-day sliding expiry **(proposed)**; `last_used_at` is updated at most once per minute per token.
 - **Envelope encryption: deferred to Stage 2 (decision C).** Stage 1 holds no encrypted columns. Stage 2 adds a per-tenant DEK in `tenant_keys`, wrapped by a KEK from a file or env var. Encrypted fields become `bytea` and opaque to SQL (no `ILIKE`, no FTS), so the field list is chosen in Stage 2. Free-text columns are kept in their own column (never folded into jsonb) so they can be converted in place later.
+- **Implemented (2026-11-13, migration 0014, `src/db/field_crypt.*`).**
+  - **What is encrypted** (decided 2026-11-13: what is sensitive and never searched): free-text notes and descriptions (`goals.description`, `plans.body`, `work_roles/responsibilities/projects/deliverables.description`, `tasks.notes`, `calendar_events.notes`, `activities.notes`, `skill_sessions.notes`, `entertainment_slots.notes`), detection `summary` and `evidence`, and (Stage 4) collector observations from the start. Chat messages, memory facts, day summaries, digests and all titles stay plaintext so keyword search keeps working.
+  - **Threat model:** protects dumps, backups and direct database access. The KEK sits with the app, so a compromised app reads everything.
+  - **Keys:** `THELIFE_KEK_FILE` (preferred) or `THELIFE_KEK`, 32 bytes as base64 or hex; the backend refuses to start without one when a database is configured. Each tenant's DEK is random, created on first use in its own committed transaction, and stored wrapped (XChaCha20-Poly1305, AD `tenant_keys|<tenant>`) with `kek_id` (a sha256 prefix of the KEK) so a wrong KEK fails with a clear message. The app may insert and read `tenant_keys`, never change it; rotation is a future operator task.
+  - **Values:** `0x01 | nonce(24) | ciphertext` of the value's JSON text, AD `<tenant>|<table>.<column>`: a value copied to another tenant or column does not open. Rows are not bound (a value moved between two rows of the same column still opens). The old length checks became an `octet_length ≤ 65536` cap; the contract still enforces the character limits.
+  - **Where:** the generic CRUD layer seals on write and opens on read, so the API is unchanged. Other readers open explicitly: detection claim and history (`app.detection_claim` now takes the sealed summary), `history.search` (activity notes no longer match keywords, only titles; the hit text shows the opened notes) and embeddings (activity text = title + opened notes; the change hash covers the ciphertext). The `detection.disputed` outbox event carries the category instead of the summary.
+  - **Existing data:** the migration rewrote each value as `0x00 | JSON text` (still readable) and queued one `fieldcrypt.reseal` job per tenant, which seals them (detections through `app.detection_reseal`, the only exception to append-only). The down migration works while no value is sealed.
+  - **Dev:** `scripts/demo.sh` creates `build/dev-kek` on first use; tests use a fixed test KEK (`tests/support/server_process.h`).
 - Analytics: a `usage_events(kind, count, duration_ms)` table with no free text. Content never goes to logs; titles and notes are logged as lengths only.
 
 ## 10. Background Jobs
 
 A Postgres-backed queue (`jobs` table). The in-process worker coroutine claims work through `jobs.claim()` (`FOR UPDATE SKIP LOCKED`), sets the tenant context from the job row and runs the handler. Exponential backoff, `max_attempts`, dead status.
 Stage 1 jobs: `occurrences.mark_missed` (daily per tenant), `observations.retention`, `idempotency.gc`.
+
+**Implemented (Stage 2, increment 3):** `ops.jobs` (deployment state in the `ops` schema, like `provider_state`;
+payloads hold ids and dates only) with `FOR UPDATE SKIP LOCKED` claims, a partial unique index on
+`(kind, dedupe_key)` for queued/running jobs (bursts coalesce), exponential backoff (1 min doubling, 6 h cap) up to
+`max_attempts`, then `dead`. A handler throws `jobs::Defer` to wait (assistant offline, rate limit) without
+spending an attempt. Housekeeping every minute calls SECURITY DEFINER functions owned by `thelife_definer`:
+`ops.enqueue_day_closes()` (missed-occurrence marking now runs inside `day.close`), `ops.fail_stale_turns()` (turns
+left running by a crash) and `ops.gc_idempotency_keys()`, and requeues jobs whose worker vanished. Jobs are
+enqueued inside the tenant transaction that causes them. Knobs: `THELIFE_JOBS=off`, `THELIFE_JOBS_CONCURRENCY`,
+`THELIFE_JOBS_POLL_MS`, `THELIFE_JOBS_HOUSEKEEPING=off`, `THELIFE_JOBS_TENANT` (claim one tenant's jobs only;
+tests on the shared database use it, and test servers default to `THELIFE_JOBS=off`). `observations.retention`
+arrives with Stage 4.
+Stage 2 job kinds: `day.close`, `memory.compress_day`, `memory.rollup`, `embeddings.sync`,
+`scores.close_day`, `scores.close_period`, `proactive.tick`, `notify.telegram` (Telegram delivery and the 3-minute fallback,
+`agent_lld.md` §8) and `digest.refresh` (cross-channel digest, §7.3).
 Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recompute` (triggered on detection or activity change, debounced per tenant-day).
 
 ## 11. Configuration and Observability
 
-- `config/*.json` for Drogon (listeners, threads, DB pool size); secrets only from env (`THELIFE_DB_URL`, `THELIFE_KEK_FILE`, `THELIFE_LLM_*`).
+- `config/*.json` for Drogon (listeners, threads, DB pool size); secrets only from env (`THELIFE_DB_URL`, `THELIFE_KEK_FILE`, `THELIFE_LLM_*`, `OLLAMA_API_KEY`, `THELIFE_TELEGRAM_BOT_TOKEN`). The bot token is part of every Bot API URL, so request URLs to Telegram are never logged.
 - Structured logs (one line, key=value) with request id, principal kind and tenant id hash.
 - `GET /metrics` (Prometheus text) **(proposed)**: request counts and latency, DB pool, job queue depth, LLM tokens.
 
@@ -358,8 +427,17 @@ Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recomp
 | integration | repositories and services against real Postgres | each test creates its own tenant, so tests never interfere and need no truncation |
 | isolation | catalog checks + generated per-table leak tests (§4.4) | runs on every PR |
 | api | every endpoint: happy path, validation 422, auth 401, scope 403, If-Match 412, cross-tenant 404 | server binary on a random port, Drogon `HttpClient` from GTest |
-| contract | responses conform to `openapi.yaml` | **schemathesis (decided)** against the running service in CI |
-| detection invariants | UPDATE/DELETE blocked, transitions recorded, claim → superseded | integration |
+| contract (implemented) | every user-reachable Stage 1 operation against `openapi.yaml`: no 5xx, documented status codes, content types, headers and response schemas, invalid input rejected, missing If-Match → 428. Schema-valid requests may still get 409/412/422 for rules a schema cannot state (`schemathesis.toml` lists them); `run.sh --strict` shows them for review | **schemathesis 4.33** in the backend CI job via `backend/tests/contract/run.sh --with-login`, then the backend log must hold no unhandled exception |
+| detection invariants | UPDATE/DELETE blocked, transitions recorded, claim → superseded | isolation (as `thelife_app`) + api |
+| manifest matrix (implemented) | every Stage 1 REST tool: device token → 403, API key without scope → 403, update/delete without If-Match → 428, target reads with an unknown id → 404 | `api/contract_test.cc`, driven by the embedded `tools.json` |
+| resource lifecycle (implemented) | every CRUD resource: create/get/list/patch/delete, ETag/412/428, other tenant 404 and empty list. A new resource fails CI until it has a case | `api/resources_test.cc` |
+| proactivity (implemented, Stage 2) | reminders from templates (once, repeating, cancelled when the task is done), follow-ups as proactive turns, gate spacing and urgent bypass, suppressed messages, no_message without another model call, routines once a day and skip_once without approval, silent dispute review with the detections tools, missed-task triggers coalesced, entertainment warning once per session, deferred replies after the reset, notification acks, turn context on a day without user messages | `api/proactive_test.cc` (scheduling function called by the test, tenant-scoped worker, fake-llm) |
+| scoring (implemented, Stage 2) | golden days (workday, weekend, leave, unobserved, self-reported work, replanned item, overlap precedence and preemption, linked blocks, bonus cap, consistency) and properties (bounds, monotonic, non-applicable areas, hash idempotence); end to end: day score with adjustment, idempotent and late re-score reusing the adjustment, dispute re-run, provisional in manual mode, unobserved and leave days, settings, today's progress, week score | `unit/scoring_test.cc`; `api/scoring_test.cc` with a tenant-scoped worker and fake-llm |
+| embeddings and web search (implemented, Stage 2) | sync after turns, re-embedding of changed items, hybrid history search (keyword + vector, reciprocal rank fusion, `match` per hit), semantic fact recall, related-from-earlier context, keyword fallback and deferred sync without the embedder; web search/fetch results cleaned and marked untrusted, writes after web content held for approval, per-turn and daily limits, unconfigured and rejected-key errors | `api/embeddings_test.cc` with `docker/fake-embedder`; `api/web_test.cc` with fake-llm's web endpoints; `embedder/embedder_test.cc` on the GPU when the model files exist |
+| memory and jobs (implemented, Stage 2) | remember/recall/update/forget with provenance and approvals, mentioned-entity retrieval, history search, day close (summary, facts active vs proposed, conversation closed, routine missed, exactly once), deferral while the model is offline, week rollup; named policies in unit tests | `api/memory_test.cc` with a tenant-scoped worker against `docker/fake-llm`; `unit/tools_test.cc` |
+| agent (implemented, Stage 2) | chat capture provenance (`user_stated`, `source_message_id`) and audit, tool groups, approvals (held → approve runs pinned to the version, stale on change, reject, 72 h expiry), kill switch, `user_reported_progress` and undo, weekly limit → deterministic replies and commands, step limit, model and argument errors, idempotent sends, SSE events, turn merging, desktop notification long poll and ack | `api/agent_test.cc`: the real binary against `docker/fake-llm` with scripted conversations |
+| LLM gateway (implemented) | error classification against the recorded Stage 0 bodies, response and SSE parsing (split anywhere, leaked `</think>` retracted), provider state machine on a fake clock (transient backoff, weekly exhaustion → manual → probe → healthy, restart persistence, auth → disabled, rate limits), structured output (tool-as-output → repair → schema-in-prompt) | `unit/llm_test.cc`; `api/llm_test.cc` over libcurl against `docker/fake-llm` plus `ops.provider_state` / `llm_calls` / `llm_usage` in Postgres; `live/llm_live_test.cc` against the real endpoint when `THELIFE_LIVE_LLM_URL` is set |
+| demo UI (implemented) | contract-generated pages render for every resource; forms send contract bodies (local time → RFC 3339, merge patch with If-Match, only changed fields); tokens never reach the browser; end-to-end flows against the built backend | `demo-ui/tests` (pytest, fake backend); `test_e2e_live.py` in the backend CI job |
 
 Cross-tenant reads return **404, not 403**, so ids from other tenants cannot be probed.
 
@@ -369,7 +447,7 @@ Cross-tenant reads return **404, not 403**, so ids from other tenants cannot be 
 |---|---|---|
 | A | Where the vision call runs | **Backend only.** The collector is a headless capture-and-upload agent. Interpretation (title parsing, process classification, vision, detection derivation) all happens server-side (§7.4) |
 | B | Package manager | vcpkg (manifest mode) |
-| C | Envelope encryption | Deferred to Stage 2 |
+| C | Envelope encryption | Deferred to Stage 2; implemented 2026-11-13 for notes, descriptions and detection text (§9) |
 | D | Migrations tool | dbmate |
 | E | Detection overlap precedence | `user > vision > process > external` per minute bucket |
 | F | Day boundary | per-user `day_start_hour`, default 4 |

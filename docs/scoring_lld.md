@@ -190,7 +190,9 @@ preemptions(id, tenant_id, user_id, local_day, entertainment_ref, displaced_type
    "goal_alignment": "low|medium|high"}
   ```
   At least one reason is required whenever `adjustment_pct ≠ 0`; the output is rejected and repaired otherwise.
-- `final = clamp(round(base · (1 + adjustment_pct/100)), 0, 100)`.
+- `final = clamp(round(base + 0.3 · adjustment_pct), 0, 100)`: additive, at most ±9 points. Decided 2026-11-13
+  (formula version 2) so that the adjustment can lift a day whose base is 0; the earlier multiplicative form
+  `base · (1 + pct/100)` could not.
 - The adjustment is meant to capture **long-term goal alignment** that the formula cannot see (for example a low-adherence day spent on an unplanned but goal-critical deliverable).
 - The user can dispute the adjustment (`POST /scores/{id}:dispute {reason}`). The agent re-runs it once with the reason; the outcome goes into `dispute_stats`.
 
@@ -245,6 +247,37 @@ scores(id, tenant_id, user_id, period day|week|month|year, period_start,
 - **Adjustment:** fake-LLM fixtures for valid, out-of-range (clamped and repaired) and missing-reason (rejected) outputs; provisional → final on catch-up.
 - **Preemption and warning:** synthetic entertainment detections over blocks and due tasks → expected rows and trigger events.
 - **Dispute stats:** synthetic dispute histories → expected flags.
+
+## 12a. Implementation (Stage 2, increment 4)
+
+`backend/src/scoring/`: `engine.*` (pure; golden and property tests in `unit/scoring_test.cc`), `inputs.*` (reads a
+user-day), `jobs.*`; `backend/src/modules/scoring.cc`; migration `0011_scoring.sql`.
+- **Evidence resolution:** each minute of the local day belongs to the highest-precedence evidence covering it
+  (activities, skill sessions and consumed entertainment slots count as user; detections need confidence ≥ 0.4 and
+  status detected/confirmed). Time blocks, minute targets, preemptions and per-area minutes all read that one map.
+- **Planned items:** from `calendar.view` of the day. Recurring tasks filtered by their day profiles; an occurrence
+  skipped before the day began is replanning (excluded), after it a miss. Tasks and deliverables completed within
+  24 h after the close count 0.5. Weights: priority 0/1/2/3 → 1/1.5/2/3, blocks 1 per hour (min 0.5), deliverables 2.
+- **Profiles:** override row, then a non-recurring all-day event `day_profile.<name>`, then `users.workdays`.
+  Built-ins (workday, weekend, holiday scored; leave, sick not) unless a `day_profiles` row redefines the name.
+  Configuration (profiles, overrides, targets, work contexts) is per tenant; scores are per user.
+- **Status values:** `final`, `provisional` (base only while the assistant is offline; a `scores.close_day` with
+  `force_adjust` is queued for the reset), `unobserved`, and `not_scored` (leave/sick, or nothing planned and no
+  target applied).
+- **Jobs:** `day.close` queues `scores.close_day` for the day and again for the day before (late entries), and
+  `scores.close_period` on Sundays and month ends. Unchanged inputs hash → no new version; a re-score reuses the
+  adjustment when the base moved ≤ 5 points; a dispute forces one re-run with the reason in the input.
+- **Adjustment input:** breakdown, consistency, preemptions, active goals and plans, the day's summaries, work
+  contexts, **logged activities and evidence minutes** (added after the live check: without them the model said
+  "no work was done" about an unplanned 8-hour goal-critical day), and the dispute reason. The schema requires a
+  reason for any non-zero adjustment (if/else), checked again in code.
+- **Weekly targets** use per-area evidence minutes summed from the day breakdowns (category and link matches are
+  not applied at week level yet); other metrics are counted from the records of the week.
+- **Not yet:** dispute statistics and flags (§7), the intraday entertainment warning (§6.1, with triggers), the
+  unobserved-day question (§4.6, with triggers), year scores, formula re-application jobs.
+- **Resolved (from the live check):** with `final = base · (1 + pct/100)` a day whose base is 0 stayed 0 even at
+  +30 %; the live model gave +25 % to an unplanned 8-hour goal-critical day that still showed 0. Now additive
+  (§8): that day scores 8.
 
 ## 13. Decisions (review round 4, 2026-11-11)
 

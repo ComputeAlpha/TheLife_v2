@@ -1,4 +1,5 @@
 name: entertainment_items
+agent_group: entertainment
 schema: EntertainmentItem
 noun: entertainment item
 path: /entertainment/items
@@ -8,7 +9,7 @@ description: Games, movies and series the user wants to enjoy. Tracked and sched
 fields:
   kind: {type: string, enum: [game, movie, series]}
   title: {$ref: Text200}
-  meta: {type: [object, "null"], description: Free-form details (platform, seasons, runtime).}
+  meta: {type: [object, "null"], description: "Free-form details (platform, seasons, runtime)."}
   status: {type: string, enum: [wishlist, playing, watching, paused, finished, dropped], default: wishlist}
 required: [kind, title]
 filters:

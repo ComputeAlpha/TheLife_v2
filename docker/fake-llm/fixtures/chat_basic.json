@@ -1,0 +1,26 @@
+{
+  "id": "chatcmpl-641",
+  "object": "chat.completion",
+  "created": 1794423401,
+  "model": "glm-5.3-flash",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "pong",
+        "reasoning": "The user asked me to reply with exactly \"pong\". This is a simple instruction-following request. They want the literal text \"pong\" with nothing else."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 17,
+    "completion_tokens": 35,
+    "total_tokens": 52,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  }
+}

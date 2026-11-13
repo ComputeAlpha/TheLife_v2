@@ -1,0 +1,25 @@
+{
+  "id": "chatcmpl-477",
+  "object": "chat.completion",
+  "created": 1794423413,
+  "model": "glm-5.3-flash",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "All logged! ✅\n\n- 📚 45 min — Rust course section 4\n- 💪 30 min — Gym\n- 🛂 **High priority task:** Renew passport, due Dec 20\n\nYou have about 5 weeks to get that passport sorted — want a reminder closer to the date?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1047,
+    "completion_tokens": 68,
+    "total_tokens": 1115,
+    "prompt_tokens_details": {
+      "cached_tokens": 320
+    }
+  }
+}

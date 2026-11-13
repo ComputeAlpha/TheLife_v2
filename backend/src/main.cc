@@ -6,7 +6,24 @@
 #include "core/build_info.h"
 #include "core/env.h"
 #include "db/database.h"
+#include "http/auth_routes.h"
+#include "http/chat_routes.h"
 #include "http/health.h"
+#include "http/llm_routes.h"
+#include "http/rest_adapter.h"
+#include "http/route.h"
+#include "db/field_crypt.h"
+#include "jobs/worker.h"
+#include "llm/gateway.h"
+#include "memory/embedder.h"
+#include "memory/jobs.h"
+#include "memory/semantic.h"
+#include "scoring/jobs.h"
+#include "proactive/tick.h"
+#include "telegram/bot.h"
+#include "web/search.h"
+#include "modules/modules.h"
+#include "tools/registry.h"
 
 int main() {
   try {
@@ -18,7 +35,31 @@ int main() {
 
     thelife::db::Database::init(thelife::env::get("THELIFE_DB_URL"), static_cast<std::size_t>(dbConns),
                                 static_cast<double>(dbTimeout));
+    // Encrypted fields need the KEK; refuse to start without it rather than fail on the first write.
+    if (thelife::db::Database::instance().configured()) thelife::fieldcrypt::init();
     thelife::http::registerHealthRoutes();
+    thelife::http::registerAuthRoutes();
+    thelife::llm::initGateway();
+    thelife::web::init();
+    thelife::http::registerLlmRoutes();
+    thelife::http::registerChatRoutes();
+    auto& registry = thelife::tools::registry();
+    thelife::modules::bindAll(registry);
+    registry.verifyComplete(thelife::build::kStage);  // refuse to start with an unimplemented contract tool
+    thelife::http::registerToolRoutes();
+    thelife::http::installMethodNotAllowed();
+    thelife::memory::registerJobs();
+    thelife::memory::registerSemanticJobs();
+    thelife::scoring::registerJobs();
+    // Proactive work (routines, reminders, triggers) runs unless THELIFE_PROACTIVE=off.
+    if (thelife::env::get("THELIFE_PROACTIVE", "on") != "off") thelife::proactive::registerTick();
+    thelife::memory::initEmbedder();
+    thelife::telegram::registerJobs();
+    thelife::fieldcrypt::registerJobs();
+    if (thelife::db::Database::instance().configured()) {
+      thelife::jobs::startWorker();
+      thelife::telegram::init();  // long polling, when THELIFE_TELEGRAM_BOT_TOKEN is set
+    }
 
     LOG_INFO << "thelife-backend " << thelife::build::kVersion << " listening on " << addr << ":" << port;
     drogon::app()

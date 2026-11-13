@@ -1,0 +1,39 @@
+name: targets
+agent_group: scoring
+schema: Target
+noun: target
+path: /targets
+scope: scoring
+tag: Scoring
+stage: 2
+description: Quantity targets scored next to the plan (scoring_lld.md §4.2). Daily targets count in the day score
+  (20 % next to 80 % plan adherence by default); weekly targets count in the week score.
+fields:
+  title: {$ref: Text200}
+  area: {$ref: Area}
+  metric: {type: string, enum: [minutes, pages, sections, sessions, count], description: "minutes of matching evidence, pages or sections read, sessions or items logged."}
+  amount: {type: number, exclusiveMinimum: 0, maximum: 100000}
+  period: {type: string, enum: [day, week], default: day}
+  day_profiles:
+    type: array
+    maxItems: 10
+    items: {type: string, pattern: "^[a-z][a-z0-9_]{0,39}$"}
+    description: Day profiles it applies to; empty means every scored profile.
+  goal_id: {type: [string, "null"], format: uuid}
+  match:
+    type: object
+    additionalProperties: false
+    description: "Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole area."
+    properties:
+      category: {type: [string, "null"], maxLength: 80}
+      link_type: {type: [string, "null"], enum: [task, goal, plan, skill_resource, project, deliverable, entertainment_item, null]}
+      link_id: {type: [string, "null"], format: uuid}
+    default: {}
+  track_consistency: {type: boolean, default: false}
+  active_from: {type: [string, "null"], format: date}
+  active_to: {type: [string, "null"], format: date}
+required: [title, area, metric, amount]
+filters:
+  area: {$ref: Area}
+  period: {type: string, enum: [day, week]}
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field, value %}
+{% block title %}{{ r.title_of(item) }}{% endblock %}
+{% block body %}
+<p><a href="{{ url_for('resource_list', prefix=r.prefix) }}">← {{ r.label }}</a></p>
+<div class="bar">
+  <h1>{{ r.title_of(item) }}</h1>
+  {% if r.delete and not item.deleted_at and not item.revoked_at %}
+  <form method="post" action="{{ url_for('resource_delete', prefix=r.prefix, id=item.id) }}" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="version" value="{{ item.version }}">
+    <button class="danger">{{ r.delete.verb|capitalize }}</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="cols">
+<section class="card">
+  <h2>Record</h2>
+  <table class="kv">
+  {% for k, v in item.items() %}<tr><th>{{ k }}</th><td>{{ value(v) }}</td></tr>{% endfor %}
+  </table>
+</section>
+
+{% if fields and not item.deleted_at %}
+<section class="card">
+  <h2>Edit</h2>
+  <form method="post" action="{{ url_for('resource_edit', prefix=r.prefix, id=item.id) }}" class="grid">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="version" value="{{ item.version }}">
+    {% for f in fields %}{{ field(f, 'edit-') }}{% endfor %}
+    <div class="actions"><button>Save</button> <span class="muted">version {{ item.version }}; only changed fields are sent</span></div>
+  </form>
+</section>
+{% endif %}
+</div>
+
+{% if occurrences is defined %}
+<section class="card">
+  <h2>Occurrences</h2>
+  <form method="get" class="inline">
+    <label>from <input type="date" name="from" value="{{ request.args.get('from', '') }}"></label>
+    <label>to <input type="date" name="to" value="{{ request.args.get('to', '') }}"></label>
+    <button class="small">Show</button>
+  </form>
+  <table>
+    <thead><tr><th>day</th><th>status</th><th>completed</th><th>skip reason</th><th></th></tr></thead>
+    <tbody>
+    {% for o in occurrences %}
+    <tr>
+      <td>{{ o.occurs_on }}</td><td>{{ o.status }}{% if not o.materialized %} <span class="muted">(computed)</span>{% endif %}</td>
+      <td>{{ value(o.completed_at) }}</td><td>{{ value(o.skip_reason) }}</td>
+      <td>
+        {% if item.status == 'open' %}
+        {% for verb, label in (('complete', 'Done'), ('skip', 'Skip')) %}{% if (verb == 'complete' and o.status != 'done') or (verb == 'skip' and o.status != 'skipped') %}
+        <form method="post" action="{{ url_for('occurrence_action', task_id=item.id, day=o.occurs_on, verb=verb) }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+          {% if verb == 'skip' %}<input type="text" name="reason" placeholder="reason" maxlength="500" class="small">{% endif %}
+          <button class="small{% if verb == 'skip' %} secondary{% endif %}">{{ label }}</button>
+        </form>
+        {% endif %}{% endfor %}
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">No occurrences in this range.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if history is defined %}
+<section class="card">
+  <h2>History</h2>
+  <table>
+    <thead><tr><th>at</th><th>actor</th><th>from</th><th>to</th><th>reason</th></tr></thead>
+    <tbody>
+    {% for e in history.events %}
+    <tr><td>{{ value(e.at) }}</td><td>{{ e.actor_kind }}</td><td>{{ value(e.from_status) }}</td><td>{{ e.to_status }}</td><td>{{ value(e.reason) }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">No status changes yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% if history.chain|length > 1 %}
+  <h3>Supersede chain (oldest first)</h3>
+  <ol>{% for d in history.chain %}<li>{% if d.id == item.id %}<strong>{{ d.summary }}</strong>{% else %}<a href="{{ url_for('resource_get', prefix=r.prefix, id=d.id) }}">{{ d.summary }}</a>{% endif %} <span class="tag">{{ d.status }}</span> <span class="tag">{{ d.source }}</span></li>{% endfor %}</ol>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if actions and not item.deleted_at %}
+<section class="card">
+  <h2>Actions</h2>
+  <div class="cols">
+  {% for op, op_fields in actions %}
+  <form method="post" action="{{ url_for('resource_action', prefix=r.prefix, id=item.id, verb=op.verb) }}" class="grid action">
+    <h3>{{ op.summary }}</h3>
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for f in op_fields %}{{ field(f, op.verb ~ '-') }}{% endfor %}
+    <div class="actions"><button class="secondary">{{ op.verb|capitalize }}</button></div>
+  </form>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% if transcript is defined %}
+<div class="card chat">
+  <h2>Transcript</h2>
+  {% for e in transcript %}
+  <div class="msg {{ e.role }} {{ e.kind }}">
+    <div class="meta">{{ "You" if e.role == "user" else "TheLife" }} · {{ e.created_at|local("%H:%M") }}</div>
+    {% if e.content %}<div class="text">{{ e.content }}</div>{% endif %}
+    {% for st in e.steps %}<details class="step"><summary><code>{{ st.name }}</code></summary>
+      <pre class="mono">{{ st.arguments|pretty }}</pre>{% if st.result is not none %}<pre class="mono result">{{ st.result|pretty }}</pre>{% endif %}
+    </details>{% endfor %}
+  </div>
+  {% else %}<p class="muted">No messages.</p>{% endfor %}
+</div>
+{% endif %}
+{% if score_history is defined %}
+<section class="card score">
+  <h2>{{ item.period|capitalize }} {{ item.period_start }}: {% if item.final is not none %}{{ item.final }}{% elif item.base is not none %}{{ item.base }} <small>(base only)</small>{% else %}<small>{{ item.status }}</small>{% endif %}</h2>
+  {% if item.breakdown.reason %}<p class="muted">{{ item.breakdown.reason }}</p>{% endif %}
+  {% if item.base is not none %}<p>Base {{ item.base }}{% if item.adjustment_pct is not none %}, adjusted {{ "%+g"|format(item.adjustment_pct) }} % by the assistant{% endif %}.</p>{% endif %}
+  {% if item.adjustment and item.adjustment.reasons %}
+  <ul>{% for r in item.adjustment.reasons %}<li>{{ "▲" if r.direction == "up" else "▼" }} {{ r.text }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if item.breakdown.areas %}
+  <table>
+    <tr><th>Area</th><th>Score</th><th>Plan</th><th>Targets</th><th>Items</th></tr>
+    {% for area, a in item.breakdown.areas.items() %}{% if a.applicable %}
+    <tr><td>{{ area }}</td><td>{{ a.score }}</td><td>{{ a.adherence if a.adherence is defined else "" }}</td>
+      <td>{% for t in a.targets %}{{ t.title }} {{ t.achieved }}/{{ t.amount }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+      <td>{% for i in a["items"] %}{{ i.title }} ({{ i.completion }}{% if i.excluded %}, replanned{% endif %}){% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+    {% endif %}{% endfor %}
+    {% if item.consistency.score is defined %}<tr><td>consistency</td><td>{{ item.consistency.score }}</td><td colspan="3">{% for c in item.consistency["items"] %}{{ c.title }} {{ c.completed }}/{{ c.applicable }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>{% endif %}
+  </table>
+  {% endif %}
+  {% if item.breakdown.preemptions %}
+  <h3>Displaced by entertainment</h3>
+  <ul>{% for p in item.breakdown.preemptions %}<li>{{ p.title }}: {{ p.minutes }} min ({{ p.kind|replace("_", " ") }})</li>{% endfor %}</ul>
+  {% endif %}
+  {% if score_history|length > 1 %}
+  <h3>Versions</h3>
+  <ul>{% for v in score_history %}<li>{{ v.created_at|local }}: {{ v.status }}, base {{ v.base }}, final {{ v.final }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

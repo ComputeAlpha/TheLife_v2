@@ -1,0 +1,27 @@
+name: memory_facts
+schema: MemoryFact
+noun: remembered fact
+path: /memory/facts
+scope: memory
+tag: Memory
+stage: 2
+exposure: [rest]
+principals: [user]
+description: The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are
+  append-only; a change supersedes the old fact. Deleting a fact makes the assistant forget it.
+fields: {}
+readonly:
+  subject_id: {$ref: Id}
+  predicate: {type: [string, "null"]}
+  value: {type: [string, "null"]}
+  statement: {type: string, description: "Human-readable fact, for example: Prefers deep work before noon."}
+  confidence: {type: number, minimum: 0, maximum: 1}
+  status: {type: string, enum: [active, proposed, superseded], description: "proposed: inferred with low confidence or contradicting something the user said; not used until confirmed."}
+  valid_from: {$ref: Timestamp}
+  valid_to: {type: [string, "null"], format: date-time}
+  superseded_by: {type: [string, "null"], format: uuid}
+  last_used_at: {type: [string, "null"], format: date-time}
+filters:
+  status: {type: string, enum: [active, proposed, superseded]}
+  subject_id: {$ref: Id}
+ops: {list: {}, get: {}, delete: {}}

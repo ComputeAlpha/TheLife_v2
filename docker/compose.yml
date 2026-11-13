@@ -24,5 +24,16 @@ services:
       timeout: 3s
       retries: 30
 
+  # Scripted OpenAI-compatible model for tests and quota-free demos (agent_lld.md §3.7). Opt-in:
+  #   docker compose -f docker/compose.yml --profile fake-llm up -d
+  fake-llm:
+    image: python:3.12-slim
+    profiles: [fake-llm]
+    command: ["python3", "-I", "/app/fake_llm.py", "--host", "0.0.0.0", "--port", "11435"]
+    volumes:
+      - ./fake-llm:/app:ro
+    ports:
+      - "127.0.0.1:11435:11435"
+
 volumes:
   pgdata:

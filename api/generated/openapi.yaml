@@ -19,11 +19,20 @@ tags:
   description: Scoped keys for external apps and MCP clients. Writes made with a key become proposals for MCP clients.
 - name: Activities
   description: Things the user did, logged manually, through chat, by the agent, or confirmed from detections.
+- name: Agent
+  description: Agent-only tools (agent_lld.md §5.1). Not reachable over REST.
+- name: Approvals
+  description: Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call exactly,
+    pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale and nothing
+    runs. Pending approvals expire after 72 h.
 - name: Auth
   description: Login, session and the current user's profile. Accounts are created by an admin only (no signup).
 - name: Calendar
   description: Calendar events and planned time blocks. category routine.<kind> fixes a routine occurrence; day_profile.<name>
     on an all-day event overrides the day profile (agent_lld.md §4.4, scoring_lld.md §3).
+- name: Chat
+  description: Web chat with the agent (agent_lld.md §7.1). Sending returns at once; the reply streams over the SSE stream
+    and is stored in the day's conversation.
 - name: Detections
   description: Append-only observations of what the user did (backend_lld.md §6.5). Content never changes; status moves through
     events. confirm, dispute and claim append records, so they are create effects, not updates.
@@ -31,33 +40,36 @@ tags:
   description: Collector devices. Registering one returns its device token once (backend_lld.md §6.1, collector_lld.md §8).
 - name: Entertainment
   description: Games, movies and series the user wants to enjoy. Tracked and scheduled; never limited (scoring_lld.md §6).
-- name: Entertainment
-  description: Pre-scheduled entertainment time.
 - name: Goals
   description: Long-term goals, nestable by horizon (year → quarter → month → week).
 - name: Ingest
   description: Collector uploads (backend_lld.md §7.2, collector_lld.md §7). Device tokens only; Idempotency-Key required.
+- name: Memory
+  description: The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only;
+    a change supersedes the old fact. Deleting a fact makes the assistant forget it.
+- name: Notifications
+  description: What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel resolves
+    it everywhere.
+- name: Planning
+  description: Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant call,
+    so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already done.
 - name: Plans
   description: Plans for a period, optionally serving a goal.
+- name: Scoring
+  description: Sets the profile of one day ("tomorrow I'm on leave"). An all-day calendar event with category day_profile.<name>
+    does the same.
 - name: Skills
   description: Books (with page counts) and video courses (with sections and total duration).
-- name: Skills
-  description: Ordered sections of a course.
-- name: Skills
-  description: A study session on a book (page range) or course (section and timeline positions).
 - name: System
   description: Liveness and readiness probes (not under /api/v1).
 - name: Tasks
   description: Ad hoc and recurring tasks. A task with an rrule is recurring; its occurrences are expanded on read and materialized
     only when acted on (backend_lld.md §6.3).
+- name: Telegram
+  description: Link a Telegram chat to the account (agent_lld.md §7.2). Ask for a code here, then send "/link CODE" to the
+    bot within 10 minutes. Telegram chats are not end-to-end encrypted.
 - name: Work
   description: Dated deliverables of a project; milestones due on a day count in plan adherence.
-- name: Work
-  description: Projects under a role; tasks and deliverables link to them.
-- name: Work
-  description: Ongoing responsibilities under a role.
-- name: Work
-  description: Roles the user holds (job, side project, volunteer). Work contexts for scoring live in Stage 2.
 paths:
   /api/v1/activities:
     get:
@@ -166,8 +178,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -212,6 +230,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -257,6 +279,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -301,8 +325,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -387,8 +417,6 @@ paths:
       - API keys
       summary: Create an API key
       description: Create an API key.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '201':
           description: OK
@@ -403,8 +431,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -442,6 +476,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: delete
         scopes:
@@ -479,6 +517,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -488,6 +528,214 @@ paths:
         principals:
         - user
         stage: 1
+  /api/v1/approvals:
+    get:
+      operationId: approvals.list
+      tags:
+      - Approvals
+      summary: List approvals
+      description: List approvals.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          - stale
+          - failed
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - approvals:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/approvals/{id}:
+    get:
+      operationId: approvals.get
+      tags:
+      - Approvals
+      summary: Get a approval
+      description: Get a approval.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - approvals:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/approvals/{id}:approve:
+    post:
+      operationId: approvals.approve
+      tags:
+      - Approvals
+      summary: Approve and run the held action
+      description: Approve and run the held action.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - approvals:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/approvals/{id}:reject:
+    post:
+      operationId: approvals.reject
+      tags:
+      - Approvals
+      summary: Reject the held action; nothing runs
+      description: Reject the held action; nothing runs.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  maxLength: 500
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - approvals:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/auth/login:
     post:
       operationId: auth.login
@@ -495,8 +743,6 @@ paths:
       - Auth
       summary: Exchange email and password for a session token
       description: Exchange email and password for a session token.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: OK
@@ -507,8 +753,14 @@ paths:
           headers:
             ETag:
               $ref: '#/components/headers/ETag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '429':
           $ref: '#/components/responses/TooManyRequests'
       security: []
@@ -555,6 +807,10 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: delete
         scopes: []
@@ -576,11 +832,13 @@ paths:
         required: false
         schema:
           $ref: '#/components/schemas/Timestamp'
+          description: Window start. Defaults to now.
       - name: to
         in: query
         required: false
         schema:
           $ref: '#/components/schemas/Timestamp'
+          description: Window end (exclusive). Defaults to from + 7 days; at most 62 days after from.
       responses:
         '200':
           description: OK
@@ -590,11 +848,18 @@ paths:
                 type: object
                 required:
                 - items
+                - truncated
                 properties:
                   items:
                     type: array
                     items:
                       $ref: '#/components/schemas/CalendarEntry'
+                    maxItems: 2000
+                    description: Sorted by starts_at.
+                  truncated:
+                    type: boolean
+                    description: True when the window held more than 2000 entries and only the earliest 2000 are returned;
+                      ask for a shorter window.
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -614,6 +879,837 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/chat/turns/{id}:
+    get:
+      operationId: chat.turn
+      tags:
+      - Chat
+      summary: State of a turn (for clients without the stream)
+      description: State of a turn (for clients without the stream).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatTurn'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/chat/web/messages:
+    post:
+      operationId: chat.send
+      tags:
+      - Chat
+      summary: Send a message to the agent
+      description: Send a message to the agent.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatTurn'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - text
+              properties:
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 8000
+                client_msg_id:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                  pattern: ^[!-~]+$
+                  description: Retrying with the same id returns the original turn.
+      x-thelife-tool:
+        effect: create
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/chat/web/stream:
+    get:
+      operationId: chat.stream
+      tags:
+      - Chat
+      summary: 'Server-sent events for this user: turn.started, token, reset, tool.started, tool.finished, approval.requested,
+        turn.finished'
+      description: 'Server-sent events for this user: turn.started, token, reset, tool.started, tool.finished, approval.requested,
+        turn.finished.'
+      responses:
+        '200':
+          description: OK
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/conversations:
+    get:
+      operationId: conversations.list
+      tags:
+      - Chat
+      summary: List conversations
+      description: List conversations.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: channel
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - web
+          - telegram
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+          description: First local day (inclusive).
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+          description: Last local day (inclusive).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/conversations/{id}:
+    get:
+      operationId: conversations.get
+      tags:
+      - Chat
+      summary: Get a conversation
+      description: Get a conversation.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/conversations/{id}/messages:
+    get:
+      operationId: conversations.messages
+      tags:
+      - Chat
+      summary: Messages of a conversation, oldest first
+      description: Messages of a conversation, oldest first.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - name: after
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Id'
+          description: Only messages after this message id.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 200
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatMessage'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/day-profile-overrides:
+    get:
+      operationId: day_profile_overrides.list
+      tags:
+      - Scoring
+      summary: List day profile overrides
+      description: List day profile overrides.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverridePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: day_profile_overrides.create
+      tags:
+      - Scoring
+      summary: Create a day profile override
+      description: Create a day profile override.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverride'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayProfileOverrideCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/day-profile-overrides/{id}:
+    delete:
+      operationId: day_profile_overrides.delete
+      tags:
+      - Scoring
+      summary: Delete a day profile override (soft delete)
+      description: Delete a day profile override (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: day_profile_overrides.get
+      tags:
+      - Scoring
+      summary: Get a day profile override
+      description: Get a day profile override.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverride'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: day_profile_overrides.update
+      tags:
+      - Scoring
+      summary: Update a day profile override
+      description: Update a day profile override.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfileOverride'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/DayProfileOverridePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/day-profiles:
+    get:
+      operationId: day_profiles.list
+      tags:
+      - Scoring
+      summary: List day profiles
+      description: List day profiles.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfilePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: day_profiles.create
+      tags:
+      - Scoring
+      summary: Create a day profile
+      description: Create a day profile.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfile'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DayProfileCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/day-profiles/{id}:
+    delete:
+      operationId: day_profiles.delete
+      tags:
+      - Scoring
+      summary: Delete a day profile (soft delete)
+      description: Delete a day profile (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: day_profiles.get
+      tags:
+      - Scoring
+      summary: Get a day profile
+      description: Get a day profile.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfile'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: day_profiles.update
+      tags:
+      - Scoring
+      summary: Update a day profile
+      description: Update a day profile.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProfile'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/DayProfilePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/detections:
     get:
       operationId: detections.list
@@ -732,8 +1828,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -782,6 +1884,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -824,6 +1928,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -869,6 +1975,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '409':
@@ -943,6 +2053,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
         '409':
           $ref: '#/components/responses/Conflict'
       x-thelife-tool:
@@ -990,6 +2102,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
         '409':
@@ -1082,8 +2198,6 @@ paths:
       - Devices
       summary: Register a collector device and issue its token
       description: Register a collector device and issue its token.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '201':
           description: OK
@@ -1098,8 +2212,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1158,8 +2278,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1307,8 +2433,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1340,8 +2472,6 @@ paths:
       - Devices
       summary: Issue a new device token; the old one stays valid for 5 minutes
       description: Issue a new device token; the old one stays valid for 5 minutes.
-      parameters:
-      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: OK
@@ -1364,6 +2494,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: update
         scopes:
@@ -1395,6 +2527,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       x-thelife-tool:
         effect: delete
         scopes:
@@ -1432,6 +2568,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -1545,8 +2683,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1591,6 +2735,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -1636,6 +2784,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -1680,8 +2830,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -1803,8 +2959,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -1849,6 +3011,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -1894,6 +3060,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -1938,8 +3106,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2067,8 +3241,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2113,6 +3293,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2158,6 +3342,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -2202,8 +3388,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2340,8 +3532,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2386,6 +3584,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2431,6 +3633,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -2475,8 +3679,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2530,8 +3740,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '503':
@@ -2600,8 +3816,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '503':
@@ -2631,6 +3853,81 @@ paths:
         principals:
         - device
         stage: 4
+  /api/v1/insights/preemptions:
+    get:
+      operationId: scores.preemptions
+      tags:
+      - Scoring
+      summary: What entertainment displaced (planned items it overlapped or ran while due)
+      description: What entertainment displaced (planned items it overlapped or ran while due).
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - local_day
+                      - kind
+                      - displaced_type
+                      - displaced_id
+                      - minutes
+                      properties:
+                        local_day:
+                          $ref: '#/components/schemas/LocalDate'
+                        kind:
+                          type: string
+                          enum:
+                          - overlap
+                          - while_due
+                        displaced_type:
+                          type: string
+                        displaced_id:
+                          $ref: '#/components/schemas/Id'
+                        displaced_title:
+                          type:
+                          - string
+                          - 'null'
+                        minutes:
+                          type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/me:
     get:
       operationId: auth.me
@@ -2677,8 +3974,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2692,12 +3995,17 @@ paths:
                   $ref: '#/components/schemas/Text200'
                 timezone:
                   type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: IANA timezone, for example Asia/Kolkata.
                 day_start_hour:
                   type: integer
                   minimum: 0
                   maximum: 12
                 workdays:
                   type: array
+                  uniqueItems: true
+                  maxItems: 7
                   items:
                     type: string
                     enum:
@@ -2732,8 +4040,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2761,6 +4075,313 @@ paths:
         principals:
         - user
         stage: 1
+  /api/v1/memory/facts:
+    get:
+      operationId: memory_facts.list
+      tags:
+      - Memory
+      summary: List remembered facts
+      description: List remembered facts.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - active
+          - proposed
+          - superseded
+      - name: subject_id
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryFactPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - memory:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/memory/facts/{id}:
+    delete:
+      operationId: memory_facts.delete
+      tags:
+      - Memory
+      summary: Delete a remembered fact (soft delete)
+      description: Delete a remembered fact (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - memory:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+    get:
+      operationId: memory_facts.get
+      tags:
+      - Memory
+      summary: Get a remembered fact
+      description: Get a remembered fact.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryFact'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - memory:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/notifications:
+    get:
+      operationId: notifications.list
+      tags:
+      - Notifications
+      summary: List notifications
+      description: List notifications.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: open
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Only unresolved notifications.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - notifications:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/notifications/{id}:
+    get:
+      operationId: notifications.get
+      tags:
+      - Notifications
+      summary: Get a notification
+      description: Get a notification.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - notifications:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/notifications/{id}:ack:
+    post:
+      operationId: notifications.ack
+      tags:
+      - Notifications
+      summary: Mark a notification seen (resolves it on every channel)
+      description: Mark a notification seen (resolves it on every channel).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                clicked:
+                  type: boolean
+                  default: false
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - notifications:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/plans:
     get:
       operationId: plans.list
@@ -2865,8 +4486,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -2911,6 +4538,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -2956,6 +4587,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3000,8 +4633,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3025,6 +4664,943 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/progress/today:
+    get:
+      operationId: scores.today_progress
+      tags:
+      - Scoring
+      summary: 'Deterministic plan progress so far today: no score number, no assistant call'
+      description: 'Deterministic plan progress so far today: no score number, no assistant call.'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DayProgress'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/reminders:
+    get:
+      operationId: reminders.list
+      tags:
+      - Planning
+      summary: List reminders
+      description: List reminders.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReminderPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: reminders.create
+      tags:
+      - Planning
+      summary: Create a reminder
+      description: Create a reminder.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReminderCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/reminders/{id}:
+    delete:
+      operationId: reminders.delete
+      tags:
+      - Planning
+      summary: Delete a reminder (soft delete)
+      description: Delete a reminder (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: reminders.get
+      tags:
+      - Planning
+      summary: Get a reminder
+      description: Get a reminder.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: reminders.update
+      tags:
+      - Planning
+      summary: Update a reminder
+      description: Update a reminder.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reminder'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ReminderPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/routines:
+    get:
+      operationId: routines.list
+      tags:
+      - Planning
+      summary: List routines
+      description: List routines.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoutinePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: routines.create
+      tags:
+      - Planning
+      summary: Create a routine
+      description: Create a routine.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoutineCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/routines/{id}:
+    delete:
+      operationId: routines.delete
+      tags:
+      - Planning
+      summary: Delete a routine (soft delete)
+      description: Delete a routine (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: routines.get
+      tags:
+      - Planning
+      summary: Get a routine
+      description: Get a routine.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - planning:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: routines.update
+      tags:
+      - Planning
+      summary: Update a routine
+      description: Update a routine.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/RoutinePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/routines/{id}:skip:
+    post:
+      operationId: routines.skip_once
+      tags:
+      - Planning
+      summary: Skip the routine once (today, or the given day)
+      description: Skip the routine once (today, or the given day).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Routine'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                date:
+                  $ref: '#/components/schemas/LocalDate'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - planning:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores:
+    get:
+      operationId: scores.list
+      tags:
+      - Scoring
+      summary: List scores
+      description: List scores.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+      - name: from
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      - name: to
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/LocalDate'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScorePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores/{id}:
+    get:
+      operationId: scores.get
+      tags:
+      - Scoring
+      summary: Get a score
+      description: Get a score.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Score'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores/{id}/history:
+    get:
+      operationId: scores.history
+      tags:
+      - Scoring
+      summary: Every version of this score's period, newest first
+      description: Every version of this score's period, newest first.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Score'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/scores/{id}:dispute:
+    post:
+      operationId: scores.dispute
+      tags:
+      - Scoring
+      summary: Dispute the assistant's adjustment; it is re-run once with your reason
+      description: Dispute the assistant's adjustment; it is re-run once with your reason.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - status
+                properties:
+                  status:
+                    type: string
+                    enum:
+                    - queued
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - reason
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/settings/scoring:
+    get:
+      operationId: scores.settings
+      tags:
+      - Scoring
+      summary: Area weights and plan-versus-target balance
+      description: Area weights and plan-versus-target balance.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+    patch:
+      operationId: scores.update_settings
+      tags:
+      - Scoring
+      summary: Change area weights or the plan-versus-target balance
+      description: Change area weights or the plan-versus-target balance.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringSettings'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/ScoringSettingsPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
   /api/v1/skills/resources:
     get:
       operationId: skill_resources.list
@@ -3127,8 +5703,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3173,6 +5755,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3218,6 +5804,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3262,8 +5850,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3375,8 +5969,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3421,6 +6021,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3466,6 +6070,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3510,8 +6116,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3633,8 +6245,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3679,6 +6297,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3724,6 +6346,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3768,8 +6392,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -3793,6 +6423,392 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/system/llm-status:
+    get:
+      operationId: system.llm_status
+      tags:
+      - System
+      summary: Assistant availability (LLM gateway mode and provider states) and this week's usage
+      description: Assistant availability (LLM gateway mode and provider states) and this week's usage.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - mode
+                - resets_at
+                - providers
+                - usage
+                properties:
+                  mode:
+                    type: string
+                    enum:
+                    - online
+                    - manual
+                    - unconfigured
+                    description: manual means no model is usable (quota exhausted or providers disabled); chat answers deterministic
+                      commands only.
+                  resets_at:
+                    type:
+                    - string
+                    - 'null'
+                    format: date-time
+                    description: When manual mode is expected to end, if known.
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - name
+                      - role
+                      - kind
+                      - model
+                      - state
+                      - until
+                      - quota_scope
+                      properties:
+                        name:
+                          type: string
+                        role:
+                          type: string
+                          enum:
+                          - primary
+                          - fallback
+                        kind:
+                          type: string
+                          enum:
+                          - openai
+                          - stub
+                        model:
+                          type:
+                          - string
+                          - 'null'
+                        state:
+                          type: string
+                          enum:
+                          - healthy
+                          - throttled
+                          - exhausted
+                          - probing
+                          - disabled
+                        until:
+                          type:
+                          - string
+                          - 'null'
+                          format: date-time
+                        quota_scope:
+                          type:
+                          - string
+                          - 'null'
+                  usage:
+                    type: object
+                    required:
+                    - weekly_request_estimate
+                    properties:
+                      week_start:
+                        $ref: '#/components/schemas/LocalDate'
+                      requests:
+                        type: integer
+                      failures:
+                        type: integer
+                      tokens_in:
+                        type: integer
+                      tokens_out:
+                        type: integer
+                      images:
+                        type: integer
+                      weekly_request_estimate:
+                        type: integer
+                        description: Soft estimate; exceeding it only triggers a warning.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/targets:
+    get:
+      operationId: targets.list
+      tags:
+      - Scoring
+      summary: List targets
+      description: List targets.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: area
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Area'
+      - name: period
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - day
+          - week
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TargetPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: targets.create
+      tags:
+      - Scoring
+      summary: Create a target
+      description: Create a target.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TargetCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/targets/{id}:
+    delete:
+      operationId: targets.delete
+      tags:
+      - Scoring
+      summary: Delete a target (soft delete)
+      description: Delete a target (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: targets.get
+      tags:
+      - Scoring
+      summary: Get a target
+      description: Get a target.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: targets.update
+      tags:
+      - Scoring
+      summary: Update a target
+      description: Update a target.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Target'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/TargetPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/tasks:
     get:
       operationId: tasks.list
@@ -3910,8 +6926,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -3956,6 +6978,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4001,6 +7027,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -4045,8 +7073,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4088,11 +7122,13 @@ paths:
         required: false
         schema:
           $ref: '#/components/schemas/LocalDate'
+          description: First day (inclusive). Defaults to the user's current day.
       - name: to
         in: query
         required: false
         schema:
           $ref: '#/components/schemas/LocalDate'
+          description: Last day (inclusive). Defaults to from + 6 days; at most 366 days after from.
       responses:
         '200':
           description: OK
@@ -4168,8 +7204,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4230,8 +7272,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4256,6 +7304,362 @@ paths:
         - agent
         - api_key
         stage: 1
+  /api/v1/telegram/link:
+    delete:
+      operationId: telegram.unlink
+      tags:
+      - Telegram
+      summary: Unlink the Telegram chat
+      description: Unlink the Telegram chat.
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - chat:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+    get:
+      operationId: telegram.link_status
+      tags:
+      - Telegram
+      summary: Whether a Telegram chat is linked
+      description: Whether a Telegram chat is linked.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLink'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - chat:read
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/telegram/link-code:
+    post:
+      operationId: telegram.create_link_code
+      tags:
+      - Telegram
+      summary: One-time code to link a Telegram chat (send /link CODE to the bot within 10 minutes)
+      description: One-time code to link a Telegram chat (send /link CODE to the bot within 10 minutes).
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - code
+                - expires_at
+                properties:
+                  code:
+                    type: string
+                  expires_at:
+                    $ref: '#/components/schemas/Timestamp'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - chat:write
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 2
+  /api/v1/work-contexts:
+    get:
+      operationId: work_contexts.list
+      tags:
+      - Scoring
+      summary: List work contexts
+      description: List work contexts.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContextPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    post:
+      operationId: work_contexts.create
+      tags:
+      - Scoring
+      summary: Create a work context
+      description: Create a work context.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContext'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkContextCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+  /api/v1/work-contexts/{id}:
+    delete:
+      operationId: work_contexts.delete
+      tags:
+      - Scoring
+      summary: Delete a work context (soft delete)
+      description: Delete a work context (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    get:
+      operationId: work_contexts.get
+      tags:
+      - Scoring
+      summary: Get a work context
+      description: Get a work context.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContext'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - scoring:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
+    patch:
+      operationId: work_contexts.update
+      tags:
+      - Scoring
+      summary: Update a work context
+      description: Update a work context.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkContext'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/WorkContextPatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - scoring:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 2
   /api/v1/work/deliverables:
     get:
       operationId: work_deliverables.list
@@ -4359,8 +7763,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4405,6 +7815,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4450,6 +7864,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -4494,8 +7910,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4618,8 +8040,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4664,6 +8092,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4709,6 +8141,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -4753,8 +8187,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4871,8 +8311,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -4917,6 +8363,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -4962,6 +8412,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -5006,8 +8458,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -5119,8 +8577,14 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
       requestBody:
         required: true
         content:
@@ -5165,6 +8629,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -5210,6 +8678,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -5254,8 +8724,14 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
         '422':
           $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -5612,8 +9088,7 @@ components:
           format: date-time
         token_prefix:
           type: string
-          description: First 8 characters
-          for identification.: null
+          description: First 8 characters, for identification.
         last_used_at:
           type:
           - string
@@ -5712,6 +9187,132 @@ components:
         token:
           type: string
           description: tlk_ API key; shown once.
+    Approval:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        tool:
+          type: string
+          description: Tool name, for example tasks.update.
+        args:
+          type: object
+          description: The exact arguments that run on approval.
+        summary:
+          type: string
+          description: Human-readable description of the change.
+        status:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+          - expired
+          - stale
+          - failed
+        target_type:
+          type:
+          - string
+          - 'null'
+        target_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        target_version:
+          type:
+          - integer
+          - 'null'
+        conversation_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        decided_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decision_reason:
+          type:
+          - string
+          - 'null'
+        result:
+          description: Result of the executed call (approved), otherwise null.
+        error:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: Agent actions held for the user's decision (spec 5.3, agent_lld.md §5). Approving runs the stored call
+        exactly, pinned to the target's version at proposal time; if the target changed meanwhile the approval becomes stale
+        and nothing runs. Pending approvals expire after 72 h.
+    ApprovalCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ApprovalPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Approval'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ApprovalPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     Area:
       type: string
       enum:
@@ -5815,6 +9416,8 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO.
         location:
           type:
           - string
@@ -5888,6 +9491,8 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO.
         location:
           type:
           - string
@@ -5967,6 +9572,8 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: RFC 5545 rule, for example FREQ=WEEKLY;BYDAY=MO.
         location:
           type:
           - string
@@ -6054,6 +9661,194 @@ components:
           maxItems: 200
           items:
             type: object
+    ChatMessage:
+      type: object
+      required:
+      - id
+      - conversation_id
+      - role
+      - kind
+      - content
+      - created_at
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        conversation_id:
+          $ref: '#/components/schemas/Id'
+        turn_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        role:
+          type: string
+          enum:
+          - user
+          - assistant
+          - tool
+        kind:
+          type: string
+          enum:
+          - normal
+          - deterministic
+          - suppressed
+          - error
+        content:
+          type: string
+        tool_calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatToolCall'
+        tool_call_id:
+          type:
+          - string
+          - 'null'
+        tool_name:
+          type:
+          - string
+          - 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+    ChatToolCall:
+      type: object
+      required:
+      - id
+      - name
+      - arguments
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        arguments:
+          type: string
+          description: JSON text of the arguments.
+    ChatTurn:
+      type: object
+      required:
+      - id
+      - conversation_id
+      - message_id
+      - status
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        conversation_id:
+          $ref: '#/components/schemas/Id'
+        message_id:
+          $ref: '#/components/schemas/Id'
+          description: The user message that started the turn.
+        status:
+          type: string
+          enum:
+          - queued
+          - running
+          - done
+          - failed
+          - manual
+          - merged
+          description: 'manual: answered without the model (deterministic command, or the assistant is offline). merged: answered
+            by a turn that started later and saw this message too.'
+        error:
+          type:
+          - string
+          - 'null'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        finished_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    Conversation:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        channel:
+          type: string
+          enum:
+          - web
+          - telegram
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        status:
+          type: string
+          enum:
+          - open
+          - closed
+        closed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: One conversation per channel per local day (agent_lld.md §1, §6.2). Transcripts are per channel; data and
+        long-term memory are shared.
+    ConversationCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ConversationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ConversationPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     CourseSection:
       type: object
       properties:
@@ -6097,6 +9892,7 @@ components:
         ordinal:
           type: integer
           minimum: 0
+          maximum: 10000
         title:
           $ref: '#/components/schemas/Text200'
         duration_s:
@@ -6104,6 +9900,7 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 360000
       additionalProperties: false
       required:
       - id
@@ -6124,6 +9921,7 @@ components:
         ordinal:
           type: integer
           minimum: 0
+          maximum: 10000
         title:
           $ref: '#/components/schemas/Text200'
         duration_s:
@@ -6131,6 +9929,7 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 360000
       additionalProperties: false
       required:
       - resource_id
@@ -6159,6 +9958,7 @@ components:
         ordinal:
           type: integer
           minimum: 0
+          maximum: 10000
         title:
           $ref: '#/components/schemas/Text200'
         duration_s:
@@ -6166,8 +9966,240 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 360000
       additionalProperties: false
       minProperties: 1
+    DayProfile:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        name:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        scored:
+          type: boolean
+          default: true
+        freezes_streaks:
+          type: boolean
+          default: false
+        description:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - name
+      description: Kinds of day (scoring_lld.md §3). Built in, unless redefined here under the same name - workday, weekend
+        and holiday (scored) and leave and sick (not scored, streaks frozen). Workdays come from the profile setting workdays;
+        other days are weekends.
+    DayProfileCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        scored:
+          type: boolean
+          default: true
+        freezes_streaks:
+          type: boolean
+          default: false
+        description:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - name
+    DayProfileOverride:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: workday, weekend, holiday, leave, sick or a custom profile.
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - local_day
+      - profile
+      description: Sets the profile of one day ("tomorrow I'm on leave"). An all-day calendar event with category day_profile.<name>
+        does the same.
+    DayProfileOverrideCreate:
+      type: object
+      properties:
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: workday, weekend, holiday, leave, sick or a custom profile.
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+      additionalProperties: false
+      required:
+      - local_day
+      - profile
+    DayProfileOverridePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProfileOverride'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    DayProfileOverridePatch:
+      type: object
+      properties:
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: workday, weekend, holiday, leave, sick or a custom profile.
+        note:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+      additionalProperties: false
+      minProperties: 1
+    DayProfilePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayProfile'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    DayProfilePatch:
+      type: object
+      properties:
+        name:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        scored:
+          type: boolean
+        freezes_streaks:
+          type: boolean
+        description:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      minProperties: 1
+    DayProgress:
+      type: object
+      required:
+      - local_day
+      - profile
+      - areas
+      properties:
+        local_day:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type: string
+        areas:
+          type: object
+          description: 'Per area: planned items, done, planned and covered block minutes so far, target progress.'
     Detection:
       type: object
       properties:
@@ -6256,9 +10288,7 @@ components:
           type:
           - object
           - 'null'
-          description: Titles
-          process names: null
-          judgment text. Never images.: null
+          description: Titles, process names, judgment text. Never images.
       additionalProperties: false
       required:
       - id
@@ -6306,9 +10336,7 @@ components:
           type:
           - object
           - 'null'
-          description: Titles
-          process names: null
-          judgment text. Never images.: null
+          description: Titles, process names, judgment text. Never images.
       additionalProperties: false
       required:
       - source
@@ -6361,8 +10389,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Detection'
-          description: Supersede chain
-          oldest first.: null
+          description: Supersede chain, oldest first.
     DetectionPage:
       type: object
       properties:
@@ -6408,9 +10435,7 @@ components:
           type:
           - object
           - 'null'
-          description: Titles
-          process names: null
-          judgment text. Never images.: null
+          description: Titles, process names, judgment text. Never images.
       additionalProperties: false
       minProperties: 1
     Device:
@@ -6626,9 +10651,7 @@ components:
           type:
           - object
           - 'null'
-          description: Free-form details (platform
-          seasons: null
-          runtime).: null
+          description: Free-form details (platform, seasons, runtime).
         status:
           type: string
           enum:
@@ -6666,9 +10689,7 @@ components:
           type:
           - object
           - 'null'
-          description: Free-form details (platform
-          seasons: null
-          runtime).: null
+          description: Free-form details (platform, seasons, runtime).
         status:
           type: string
           enum:
@@ -6713,9 +10734,7 @@ components:
           type:
           - object
           - 'null'
-          description: Free-form details (platform
-          seasons: null
-          runtime).: null
+          description: Free-form details (platform, seasons, runtime).
         status:
           type: string
           enum:
@@ -7052,11 +11071,240 @@ components:
       type: string
       format: date
       description: A calendar day in the user's timezone, honouring day_start_hour.
+    MemoryFact:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        subject_id:
+          $ref: '#/components/schemas/Id'
+        predicate:
+          type:
+          - string
+          - 'null'
+        value:
+          type:
+          - string
+          - 'null'
+        statement:
+          type: string
+          description: 'Human-readable fact, for example: Prefers deep work before noon.'
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum:
+          - active
+          - proposed
+          - superseded
+          description: 'proposed: inferred with low confidence or contradicting something the user said; not used until confirmed.'
+        valid_from:
+          $ref: '#/components/schemas/Timestamp'
+        valid_to:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        superseded_by:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        last_used_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: The assistant's long-term registry of short facts about the user (agent_lld.md §6.4). Facts are append-only;
+        a change supersedes the old fact. Deleting a fact makes the assistant forget it.
+    MemoryFactCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    MemoryFactPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemoryFact'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    MemoryFactPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     Notes:
       type:
       - string
       - 'null'
       maxLength: 10000
+    Notification:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        kind:
+          type: string
+        urgency:
+          type: string
+          enum:
+          - low
+          - normal
+          - critical
+        title:
+          type: string
+        body:
+          type: string
+        action:
+          type:
+          - string
+          - 'null'
+          enum:
+          - open_chat
+          - open_approval
+          - null
+        ref_type:
+          type:
+          - string
+          - 'null'
+        ref_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        conversation_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        resolved_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        deliveries:
+          type: array
+          items:
+            type: object
+          description: Channel and status of each delivery.
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: What the assistant sent the user (agent_lld.md §8), with where it was delivered. An ack on any channel
+        resolves it everywhere.
+    NotificationCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    NotificationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    NotificationPatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
     Observation:
       type: object
       additionalProperties: false
@@ -7296,8 +11544,234 @@ components:
     RRule:
       type: string
       maxLength: 500
-      pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[^;]+)*$
+      pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
       description: RFC 5545 recurrence rule, for example FREQ=WEEKLY;BYDAY=MO,WE,FR.
+    Reminder:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        last_sent_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        due_at:
+          $ref: '#/components/schemas/Timestamp'
+        rrule:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: Repeat rule; the next due time follows each delivery.
+        channel_pref:
+          type:
+          - string
+          - 'null'
+          enum:
+          - web
+          - telegram
+          - desktop
+          - null
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+          default: pending
+        link_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - task
+          - goal
+          - plan
+          - skill_resource
+          - project
+          - deliverable
+          - entertainment_item
+          - null
+        link_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - text
+      - due_at
+      description: Reminders the user asked for (agent_lld.md §7.4). Delivered from a template when due, with no assistant
+        call, so they also work while the assistant is offline. One linked to a task is dropped silently if the task is already
+        done.
+    ReminderCreate:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        due_at:
+          $ref: '#/components/schemas/Timestamp'
+        rrule:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: Repeat rule; the next due time follows each delivery.
+        channel_pref:
+          type:
+          - string
+          - 'null'
+          enum:
+          - web
+          - telegram
+          - desktop
+          - null
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+          default: pending
+        link_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - task
+          - goal
+          - plan
+          - skill_resource
+          - project
+          - deliverable
+          - entertainment_item
+          - null
+        link_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      required:
+      - text
+      - due_at
+    ReminderPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reminder'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ReminderPatch:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        due_at:
+          $ref: '#/components/schemas/Timestamp'
+        rrule:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
+          description: Repeat rule; the next due time follows each delivery.
+        channel_pref:
+          type:
+          - string
+          - 'null'
+          enum:
+          - web
+          - telegram
+          - desktop
+          - null
+        status:
+          type: string
+          enum:
+          - pending
+          - sent
+          - done
+          - cancelled
+        link_type:
+          type:
+          - string
+          - 'null'
+          enum:
+          - task
+          - goal
+          - plan
+          - skill_resource
+          - project
+          - deliverable
+          - entertainment_item
+          - null
+        link_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      additionalProperties: false
+      minProperties: 1
     ResourceMeta:
       type: object
       required:
@@ -7343,9 +11817,509 @@ components:
           - string
           - 'null'
           format: date-time
+    Routine:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        learned_time:
+          type:
+          - string
+          - 'null'
+          description: Adaptive time learned from the last 14 applicable days (HH:MM).
+        last_fired_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        skip_on:
+          type:
+          - string
+          - 'null'
+          format: date
+        kind:
+          type: string
+          enum:
+          - morning
+          - evening
+          - weekly
+          - custom
+        title:
+          $ref: '#/components/schemas/Text200'
+        mode:
+          type: string
+          enum:
+          - adaptive
+          - fixed
+          default: adaptive
+        default_time:
+          $ref: '#/components/schemas/TimeOfDay'
+        window_start:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        window_end:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items:
+            type: string
+            enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+          default: []
+          description: Days it runs; empty means every day.
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          default: []
+        enabled:
+          type: boolean
+          default: true
+        instructions:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - kind
+      - title
+      - default_time
+      description: Recurring check-ins by the assistant (agent_lld.md §4.4) - morning plan, evening review, weekly review.
+        Adaptive routines move within their window to the user's actual rhythm (first activity of the day, learned evening
+        time); fixed ones run at default_time. A calendar event with category routine.<kind> fixes that day's time.
+    RoutineCreate:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - morning
+          - evening
+          - weekly
+          - custom
+        title:
+          $ref: '#/components/schemas/Text200'
+        mode:
+          type: string
+          enum:
+          - adaptive
+          - fixed
+          default: adaptive
+        default_time:
+          $ref: '#/components/schemas/TimeOfDay'
+        window_start:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        window_end:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items:
+            type: string
+            enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+          default: []
+          description: Days it runs; empty means every day.
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          default: []
+        enabled:
+          type: boolean
+          default: true
+        instructions:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      required:
+      - kind
+      - title
+      - default_time
+    RoutinePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Routine'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    RoutinePatch:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - morning
+          - evening
+          - weekly
+          - custom
+        title:
+          $ref: '#/components/schemas/Text200'
+        mode:
+          type: string
+          enum:
+          - adaptive
+          - fixed
+        default_time:
+          $ref: '#/components/schemas/TimeOfDay'
+        window_start:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        window_end:
+          type:
+          - string
+          - 'null'
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        weekdays:
+          type: array
+          uniqueItems: true
+          maxItems: 7
+          items:
+            type: string
+            enum:
+            - MO
+            - TU
+            - WE
+            - TH
+            - FR
+            - SA
+            - SU
+          description: Days it runs; empty means every day.
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+        enabled:
+          type: boolean
+        instructions:
+          $ref: '#/components/schemas/Notes'
+      additionalProperties: false
+      minProperties: 1
     Scope:
       type: string
-      pattern: ^[a-z_]+:(read|write)$
+      description: A scope an API key can hold. contractgen checks this list against the scopes of the tools that API keys
+        may call.
+      enum:
+      - activities:read
+      - activities:write
+      - calendar:read
+      - calendar:write
+      - detections:read
+      - detections:write
+      - entertainment:read
+      - entertainment:write
+      - planning:read
+      - planning:write
+      - scoring:read
+      - scoring:write
+      - skills:read
+      - skills:write
+      - tasks:read
+      - tasks:write
+      - work:read
+      - work:write
+    Score:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        period:
+          type: string
+          enum:
+          - day
+          - week
+          - month
+        period_start:
+          $ref: '#/components/schemas/LocalDate'
+        profile:
+          type:
+          - string
+          - 'null'
+        status:
+          type: string
+          enum:
+          - provisional
+          - final
+          - unobserved
+          - not_scored
+          description: 'provisional: base only, the adjustment follows when the assistant is back. unobserved: no evidence
+            that day. not_scored: leave or sick.'
+        base:
+          type:
+          - number
+          - 'null'
+        adjustment_pct:
+          type:
+          - number
+          - 'null'
+        adjustment:
+          type:
+          - object
+          - 'null'
+          description: '{adjustment_pct, reasons[{text, direction, refs}], goal_alignment}'
+        final:
+          type:
+          - number
+          - 'null'
+        breakdown:
+          type: object
+          description: 'Per area: adherence, quantity, alpha, items with weight and completion, targets.'
+        consistency:
+          type: object
+        coverage:
+          type:
+          - object
+          - 'null'
+          description: 'Periods: scored days and calendar days.'
+        formula_version:
+          type: string
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      description: Day, week and month scores (scoring_lld.md). A day score is computed when the day closes - a deterministic
+        base from plan adherence, targets and consistency, then one assistant adjustment of at most ±30 % with stated reasons.
+        Scores are versioned; this list shows the current version.
+    ScoreCreate:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ScorePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Score'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    ScorePatch:
+      type: object
+      properties: {}
+      additionalProperties: false
+      minProperties: 1
+    ScoringSettings:
+      type: object
+      required:
+      - weights
+      - plan_share
+      properties:
+        weights:
+          type: object
+          description: Relative area weights (normalised over the areas that apply on a day).
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
+            consistency:
+              type: number
+              minimum: 0
+              maximum: 1
+        plan_share:
+          type: object
+          description: 'alpha per area: share of plan adherence next to targets (1 - alpha). Default 0.8.'
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
+    ScoringSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        weights:
+          type: object
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
+            consistency:
+              type: number
+              minimum: 0
+              maximum: 1
+        plan_share:
+          type: object
+          additionalProperties: false
+          properties:
+            work:
+              type: number
+              minimum: 0
+              maximum: 1
+            skill:
+              type: number
+              minimum: 0
+              maximum: 1
+            fitness:
+              type: number
+              minimum: 0
+              maximum: 1
+            personal:
+              type: number
+              minimum: 0
+              maximum: 1
     Session:
       type: object
       required:
@@ -7439,11 +12413,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         total_duration_s:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 3600000
         goal_id:
           type:
           - string
@@ -7495,11 +12471,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         total_duration_s:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 3600000
         goal_id:
           type:
           - string
@@ -7559,11 +12537,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         total_duration_s:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 3600000
         goal_id:
           type:
           - string
@@ -7628,11 +12608,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         page_to:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         section_id:
           type:
           - string
@@ -7643,11 +12625,13 @@ components:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         pos_to_s:
           type:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         notes:
           $ref: '#/components/schemas/Notes'
         source:
@@ -7683,11 +12667,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         page_to:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         section_id:
           type:
           - string
@@ -7698,11 +12684,13 @@ components:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         pos_to_s:
           type:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         notes:
           $ref: '#/components/schemas/Notes'
         source:
@@ -7746,11 +12734,13 @@ components:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         page_to:
           type:
           - integer
           - 'null'
           minimum: 1
+          maximum: 100000
         section_id:
           type:
           - string
@@ -7761,11 +12751,13 @@ components:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         pos_to_s:
           type:
           - integer
           - 'null'
           minimum: 0
+          maximum: 3600000
         notes:
           $ref: '#/components/schemas/Notes'
         source:
@@ -7774,6 +12766,318 @@ components:
           - manual
           - detection
           - agent
+      additionalProperties: false
+      minProperties: 1
+    Target:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        title:
+          $ref: '#/components/schemas/Text200'
+        area:
+          $ref: '#/components/schemas/Area'
+        metric:
+          type: string
+          enum:
+          - minutes
+          - pages
+          - sections
+          - sessions
+          - count
+          description: minutes of matching evidence, pages or sections read, sessions or items logged.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        period:
+          type: string
+          enum:
+          - day
+          - week
+          default: day
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: Day profiles it applies to; empty means every scored profile.
+        goal_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        match:
+          type: object
+          additionalProperties: false
+          description: 'Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole
+            area.'
+          properties:
+            category:
+              type:
+              - string
+              - 'null'
+              maxLength: 80
+            link_type:
+              type:
+              - string
+              - 'null'
+              enum:
+              - task
+              - goal
+              - plan
+              - skill_resource
+              - project
+              - deliverable
+              - entertainment_item
+              - null
+            link_id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+          default: {}
+        track_consistency:
+          type: boolean
+          default: false
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - title
+      - area
+      - metric
+      - amount
+      description: Quantity targets scored next to the plan (scoring_lld.md §4.2). Daily targets count in the day score (20
+        % next to 80 % plan adherence by default); weekly targets count in the week score.
+    TargetCreate:
+      type: object
+      properties:
+        title:
+          $ref: '#/components/schemas/Text200'
+        area:
+          $ref: '#/components/schemas/Area'
+        metric:
+          type: string
+          enum:
+          - minutes
+          - pages
+          - sections
+          - sessions
+          - count
+          description: minutes of matching evidence, pages or sections read, sessions or items logged.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        period:
+          type: string
+          enum:
+          - day
+          - week
+          default: day
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: Day profiles it applies to; empty means every scored profile.
+        goal_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        match:
+          type: object
+          additionalProperties: false
+          description: 'Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole
+            area.'
+          properties:
+            category:
+              type:
+              - string
+              - 'null'
+              maxLength: 80
+            link_type:
+              type:
+              - string
+              - 'null'
+              enum:
+              - task
+              - goal
+              - plan
+              - skill_resource
+              - project
+              - deliverable
+              - entertainment_item
+              - null
+            link_id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+          default: {}
+        track_consistency:
+          type: boolean
+          default: false
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - title
+      - area
+      - metric
+      - amount
+    TargetPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Target'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    TargetPatch:
+      type: object
+      properties:
+        title:
+          $ref: '#/components/schemas/Text200'
+        area:
+          $ref: '#/components/schemas/Area'
+        metric:
+          type: string
+          enum:
+          - minutes
+          - pages
+          - sections
+          - sessions
+          - count
+          description: minutes of matching evidence, pages or sections read, sessions or items logged.
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        period:
+          type: string
+          enum:
+          - day
+          - week
+        day_profiles:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            pattern: ^[a-z][a-z0-9_]{0,39}$
+          description: Day profiles it applies to; empty means every scored profile.
+        goal_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        match:
+          type: object
+          additionalProperties: false
+          description: 'Which evidence counts: a category, or a linked item (for example a skill resource). Empty: the whole
+            area.'
+          properties:
+            category:
+              type:
+              - string
+              - 'null'
+              maxLength: 80
+            link_type:
+              type:
+              - string
+              - 'null'
+              enum:
+              - task
+              - goal
+              - plan
+              - skill_resource
+              - project
+              - deliverable
+              - entertainment_item
+              - null
+            link_id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        track_consistency:
+          type: boolean
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
       additionalProperties: false
       minProperties: 1
     Task:
@@ -7861,12 +13165,14 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: RFC 5545 rule; null for one-off tasks.
         rrule_dtstart:
           type:
           - string
           - 'null'
           format: date-time
+          description: Anchor of the rule; defaults to creation time.
         day_profiles:
           type: array
           items:
@@ -7933,12 +13239,14 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: RFC 5545 rule; null for one-off tasks.
         rrule_dtstart:
           type:
           - string
           - 'null'
           format: date-time
+          description: Anchor of the rule; defaults to creation time.
         day_profiles:
           type: array
           items:
@@ -8042,12 +13350,14 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: RFC 5545 rule; null for one-off tasks.
         rrule_dtstart:
           type:
           - string
           - 'null'
           format: date-time
+          description: Anchor of the rule; defaults to creation time.
         day_profiles:
           type: array
           items:
@@ -8058,6 +13368,26 @@ components:
           type: boolean
       additionalProperties: false
       minProperties: 1
+    TelegramLink:
+      type: object
+      required:
+      - linked
+      - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: The server has a bot configured.
+        linked:
+          type: boolean
+        username:
+          type:
+          - string
+          - 'null'
+        linked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
     Text200:
       type: string
       minLength: 1
@@ -8088,8 +13418,9 @@ components:
           $ref: '#/components/schemas/Text200'
         timezone:
           type: string
-          description: IANA timezone
-          for example Asia/Kolkata.: null
+          minLength: 1
+          maxLength: 64
+          description: IANA timezone, for example Asia/Kolkata.
         day_start_hour:
           type: integer
           minimum: 0
@@ -8101,6 +13432,8 @@ components:
           - tenant_admin
         workdays:
           type: array
+          uniqueItems: true
+          maxItems: 7
           items:
             type: string
             enum:
@@ -8111,6 +13444,183 @@ components:
             - FR
             - SA
             - SU
+    WorkContext:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        name:
+          $ref: '#/components/schemas/Text200'
+        employer:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        evidence_mode:
+          type: string
+          enum:
+          - observed
+          - self_reported
+        device_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+          default: []
+        workday_target_min:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          default: 360
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - name
+      - evidence_mode
+      description: Where work happens and how it is evidenced (scoring_lld.md §5). observed - detections on the listed devices
+        count; self_reported - only logged activities count. Each active context adds a daily work target on workdays.
+    WorkContextCreate:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/Text200'
+        employer:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        evidence_mode:
+          type: string
+          enum:
+          - observed
+          - self_reported
+        device_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+          default: []
+        workday_target_min:
+          type: integer
+          minimum: 0
+          maximum: 1440
+          default: 360
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      required:
+      - name
+      - evidence_mode
+    WorkContextPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkContext'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    WorkContextPatch:
+      type: object
+      properties:
+        name:
+          $ref: '#/components/schemas/Text200'
+        employer:
+          type:
+          - string
+          - 'null'
+          maxLength: 200
+        evidence_mode:
+          type: string
+          enum:
+          - observed
+          - self_reported
+        device_ids:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+        workday_target_min:
+          type: integer
+          minimum: 0
+          maximum: 1440
+        active_from:
+          type:
+          - string
+          - 'null'
+          format: date
+        active_to:
+          type:
+          - string
+          - 'null'
+          format: date
+      additionalProperties: false
+      minProperties: 1
     WorkDeliverable:
       type: object
       properties:
@@ -8454,6 +13964,7 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: Optional RRULE for recurring duties.
         active:
           type: boolean
@@ -8483,6 +13994,7 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: Optional RRULE for recurring duties.
         active:
           type: boolean
@@ -8520,6 +14032,7 @@ components:
           - string
           - 'null'
           maxLength: 500
+          pattern: ^(RRULE:)?FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;[A-Z]+=[A-Z0-9,+-]+)*$
           description: Optional RRULE for recurring duties.
         active:
           type: boolean
@@ -8642,16 +14155,18 @@ components:
       description: The resource version from its ETag, for example "3".
       schema:
         type: string
-        pattern: ^"[0-9]+"$
+        pattern: ^"[1-9][0-9]{0,8}"$
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: false
-      description: Client-chosen key; the stored response is replayed for 24 h. Required on /ingest/*.
+      description: Client-chosen key of 8 to 128 visible ASCII characters; the stored response is replayed for 24 h. Required
+        on /ingest/*.
       schema:
         type: string
         minLength: 8
         maxLength: 128
+        pattern: ^[!-~]{8,128}$
     IdempotencyKeyRequired:
       name: Idempotency-Key
       in: header
@@ -8661,6 +14176,7 @@ components:
         type: string
         minLength: 8
         maxLength: 128
+        pattern: ^[!-~]{8,128}$
   headers:
     ETag:
       description: Quoted resource version.
@@ -8687,6 +14203,18 @@ components:
             $ref: '#/components/schemas/Problem'
     NotFound:
       description: Does not exist, is deleted, or belongs to another tenant.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    BadRequest:
+      description: The body is not a JSON object.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnsupportedMediaType:
+      description: The request Content-Type is not the documented one.
       content:
         application/problem+json:
           schema:

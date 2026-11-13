@@ -1,4 +1,5 @@
 name: skill_sections
+agent_group: skills
 schema: CourseSection
 noun: course section
 path: /skills/sections
@@ -7,9 +8,9 @@ tag: Skills
 description: Ordered sections of a course.
 fields:
   resource_id: {$ref: Id}
-  ordinal: {type: integer, minimum: 0}
+  ordinal: {type: integer, minimum: 0, maximum: 10000}
   title: {$ref: Text200}
-  duration_s: {type: [integer, "null"], minimum: 1}
+  duration_s: {type: [integer, "null"], minimum: 1, maximum: 360000}
 required: [resource_id, ordinal, title]
 filters:
   resource_id: {$ref: Id}

@@ -1,4 +1,5 @@
 name: work_deliverables
+agent_group: work
 schema: WorkDeliverable
 noun: deliverable
 path: /work/deliverables

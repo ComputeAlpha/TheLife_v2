@@ -1,4 +1,5 @@
 name: entertainment_slots
+agent_group: entertainment
 schema: EntertainmentSlot
 noun: entertainment slot
 path: /entertainment/slots

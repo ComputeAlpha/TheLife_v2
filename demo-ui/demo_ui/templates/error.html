@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ error.status }}{% endblock %}
+{% block body %}
+<section class="card">
+  <h1>{{ error.status }} {{ error.title }}</h1>
+  {% if error.detail %}<p>{{ error.detail }}</p>{% endif %}
+  {% if error.errors %}<ul>{% for e in error.errors %}<li><code>{{ e.path }}</code> {{ e.message }}</li>{% endfor %}</ul>{% endif %}
+  <p><a href="{{ url_for('home') }}">Back to the calendar</a></p>
+</section>
+{% endblock %}

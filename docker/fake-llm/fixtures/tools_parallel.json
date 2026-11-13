@@ -1,0 +1,54 @@
+{
+  "id": "chatcmpl-356",
+  "object": "chat.completion",
+  "created": 1794423410,
+  "model": "glm-5.3-flash",
+  "system_fingerprint": "fp_ollama",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The user did two activities:\n1. 45 minutes of Rust course section 4 - that's a \"skill\" area activity\n2. 30 min gym - that's a \"fitness\" area activity\n\nAnd they need a task: renew passport by Dec 20, high priority.\n\nCurrent local time: 2026-11-12T14:05:00+05:30. Dec 20 would be 2026-12-20.\n\nThe activities_log calls and tasks_create call are all independent, so I can make all three calls in the same block.\n\nPriority: \"high priority\" - probably a numeric value. Let's use high priority, maybe 3 or higher number = higher priority. I'll use 3 (assuming 1-3 scale or 1-5?). Common convention: higher = more important. I'll set priority to 1 if 1 is highest... ambiguous. Let me think - many task systems use priority 1 = highest, but others use higher number = higher priority. TheLife assistant - I'll go with a high value like 3. Actually, to be safe, using a higher number typically means higher priority in many APIs (like priority levels 1-5 where 5 is highest, or P1 which is highest). Hmm.\n\nI'll use priority: 1 with the assumption 1 = high? Actually in Microsoft To Do, priority 1 = urgent, 9 = low. In Todoist, p1 is highest. Let me use 1 for high priority. Hmm, but could go either way.\n\nGiven ambiguity, I'll pick priority 1 (common in todo apps where 1 = highest). Actually, let me reconsider: many simple integer fields mean \"higher number = higher priority\". The user said \"high priority\" so I'd want to represent high. Without spec, I'll use 1 as high priority (Todoist-style). I think that's reasonable.\n\nDue date: 2026-12-20. RFC 3339 timestamp, end of day local: 2026-12-20T23:59:00+05:30 or just 2026-12-20T09:00:00+05:30. I'll use end of day.\n\nAll three calls in one block.</think>",
+        "tool_calls": [
+          {
+            "id": "call_c4j2an9f",
+            "index": 0,
+            "type": "function",
+            "function": {
+              "name": "activities_log",
+              "arguments": "{\"area\":\"skill\",\"minutes\":45,\"title\":\"Rust course section 4\"}"
+            }
+          },
+          {
+            "id": "call_p2rdka2p",
+            "index": 1,
+            "type": "function",
+            "function": {
+              "name": "activities_log",
+              "arguments": "{\"area\":\"fitness\",\"minutes\":30,\"title\":\"Gym session\"}"
+            }
+          },
+          {
+            "id": "call_zvuf939o",
+            "index": 2,
+            "type": "function",
+            "function": {
+              "name": "tasks_create",
+              "arguments": "{\"due_at\":\"2026-12-20T23:59:00+05:30\",\"priority\":1,\"title\":\"Renew passport\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 415,
+    "completion_tokens": 564,
+    "total_tokens": 979,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  }
+}

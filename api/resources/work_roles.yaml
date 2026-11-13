@@ -1,4 +1,5 @@
 name: work_roles
+agent_group: work
 schema: WorkRole
 noun: work role
 path: /work/roles

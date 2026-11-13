@@ -1,4 +1,5 @@
 name: detections
+agent_group: detections
 schema: Detection
 noun: detection
 path: /detections
@@ -14,7 +15,7 @@ fields:
   category: {type: string, maxLength: 80}
   summary: {type: string, minLength: 1, maxLength: 500}
   confidence: {type: number, minimum: 0, maximum: 1, default: 1}
-  evidence: {type: [object, "null"], description: Titles, process names, judgment text. Never images.}
+  evidence: {type: [object, "null"], description: "Titles, process names, judgment text. Never images."}
 readonly:
   status: {type: string, enum: [detected, confirmed, disputed, superseded]}
   device_id: {type: [string, "null"], format: uuid}
@@ -46,7 +47,7 @@ extra_schemas:
     properties:
       detection: {$ref: Detection}
       events: {type: array, items: {$ref: DetectionEvent}}
-      chain: {type: array, items: {$ref: Detection}, description: Supersede chain, oldest first.}
+      chain: {type: array, items: {$ref: Detection}, description: "Supersede chain, oldest first."}
 actions:
   - name: history
     method: get
@@ -66,6 +67,7 @@ actions:
     extra_responses: {409: Conflict}
     returns: Detection
   - name: dispute
+    agent_group: core
     method: post
     path: /detections/{id}:dispute
     effect: create
@@ -81,6 +83,7 @@ actions:
         reason: {type: string, minLength: 1, maxLength: 1000}
     returns: Detection
   - name: claim
+    agent_group: core
     method: post
     path: /detections/{id}:claim
     effect: create

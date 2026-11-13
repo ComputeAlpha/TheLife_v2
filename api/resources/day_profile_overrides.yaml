@@ -1,0 +1,19 @@
+name: day_profile_overrides
+agent_group: scoring
+schema: DayProfileOverride
+noun: day profile override
+path: /day-profile-overrides
+scope: scoring
+tag: Scoring
+stage: 2
+description: Sets the profile of one day ("tomorrow I'm on leave"). An all-day calendar event with category
+  day_profile.<name> does the same.
+fields:
+  local_day: {$ref: LocalDate}
+  profile: {type: string, pattern: "^[a-z][a-z0-9_]{0,39}$", description: "workday, weekend, holiday, leave, sick or a custom profile."}
+  note: {type: [string, "null"], maxLength: 200}
+required: [local_day, profile]
+filters:
+  from: {$ref: LocalDate}
+  to: {$ref: LocalDate}
+ops: {list: {}, get: {}, create: {agent_group: core}, update: {}, delete: {}}

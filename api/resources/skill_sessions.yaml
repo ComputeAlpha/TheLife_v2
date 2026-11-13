@@ -1,4 +1,5 @@
 name: skill_sessions
+agent_group: skills
 schema: SkillSession
 noun: skill session
 path: /skills/sessions
@@ -9,11 +10,11 @@ fields:
   resource_id: {$ref: Id}
   started_at: {$ref: Timestamp}
   ended_at: {$ref: Timestamp}
-  page_from: {type: [integer, "null"], minimum: 1}
-  page_to: {type: [integer, "null"], minimum: 1}
+  page_from: {type: [integer, "null"], minimum: 1, maximum: 100000}
+  page_to: {type: [integer, "null"], minimum: 1, maximum: 100000}
   section_id: {type: [string, "null"], format: uuid}
-  pos_from_s: {type: [integer, "null"], minimum: 0}
-  pos_to_s: {type: [integer, "null"], minimum: 0}
+  pos_from_s: {type: [integer, "null"], minimum: 0, maximum: 3600000}
+  pos_to_s: {type: [integer, "null"], minimum: 0, maximum: 3600000}
   notes: {$ref: Notes}
   source: {type: string, enum: [manual, detection, agent], default: manual}
 required: [resource_id, started_at, ended_at]
@@ -21,4 +22,4 @@ filters:
   resource_id: {$ref: Id}
   from: {$ref: Timestamp}
   to: {$ref: Timestamp}
-ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}
+ops: {list: {}, get: {}, create: {agent_group: core}, update: {}, delete: {}}

@@ -1,0 +1,58 @@
+{
+  "unknown_model": {
+    "status": 404,
+    "body": {
+      "error": {
+        "message": "model \"does-not-exist\" not found. Try glm-5.3-flash:cloud.",
+        "type": "not_found_error",
+        "param": null,
+        "code": null
+      }
+    },
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    }
+  },
+  "bad_tool_schema": {
+    "status": 400,
+    "body": {
+      "error": {
+        "message": "json: cannot unmarshal string into Go struct field .tools.0.function.parameters of type api.ToolFunctionParameters (ref: 81444e50-2e06-40e7-95bc-31588add9c30)",
+        "type": "invalid_request_error",
+        "param": null,
+        "code": null
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "bad_role": {
+    "status": 200,
+    "body": {
+      "id": "chatcmpl-847",
+      "object": "chat.completion",
+      "created": 1794423438,
+      "model": "glm-5.3-flash",
+      "system_fingerprint": "fp_ollama",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": ""
+          },
+          "finish_reason": "load"
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0
+      }
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

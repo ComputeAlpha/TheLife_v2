@@ -1,0 +1,41 @@
+name: telegram
+tag: Telegram
+description: Link a Telegram chat to the account (agent_lld.md §7.2). Ask for a code here, then send
+  "/link CODE" to the bot within 10 minutes. Telegram chats are not end-to-end encrypted.
+stage: 2
+scope: chat
+exposure: [rest]
+principals: [user]
+extra_schemas:
+  TelegramLink:
+    type: object
+    required: [linked, enabled]
+    properties:
+      enabled: {type: boolean, description: The server has a bot configured.}
+      linked: {type: boolean}
+      username: {type: [string, "null"]}
+      linked_at: {type: [string, "null"], format: date-time}
+actions:
+  - name: link_status
+    method: get
+    path: /telegram/link
+    effect: read
+    summary: Whether a Telegram chat is linked
+    returns: TelegramLink
+  - name: create_link_code
+    method: post
+    path: /telegram/link-code
+    effect: create
+    summary: "One-time code to link a Telegram chat (send /link CODE to the bot within 10 minutes)"
+    returns:
+      type: object
+      required: [code, expires_at]
+      properties:
+        code: {type: string}
+        expires_at: {$ref: Timestamp}
+  - name: unlink
+    method: delete
+    path: /telegram/link
+    effect: delete
+    summary: Unlink the Telegram chat
+    status: 204

@@ -39,7 +39,7 @@ References use the short form `{$ref: Name}`. Sibling keys such as `description`
 | `extra_schemas` | Additional named schemas |
 | `exposure`, `principals`, `stage` | Defaults for all tools in the file |
 
-Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `method`, `path` (relative to `/api/v1` unless `absolute: true`), `effect`, `summary`, `params` (path), `query`, `body`, `returns`, `status`, `target`, `scopes`, `principals`, `exposure`, `stage`, `public`, `tool: false` (REST-only plumbing such as login and health), `idempotency_required`, `content_type`, `extra_responses`, `policy`.
+Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `method`, `path` (relative to `/api/v1` unless `absolute: true`), `effect`, `summary`, `params` (path), `query`, `body`, `returns`, `status`, `target`, `scopes`, `principals`, `exposure`, `stage`, `public`, `tool: false` (REST-only plumbing such as login and health), `idempotency_required`, `content_type`, `response_content_type` (for example `text/event-stream`), `extra_responses`, `policy` (one of the named policies), `agent_group`. `method` and `path` are only required for REST-exposed actions (agent-only tools have neither).
 
 ## 3. Tool Semantics (`tools.json`)
 
@@ -76,29 +76,32 @@ Action keys: `name` (a dot makes it absolute, for example `calendar.view`), `met
   - `bulk_threshold`: approval when one call affects more than the tenant's `agent.bulk_threshold` items.
   - `user_stated_fact`: approval to forget a user-stated memory fact.
 - Every non-user call writes an `agent_actions` audit row: tool, args, decision, result summary, principal and conversation.
+- **Resolved in Stage 2 (2026-11-13):** `tasks.complete_occurrence` and `tasks.skip_occurrence` carry the named policy `user_reported_progress`: allowed (and audited) during a turn started by a user message, held for approval otherwise. Logging "done" for a routine from chat is data entry, not an edit of the user's plan.
+- **Undo (Stage 2):** an agent delete is allowed without approval when the agent created the target within the last 24 h (the receipt's "undo"). Deleting anything else still needs approval.
 
 ## 5. Backend Integration (Stage 1)
 
 - `tools.json` is embedded into the binary at build time (CMake turns it into a generated source file), so the binary and its contract cannot drift. `GET /healthz` will report `contract_version`.
-- Each module registers handlers by tool name: `registry.bind("tasks.update", &TasksService::update)`. **At startup the registry fails if any stage ≤ current-stage tool has no handler, or a handler names an unknown tool.**
+- Each module registers handlers by tool name: `registry.bind("tasks.update", &TasksService::update)`. **At startup the registry fails if any stage ≤ current-stage tool has no handler, or a handler names an unknown tool.** Active since Stage 1 (`build::kStage = 1`, CMake `THELIFE_STAGE`): the server refuses to start with an unimplemented Stage 1 tool.
+- Contract CRUD resources bind through `crud::bindCrud` (table columns named like contract fields). Custom tools (occurrences, calendar view, detection actions, credential issuing) bind plain handlers. Update and delete tools that target an entity also pass a target resolver, which the agent policy uses for provenance.
 - A generic REST adapter builds routes from the `rest` mapping:
   1. Collect path, query and body arguments into one args object.
   2. Validate against `input_schema` (valijson) → 422 problem.
   3. Run `Policy::decide`, invoke the handler inside a `TenantTx`, and map the result to the response.
 
   Controllers only exist for endpoints marked `tool: false` (health, login, logout, profile, password).
-- Tests derived from the manifest (Stage 1):
+- Tests derived from the manifest (Stage 1; the first three implemented in `backend/tests/api/contract_test.cc`, resource lifecycles in `resources_test.cc`):
   - every REST tool is called with a token lacking its scope (expect 403) and with a device token (expect 403 unless the tool allows devices)
   - every target tool answers 404 for another tenant's id
   - every update or delete without `If-Match` answers 428
   - schemathesis checks responses against `openapi.yaml`
 
-## 6. Agent Tool Budget (decision needed before Stage 2)
+## 6. Agent Tool Budget (decided 2026-11-12: tool groups with on-demand loading)
 
 The full agent surface is **81 tools ≈ 11k tokens** per call (measured from `agent_tools.json`). That is too large to send on every turn, and tool-choice accuracy drops with that many options.
 
-Proposal **(proposed)**: **tool groups with on-demand loading**.
-- Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`, `admin`).
+**Decision: tool groups with on-demand loading.** The generator gains `agent_group` and emits a groups index in Stage 2.
+- Each resource file gets `agent_group` (`core`, `planning`, `work`, `skills`, `entertainment`, `detections`); an op or action may override it (`agent_group: core`). The generator rejects an agent tool without a group and emits the index as `agent_groups` in `tools.json`. **Implemented (Stage 2):** core is 27 tools, about 4.7k tokens (all agent tools: ~15k), with a test budget of 20,000 characters (raised from 18,000 when reminders, follow-ups and the proactive-turn signals joined core); the loop sends core plus the groups loaded in the turn, and calls to an unloaded tool are answered with an error telling the model to load the group.
 - Every turn sends `core`, about 15 tools / 2.5k tokens:
   - capture: `activities.create`, `tasks.create`, `tasks.update`, `reminders.create`, `skill_sessions.create`
   - `calendar.view`, `context.now`, `memory.recall` / `memory.remember`, `history.search`
@@ -107,10 +110,10 @@ Proposal **(proposed)**: **tool groups with on-demand loading**.
 - When the agent calls `agent.load_tools("work")`, the next loop iteration includes that group's tools for the rest of the turn.
 - Trigger preambles preload the groups they need (the weekly review preloads `planning` and `detections`).
 
-Alternative: generic `records.list|get|create|update(type, …)` tools with per-type schemas loaded on demand. This costs fewer tokens, but the model has to fill a free-form `fields` object, which validates worse.
+Rejected alternative: generic `records.list|get|create|update(type, …)` tools with per-type schemas loaded on demand. This costs fewer tokens, but the model has to fill a free-form `fields` object, which validates worse.
 
 ## 7. Change Rules
 
 - Additive changes (new optional field, new tool, new filter) stay in `/api/v1`. Renaming or removing anything, or adding a required field, needs `/api/v2` or a deprecation window.
 - `contract_version` (hash of the tool manifest) is recorded on `agent_actions` and `llm_calls`, so behaviour can be traced to the contract in force.
-- Stage 2+ resources (reminders, routines, targets, day profiles, work contexts, scores, chat, approvals, notifications, conversations, memory, agent-only tools) are added to `api/resources/` at the start of Stage 2. Stage 4 device endpoints are already present so the collector contract is fixed.
+- Stage 2+ resources (reminders, routines, targets, day profiles, work contexts, scores, chat, approvals, notifications, conversations, memory, agent-only tools) are added to `api/resources/` as each Stage 2 increment implements them, because a build at stage N refuses to start while a stage-N tool has no handler. Stage 4 device endpoints are already present so the collector contract is fixed.

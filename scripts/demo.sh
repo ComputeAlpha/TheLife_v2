@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Run the backend and the demo UI together on this machine (dev defaults, 127.0.0.1 only).
+#   scripts/demo.sh account EMAIL "NAME" [TIMEZONE]   create a tenant and user; prints the password once
+#   scripts/demo.sh up                              Postgres + migrations + backend (:8080) + demo UI (:5000)
+# Ctrl-C stops both. Logs: build/demo-backend.log. Ports: THELIFE_LISTEN_PORT, DEMO_PORT.
+# LLM: config/llm.json (local Ollama, glm-5.3-flash:cloud). DEMO_FAKE_LLM=1 uses docker/fake-llm instead (no quota).
+# Web search: export OLLAMA_API_KEY (https://ollama.com/settings/keys) before starting; without it the tool is off.
+# Embeddings: thelife-embedder starts when built and the model files exist (THELIFE_EMBED_MODEL, THELIFE_EMBED_SPM;
+# default: the Stage 0 spike download under spikes/embed/models). DEMO_EMBEDDER=0 skips it (keyword search only).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PG_PORT="${THELIFE_PG_PORT:-55432}"
+API_PORT="${THELIFE_LISTEN_PORT:-8080}"
+UI_PORT="${DEMO_PORT:-5000}"
+BIN=build/dev/backend
+export THELIFE_DB_URL="${THELIFE_DB_URL:-postgresql://thelife_app:${THELIFE_APP_PASSWORD:-app-dev-only}@127.0.0.1:${PG_PORT}/thelife}"
+export THELIFE_LLM_CONFIG="${THELIFE_LLM_CONFIG:-config/llm.json}"
+export THELIFE_ADMIN_DB_URL="${THELIFE_ADMIN_DB_URL:-postgresql://thelife_admin:${THELIFE_ADMIN_PASSWORD:-admin-dev-only}@127.0.0.1:${PG_PORT}/thelife}"
+# Encryption key (KEK) of the dev database: created once under build/. Deleting it makes the encrypted fields of
+# the dev database unreadable (notes, descriptions, detection text).
+if [[ -z "${THELIFE_KEK:-}" ]]; then
+  export THELIFE_KEK_FILE="${THELIFE_KEK_FILE:-build/dev-kek}"
+  if [[ ! -s "$THELIFE_KEK_FILE" ]]; then
+    mkdir -p "$(dirname "$THELIFE_KEK_FILE")"
+    (umask 077 && head -c 32 /dev/urandom | base64 > "$THELIFE_KEK_FILE")
+    echo "created a dev encryption key in $THELIFE_KEK_FILE (keep it with the dev database)" >&2
+  fi
+fi
+
+database() {
+  scripts/db.sh up >/dev/null
+  scripts/db.sh migrate
+}
+
+build() {
+  [[ -d build/dev ]] || cmake --preset dev
+  local targets=(thelife-backend thelife-admin)
+  [[ "${DEMO_EMBEDDER:-1}" == 1 ]] && targets+=(thelife-embedder)
+  cmake --build build/dev -j"$(nproc)" --target "${targets[@]}"
+}
+
+venv() {
+  if [[ ! -x build/demo-venv/bin/python ]]; then
+    python3 -m venv build/demo-venv
+    env -u PYTHONPATH build/demo-venv/bin/pip install -q -r demo-ui/requirements.txt
+  fi
+}
+
+case "${1:-}" in
+  account)
+    email="${2:?usage: scripts/demo.sh account EMAIL \"NAME\" [TIMEZONE]}"
+    name="${3:?usage: scripts/demo.sh account EMAIL \"NAME\" [TIMEZONE]}"
+    tz="${4:-Asia/Kolkata}"
+    database >/dev/null
+    build >/dev/null
+    tenant="$("$BIN/thelife-admin" tenant create --name "$name" | grep -oE '[0-9a-f-]{36}')"
+    "$BIN/thelife-admin" user create --tenant "$tenant" --email "$email" --name "$name" --timezone "$tz"
+    ;;
+  up)
+    database
+    build
+    venv
+    fake=""
+    if [[ "${DEMO_FAKE_LLM:-0}" == 1 ]]; then
+      python3 -I docker/fake-llm/fake_llm.py --port "${DEMO_FAKE_LLM_PORT:-11435}" > build/demo-fake-llm.log 2>&1 &
+      fake=$!
+      export THELIFE_LLM_BASE_URL="http://127.0.0.1:${DEMO_FAKE_LLM_PORT:-11435}/v1"
+    fi
+    embedder=""
+    model="${THELIFE_EMBED_MODEL:-spikes/embed/models/bge-m3-fp16/model.onnx}"
+    spm="${THELIFE_EMBED_SPM:-spikes/embed/models/bge-m3/onnx/sentencepiece.bpe.model}"
+    if [[ "${DEMO_EMBEDDER:-1}" == 1 && -x "$BIN/embedder/thelife-embedder" && -f "$model" && -f "$spm" ]]; then
+      export THELIFE_EMBEDDER_SOCKET="${XDG_RUNTIME_DIR:-/tmp}/thelife/embedder.sock"
+      "$BIN/embedder/thelife-embedder" --model "$model" --spm "$spm" --socket "$THELIFE_EMBEDDER_SOCKET" \
+        > build/demo-embedder.log 2>&1 &
+      embedder=$!
+      for _ in $(seq 1 60); do [[ -S "$THELIFE_EMBEDDER_SOCKET" ]] && break; sleep 0.5; done
+      [[ -S "$THELIFE_EMBEDDER_SOCKET" ]] || echo "embedder did not start; see build/demo-embedder.log" >&2
+    else
+      echo "embedder not started (keyword search only)" >&2
+    fi
+    THELIFE_LISTEN_PORT="$API_PORT" "$BIN/thelife-backend" > build/demo-backend.log 2>&1 &
+    backend=$!
+    trap 'kill "$backend" $fake $embedder 2>/dev/null || true' EXIT INT TERM
+    for _ in $(seq 1 30); do
+      curl -sf "http://127.0.0.1:$API_PORT/readyz" >/dev/null && break
+      kill -0 "$backend" 2>/dev/null || { echo "backend exited; see build/demo-backend.log" >&2; exit 1; }
+      sleep 0.5
+    done
+    curl -sf "http://127.0.0.1:$API_PORT/readyz" >/dev/null || { echo "backend not ready; see build/demo-backend.log" >&2; exit 1; }
+    echo "backend  http://127.0.0.1:$API_PORT   (log: build/demo-backend.log)"
+    [[ -n "$embedder" ]] && echo "embedder $THELIFE_EMBEDDER_SOCKET   (log: build/demo-embedder.log)"
+    [[ -n "${OLLAMA_API_KEY:-}" ]] && echo "web search on (OLLAMA_API_KEY)" || echo "web search off (no OLLAMA_API_KEY)"
+    echo "demo UI  http://127.0.0.1:$UI_PORT   (Ctrl-C stops both)"
+    cd demo-ui
+    env -u PYTHONPATH THELIFE_API_URL="http://127.0.0.1:$API_PORT" DEMO_PORT="$UI_PORT" \
+      ../build/demo-venv/bin/python -m demo_ui
+    ;;
+  *)
+    sed -n '2,5p' "$0"; exit 2 ;;
+esac

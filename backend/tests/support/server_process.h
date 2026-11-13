@@ -7,6 +7,9 @@
 
 namespace thelife::test {
 
+// KEK of the shared test database (base64 of "thelife-test-kek-not-a-secret!!!"); test servers get it by default.
+inline constexpr const char* kTestKek = "dGhlbGlmZS10ZXN0LWtlay1ub3QtYS1zZWNyZXQhISE=";
+
 // Runs the real thelife-backend binary on a free loopback port for black-box API tests.
 class ServerProcess {
  public:

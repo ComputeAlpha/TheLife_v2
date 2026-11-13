@@ -12,11 +12,13 @@ extra_schemas:
       id: {$ref: Id}
       email: {type: string, format: email}
       display_name: {$ref: Text200}
-      timezone: {type: string, description: IANA timezone, for example Asia/Kolkata.}
+      timezone: {type: string, minLength: 1, maxLength: 64, description: "IANA timezone, for example Asia/Kolkata."}
       day_start_hour: {type: integer, minimum: 0, maximum: 12}
       role: {type: string, enum: [user, tenant_admin]}
       workdays:
         type: array
+        uniqueItems: true
+        maxItems: 7
         items: {type: string, enum: [MO, TU, WE, TH, FR, SA, SU]}
   Session:
     type: object
@@ -33,7 +35,7 @@ actions:
     path: /auth/login
     effect: create
     summary: Exchange email and password for a session token
-    extra_responses: {429: TooManyRequests}
+    extra_responses: {401: Unauthorized, 429: TooManyRequests}
     body:
       type: object
       additionalProperties: false
@@ -69,10 +71,12 @@ actions:
       minProperties: 1
       properties:
         display_name: {$ref: Text200}
-        timezone: {type: string}
+        timezone: {type: string, minLength: 1, maxLength: 64, description: "IANA timezone, for example Asia/Kolkata."}
         day_start_hour: {type: integer, minimum: 0, maximum: 12}
         workdays:
           type: array
+          uniqueItems: true
+          maxItems: 7
           items: {type: string, enum: [MO, TU, WE, TH, FR, SA, SU]}
     returns: User
   - name: change_password
