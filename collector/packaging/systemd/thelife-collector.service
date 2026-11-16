@@ -1,0 +1,30 @@
+# TheLife collector as a user service bound to the graphical session (docs/collector_lld.md §4).
+# Install: ~/.config/systemd/user/ (or /usr/lib/systemd/user/ from a package), then
+#   systemctl --user enable --now thelife-collector
+[Unit]
+Description=TheLife collector
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/thelife-collector run
+Restart=on-failure
+RestartSec=10
+# Hardening that keeps X and the session bus reachable.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+# The state directory holds the queue; the config directory gets the new token on rotation.
+ReadWritePaths=%h/.local/state/thelife-collector %h/.config/thelife-collector
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=graphical-session.target

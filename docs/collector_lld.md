@@ -1,6 +1,6 @@
 # TheLife v2: Collector Low-Level Design
 
-Status: Draft 2 (review round 2 applied, 2026-11-11). Builds on `prelim_spec.md`, `backend_lld.md` (§7.2 ingest contract, §7.4 backend pipeline) and `agent_lld.md` (§8 notifications). Items marked **(proposed)** await confirmation.
+Status: Draft 2 (review round 2 applied, 2026-11-11); implemented in Stage 4c (2026-11-16), see §13. Builds on `prelim_spec.md`, `backend_lld.md` (§7.2 ingest contract, §7.4 backend pipeline) and `agent_lld.md` (§8 notifications). Items marked **(proposed)** await confirmation.
 
 ---
 
@@ -241,3 +241,61 @@ These schemas are shared with the backend (one source of truth, validated on ing
 3. **Local pause:** kept.
 4. **Desktop notifications:** the collector delivers agent notifications (§7.5), with the protocol kept inert.
 5. **Browser URL capture:** still out of scope.
+
+## 13. Implementation Notes (Stage 4c, 2026-11-16)
+
+The collector lives in `collector/` (C++20, same CMake and vcpkg tree; xcb and libsystemd from the system). What
+the implementation settled, and where it departs from the sections above:
+
+- **Threads.** The capture thread grabs, scales, encodes **and uploads**, on its own X connection and HTTP handle,
+  so pixels and JPEG bytes never cross a thread boundary (§2 had the network thread upload them). The network
+  thread does observation batches, config sync, heartbeat and token rotation. Notifications use two threads: one
+  long-polls the backend, one owns the sd-bus connection (shows notifications, handles clicks). sd-bus is not
+  thread-safe, and a 55 s long-poll cannot share a thread with the bus.
+- **Enrolment reads the token from standard input** (no echo on a terminal): `thelife-collector enroll --url URL`
+  and the token pasted or piped in. A `--token` argument is refused, per §8 ("never in the process command line").
+- **client_seq.** SQLite `AUTOINCREMENT`, and a new queue file starts at the current Unix time in microseconds, so
+  a deleted queue cannot collide with sequences the backend already stored (it deduplicates on device and seq).
+  Idempotency-Key is `<install id>:<first>-<last>`: the device id is not known to the collector, and a random
+  install id (queue metadata) is just as unique.
+- **Pause** lives in the queue's metadata table, so the `pause` command and the daemon never write the same file. A
+  pause stops **all** observation (windows, idle, processes, captures), not only captures; the heartbeat still
+  reports `paused_until`. On resume the focused window is reported again.
+- **Process deltas are always sent**, an empty `{full:false}` included: the backend's focus spans end after five
+  minutes without any observation (backend_lld §7.4), so a quiet minute must still say "alive".
+- **Locked screen**: the X screensaver state, a few lockers recognised by window class, and logind's `LockedHint`
+  for the user's graphical session (`/org/freedesktop/login1/user/self` → `Display`; a user service is not inside
+  a session, so `session/auto` does not work).
+- **No focused window** is reported as `window_id 0x0` with an empty class and title. It ends the previous focus
+  span cleanly and classifies as nothing.
+- **Captures.** MIT-SHM with a private SysV segment (removed right after attach, zeroed before detach), falling
+  back to GetImage for a remote display. Area-average downscale, JPEG q80 4:2:0 into a pre-sized buffer
+  (`TJFLAG_NOREALLOC`), multipart parts streamed from that buffer by a read callback (libcurl does not copy them).
+  Every pixel and JPEG buffer is a `SecureBytes`, zeroed on release. The process is not dumpable
+  (`PR_SET_DUMPABLE 0`): no core files with screen contents, no ptrace by other processes of the user.
+- **First capture** comes 60 s after start, then every `capture_interval_s` ± jitter. While capture is off or the
+  config is unknown, the due capture is recorded as skipped (`disabled`) and the next one is a full interval away.
+  The context-change trigger pulls a capture forward when a newly focused app stays 30 s, and only if a full
+  interval has passed since the last capture (a token bucket of one).
+- **Rejected uploads.** A 422 drops the rows the problem's `errors[].path` points at (`/observations/<i>/…`), or
+  the whole batch when none is named, and records a `gap{reason: corrupt}`, so one bad row cannot wedge the queue.
+- **Revoked token.** On 401 uploads stop (no retry storm); the daemon re-reads the token file every minute and
+  resumes when a re-enrolment wrote a new one.
+- **Notifications.** Held up to 10 min while the user is idle or locked, then dropped unacknowledged (Telegram
+  takes over). A click opens `<web_ui_url>/chat` (or `/chat#approval-<uuid>`) through `xdg-open`; the URL is built
+  only from local configuration and a UUID-validated `ref_id`. Without a session bus, notifications are off and
+  the long-poll does not run.
+- **Not used:** xcb-ewmh and xcb-icccm (the few EWMH atoms are read directly).
+- **libFuzzer targets are not in yet** (no clang toolchain here). The config and notification parsers are covered
+  by unit tests with hostile inputs and by a system test against a hostile fake backend (redirect, deep JSON,
+  out-of-range values, command-like fields).
+- **Test-only environment** (local, never from the server): `THELIFE_COLLECTOR_FAST_TIMERS=1` shortens the local
+  timers (first capture 2 s, config 3 s, heartbeat 2 s, backoff cap 3 s) but not the §8 bounds;
+  `THELIFE_COLLECTOR_NO_LOGIND=1`; `THELIFE_COLLECTOR_PROC_ROOT`; `THELIFE_COLLECTOR_CONFIG_DIR` / `_STATE_DIR`.
+- **Tests** (`ctest -L collector`): unit (fake HTTP, fake X, fake `/proc`; every emitted payload is checked against
+  `api/schemas/observations.json`); system (Xvfb split into two RandR monitors, the real binary against
+  `collector/tests/fixtures/fake_backend.py`: offline and recovery, 409/503, hostile backend, pause, rotation,
+  revoked token, notifications over a private `dbus-daemon` with a stub notification server, inotify proof that no
+  JPEG bytes reach disk); e2e (the real backend and test database: a capture becomes a vision detection,
+  observations are stored, the token rotates).
+

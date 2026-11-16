@@ -19,8 +19,11 @@
     },
     "gtest",
     "libical",
+    "libjpeg-turbo",
     "libsodium",
     "sentencepiece",
+    "sqlite3",
+    "tomlplusplus",
     "valijson"
   ]
 }
