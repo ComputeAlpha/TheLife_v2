@@ -3,6 +3,9 @@ import { AppShell } from "./shell/AppShell";
 import { LoginPage } from "./features/auth/LoginPage";
 import { RequireAuth } from "./features/auth/RequireAuth";
 import { TodayPage } from "./features/today/TodayPage";
+import { CalendarRoute } from "./features/calendar/CalendarPage";
+import { ChatPage } from "./features/chat/ChatPage";
+import { ApprovalsPage } from "./features/approvals/ApprovalsPage";
 import { SettingsLayout } from "./features/settings/SettingsLayout";
 import { ProfileSettings } from "./features/settings/ProfileSettings";
 import { SecuritySettings } from "./features/settings/SecuritySettings";
@@ -12,9 +15,6 @@ import { EmptyState } from "./ui/States";
 import { Card } from "./ui/Card";
 
 const LATER: { path: string; title: string; inc: string; what: string }[] = [
-  { path: "calendar/*", title: "Calendar", inc: "5b", what: "Day, week, month and year views of everything planned." },
-  { path: "chat/*", title: "Chat", inc: "5c", what: "Talk to the assistant, with live replies and approvals inline." },
-  { path: "approvals", title: "Approvals", inc: "5c", what: "Changes the assistant is waiting for you to approve." },
   { path: "activity/*", title: "Activity", inc: "5d", what: "Review what was detected: confirm, dispute or correct." },
   { path: "scores/*", title: "Scores", inc: "5d", what: "Day, week and month scores with their reasons." },
   { path: "plan/*", title: "Goals & plans", inc: "5d", what: "Goals by horizon, plans and targets." },
@@ -37,6 +37,12 @@ export function App() {
         }
       >
         <Route index element={<TodayPage />} />
+        <Route path="calendar" element={<CalendarRoute />} />
+        <Route path="calendar/:view" element={<CalendarRoute />} />
+        <Route path="calendar/:view/:date" element={<CalendarRoute />} />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="chat/c/:id" element={<ChatPage />} />
+        <Route path="approvals" element={<ApprovalsPage />} />
         <Route path="settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={<ProfileSettings />} />

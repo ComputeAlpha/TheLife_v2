@@ -10,6 +10,10 @@ import { useSignOut, useUser } from "@/api/auth";
 import { Kbd } from "@/ui/Badge";
 import { cn } from "@/ui/cn";
 import { Logo } from "./Logo";
+import { NotificationsBell } from "./NotificationsBell";
+import { QuickChat } from "./QuickChat";
+import { StreamProvider } from "@/api/stream";
+import { usePendingApprovals } from "@/api/today";
 
 const COLLAPSE_KEY = "thelife.sidebar.collapsed";
 function readCollapsed(): boolean {
@@ -36,13 +40,14 @@ export function AppShell() {
   };
 
   return (
+    <StreamProvider>
     <div className="flex min-h-dvh bg-bg">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[60] focus:rounded-md focus:bg-accent focus:px-3 focus:py-2 focus:text-accent-ink">
         Skip to content
       </a>
       <aside
         className={cn(
-          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-surface-1/60 transition-[width] duration-200 lg:flex",
+          "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-bg transition-[width] duration-200 lg:flex",
           collapsed ? "w-[68px]" : "w-60",
         )}
         aria-label="Main navigation"
@@ -98,8 +103,10 @@ export function AppShell() {
       </div>
 
       <MobileNav />
+      <QuickChat />
       <CommandPalette open={palette} onOpenChange={setPalette} />
     </div>
+    </StreamProvider>
   );
 }
 
@@ -128,6 +135,7 @@ function SideLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
           ) : null}
           <item.icon className={cn("size-[18px] shrink-0", isActive ? "text-accent" : "text-text-3 group-hover:text-text-2")} aria-hidden />
           {collapsed ? <span className="sr-only">{item.label}</span> : <span className="truncate">{item.label}</span>}
+          {item.to === "/approvals" ? <ApprovalsCount collapsed={collapsed} /> : null}
         </>
       )}
     </NavLink>
@@ -136,7 +144,7 @@ function SideLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
 
 function TopBar({ onPalette }: { onPalette: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-bg/80 px-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-bg px-4 sm:px-6">
       <Logo className="size-7 lg:hidden" />
       <button
         onClick={onPalette}
@@ -151,6 +159,7 @@ function TopBar({ onPalette }: { onPalette: () => void }) {
       </button>
       <div className="ml-auto flex items-center gap-2">
         <StatusPill />
+        <NotificationsBell />
         <UserMenu />
       </div>
     </header>
@@ -208,7 +217,7 @@ function MenuLink({ to, icon, children }: { to: string; icon: ReactNode; childre
 function MobileNav() {
   const items = NAV.filter((n) => n.mobile);
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden" aria-label="Main navigation">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] lg:hidden" aria-label="Main navigation">
       <ul className="grid grid-cols-5">
         {items.map((n) => (
           <li key={n.to}>
@@ -248,5 +257,16 @@ function MoreMenu() {
         </DM.Content>
       </DM.Portal>
     </DM.Root>
+  );
+}
+
+function ApprovalsCount({ collapsed }: { collapsed: boolean }) {
+  const q = usePendingApprovals();
+  const n = q.data?.items.length ?? 0;
+  if (!n) return null;
+  return (
+    <span className={cn("grid min-w-5 place-items-center rounded-full bg-warn px-1.5 text-[11px] font-bold leading-5 text-black", collapsed ? "absolute right-1 top-0.5 min-w-4 px-1 text-[10px] leading-4" : "ml-auto")}>
+      <span className="sr-only">, </span>{n}<span className="sr-only"> waiting</span>
+    </span>
   );
 }

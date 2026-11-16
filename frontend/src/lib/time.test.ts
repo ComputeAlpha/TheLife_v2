@@ -18,3 +18,12 @@ describe("time helpers", () => {
     expect(relative("2026-11-16T12:00:10Z", now)).toBe("just now");
   });
 });
+
+import { fromLocalInput, toLocalInput } from "./time";
+describe("datetime-local in the user's zone", () => {
+  it("round-trips", () => {
+    expect(toLocalInput("2026-11-16T04:30:00Z", "Asia/Kolkata")).toBe("2026-11-16T10:00");
+    expect(fromLocalInput("2026-11-16T10:00", "Asia/Kolkata")).toBe("2026-11-16T04:30:00.000Z");
+    expect(fromLocalInput("2026-11-16T10", "Asia/Kolkata")).toBeNull();
+  });
+});

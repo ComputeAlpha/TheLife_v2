@@ -1,6 +1,6 @@
 # TheLife v2: Frontend Low-Level Design (Stage 5)
 
-Status: 5a done (2026-11-16): foundation, sign-in, shell, Settings → Profile and Security. Replaces the Flask demo UI (`prelim_spec.md` §8) with no loss of function.
+Status: 5a–5c done (2026-11-16): foundation, sign-in, shell, Settings → Profile and Security, Calendar, Today, Chat, Approvals and notifications. Replaces the Flask demo UI with no loss of function.
 
 User preferences (2026-11-16):
 - One theme only: pure black (AMOLED) with a cyan accent. There is no theme setting.
@@ -84,11 +84,11 @@ The demo UI kept session tokens off the browser. The SPA keeps that property: it
 | Token | Value | Use |
 |---|---|---|
 | `--bg` | `#000000` | Page. Pure black for OLED |
-| `--surface-1` | `#0a0b0d` | Cards, sidebar |
-| `--surface-2` | `#111316` | Raised: popovers, sheets, inputs |
-| `--surface-3` | `#181b20` | Hover, selected rows |
+| `--surface-1` | `#000000` | Cards, sidebar, top bar: pitch black, separated by lines only (user, 2026-11-16) |
+| `--surface-2` | `#0b0c0e` | Inputs and controls, barely lifted so they stay findable |
+| `--surface-3` | `#14161a` | Hover, selected rows |
 | `--line` | `#1f2329` | Hairlines and borders; depth comes from these, not from shadows |
-| `--text` / `--text-2` / `--text-3` | `#f4f5f7` / `#a3a9b3` / `#6b7280` | Primary, secondary, muted |
+| `--text` / `--text-2` / `--text-3` | `#f4f5f7` / `#a3a9b3` / `#808894` | Primary, secondary, muted |
 | `--accent` | `#22d3ee` (cyan) | Primary actions, focus, selection, "now" line |
 | `--accent-strong` / `--accent-soft` | `#67e8f9` / `rgb(34 211 238 / .12)` | Hover / tinted backgrounds |
 | `--good` | `#34d399` (emerald) | Done, confirmed, positive adjustment |
@@ -424,3 +424,47 @@ frontend/
 | **5c** | SSE stream, Chat (history, streaming, tool chips, inline approvals), quick-chat sheet, Approvals page, notifications drawer, toasts and browser notifications | Reducer tests; e2e chat with the fake LLM; Chrome walkthrough |
 | **5d** | Activity review (timeline, confirm, dispute, correct, history, activities log), Scores, Plan (goals, plans, targets) | e2e detection flows; Chrome walkthrough |
 | **5e** | Tasks, Skills, Work, Entertainment, Assistant pages, the remaining Settings (Telegram, devices, API keys, ingest rules, day profiles, scoring, notifications, LLM status), parity check, demo UI retirement | Parity check green; all stage tests green; **exit gate** |
+
+## 11. Implementation Notes
+
+**5b (2026-11-16).** These are the behaviours the screen specs leave open.
+- **Recurring tasks** appear as all-day entries on their `occurs_on` day. Complete and skip act on that one occurrence. One-off tasks are points at `due_at`. Completing or skipping one changes the task's status, because the occurrence endpoints refuse non-recurring tasks.
+- **Dragging** works on single events, slots, sessions and one-off task due times. The entry moves on screen at once, and changes are sent with `If-Match` (the current version is fetched first, since calendar entries carry no version). Recurring events are edited in their sheet, and the change applies to the whole series.
+- **Dates** are computed on plain day strings, and the user's timezone only matters when converting to instants (`lib/calendar/days.ts`, tested across a DST change). The year view loads six 62-day `/calendar` windows in parallel.
+- **The activity lane** shows detections that are not superseded or disputed. Confirmed ones are drawn solid, unreviewed ones faded.
+- **Today:**
+  - The plan ring averages item completion and covered block minutes from `/progress/today`.
+  - Consistency shows the rates from the latest scored day.
+  - "Needs you" lists pending approvals and the last 3 hours of unreviewed detections, both actionable in place, plus preemptions.
+- **Accessibility:** contrast is fixed for busy year-view days (dark digits on bright fills), and icon-only toolbar buttons have names on phones. The axe check waits for entrance animations to finish.
+- **Tests:** `tests/e2e/calendar.spec.ts` covers creating by dragging on the grid, rescheduling by dragging (checked on the server), completing a recurring task occurrence, the month, year and agenda views, a leave-day override, and checking off a task on Today. `tests/e2e/seed.ts` seeds a realistic week through the API.
+
+**Calendar fixes (2026-11-16, user report).**
+- **Column drift.** The day header and all-day row now sit inside the hours scroller as sticky rows. Before, the hours had a scrollbar and the header didn't, so the header's `1fr` columns drifted 2–3 px, growing with the window.
+- **Dialog jump.** The dialog entrance animation now uses only `opacity` and `scale`. Its `transform: translate(…)` keyframes used to add to Tailwind's `translate` centring, so the dialog flashed top-left before settling.
+- **Tests.** Both have regression tests, each confirmed to fail on the old code. Playwright now runs with real scrollbars (`--hide-scrollbars` off).
+
+**5c (2026-11-16).**
+- **Stream.** `StreamProvider` holds one `EventSource` per tab, authenticated by the cookie.
+  - It reconnects with backoff (1 s → 30 s). After a gap it refetches messages, conversations, approvals and notifications, because the stream has no event ids.
+  - `tool.finished` invalidates the query families of the tool's resource, so pages update live when the assistant changes data.
+- **Chat state.** Server messages are the only persisted truth; they are refetched on `message`, `tool.finished` and `turn.finished`. The live layer (`api/live.ts`, unit-tested) holds only the streamed text, the tool running now and the turn status. `reset` retracts streamed text and shows a shimmer until new text arrives.
+- **Sending.** A sent message stays on screen, marked pending, until the stored list contains its `message_id`. A failed send can be retried with the same `client_msg_id`, which the backend makes idempotent.
+- **Transcript.**
+  - Tool results fold into the step that called them, as in the demo UI.
+  - A held call (its result carries an `approval_id`) renders its approval card inline. Only that card has the `#approval-<id>` anchor that desktop notifications link to.
+  - Internal `agent_load_tools` steps are hidden.
+- **Approval cards.** A card shows the target by name (looked up while pending), the readable first sentence of the summary, and the arguments that matter (no ids, no `expected_version`). Rejecting takes an optional reason.
+- **Notifications.**
+  - A `notification` event in a visible tab shows a toast and is acked as seen (`clicked: false`), so Telegram doesn't repeat it.
+  - In a hidden tab with permission granted, it becomes a browser `Notification`. Without permission it is left unacked, so the server's Telegram fallback still runs.
+  - The bell lists recent notifications, with mark-read and an "Enable" prompt for browser alerts.
+- **Elsewhere in the shell:** a quick-chat sheet on every page except Chat, and a pending-approvals count in the sidebar.
+- **Tests.** `tests/e2e/chat.spec.ts` runs against the real backend and `docker/fake-llm`, started by Playwright as a second web server:
+  - a streamed reply with a tool step;
+  - an inline approval, approved;
+  - a rejection with a reason on the Approvals page;
+  - the quick chat;
+  - an approval deep link.
+
+  `src/api/stream.test.tsx` covers notification toasts, acks and event fan-out.

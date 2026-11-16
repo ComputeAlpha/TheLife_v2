@@ -17,9 +17,12 @@ export async function signIn(page: Page, next = "/") {
 
 /** Fails on serious or critical accessibility violations. */
 export async function expectAccessible(page: Page) {
+  // Measure the settled page, not a frame of an entrance animation.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"), null, { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(400);
   const r = await new AxeBuilder({ page }).analyze();
   const bad = r.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
-  expect(bad.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`)).toEqual([]);
+  expect(bad.map((v) => `${v.id}: ${v.help} (${v.nodes.length}) ${v.nodes.slice(0, 3).map((n) => n.target.join(" ") + " " + (n.failureSummary ?? "").split("\n").slice(1, 2).join("")).join(" | ")}`)).toEqual([]);
 }
 
 /** Collects console errors and CSP violations so tests can assert there are none. */

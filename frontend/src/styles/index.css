@@ -3,9 +3,10 @@
 /* Design tokens (frontend_lld.md §3). One theme: pure black with a cyan accent. */
 @theme {
   --color-bg: #000000;
-  --color-surface-1: #0a0b0d;
-  --color-surface-2: #111316;
-  --color-surface-3: #181b20;
+  /* Pitch black everywhere the eye rests; only controls and overlays lift a little. */
+  --color-surface-1: #000000;
+  --color-surface-2: #0b0c0e;
+  --color-surface-3: #14161a;
   --color-line: #1f2329;
   --color-line-strong: #2b313a;
   --color-text: #f4f5f7;
@@ -85,6 +86,7 @@
 }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes pop-in { from { opacity: 0; transform: translate(-50%, -48%) scale(.97); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+/* Opacity and scale only: centring uses the `translate` property, which a transform keyframe would add to. */
+@keyframes pop-in { from { opacity: 0; scale: .97; } to { opacity: 1; scale: 1; } }
 @keyframes sheet-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes toast-in { from { transform: translateY(8px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
