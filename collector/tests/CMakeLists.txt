@@ -32,9 +32,13 @@ gtest_discover_tests(thelife_collector_system_tests PROPERTIES LABELS "collector
 
 # e2e: the collector against the real backend and the test database (needs the backend build)
 if(TARGET thelife_test_support)
-  add_executable(thelife_collector_e2e_tests e2e/backend_e2e_test.cc)
-  target_link_libraries(thelife_collector_e2e_tests PRIVATE thelife_test_support thelife_collector_test_support
-                        unofficial::sqlite3::sqlite3 GTest::gtest_main thelife_collector_warnings)
-  add_dependencies(thelife_collector_e2e_tests thelife-collector thelife-backend)
-  gtest_discover_tests(thelife_collector_e2e_tests PROPERTIES LABELS "collector;e2e")
+  foreach(_e backend process)
+    add_executable(thelife_collector_e2e_${_e}_tests e2e/${_e}_e2e_test.cc)
+    target_link_libraries(thelife_collector_e2e_${_e}_tests PRIVATE thelife_test_support thelife_collector_test_support
+                          unofficial::sqlite3::sqlite3 GTest::gtest_main thelife_collector_warnings)
+    add_dependencies(thelife_collector_e2e_${_e}_tests thelife-collector thelife-backend)
+  endforeach()
+  gtest_discover_tests(thelife_collector_e2e_backend_tests PROPERTIES LABELS "collector;e2e")
+  # About three minutes of real focus time: `ctest -LE slow` leaves it out.
+  gtest_discover_tests(thelife_collector_e2e_process_tests PROPERTIES LABELS "collector;e2e;slow" TIMEOUT 400)
 endif()

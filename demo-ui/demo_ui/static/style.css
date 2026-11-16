@@ -92,3 +92,10 @@ form.send textarea { flex: 1; }
 .assistant-online { border-color: var(--ok); } .assistant-manual { border-color: var(--warn); }
 .assistant-unconfigured { border-color: var(--muted); }
 code.big { font-size: 1.4em; padding: .3em .6em; letter-spacing: .08em; }
+/* timeline (Stage 4) */
+.timeline details.act, .timeline details { flex-basis: 100%; }
+.timeline form.claim { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-top: .4rem; }
+.timeline form.claim input[name=summary] { flex: 1 1 18rem; }
+.status-disputed > a, .status-superseded > a { text-decoration: line-through; color: var(--muted); }
+.tag.warn { color: var(--warn); border-color: var(--warn); }
+tr.silent td { color: var(--warn); }

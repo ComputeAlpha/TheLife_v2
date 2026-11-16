@@ -50,6 +50,33 @@ target_link_libraries(thelife-collector PRIVATE thelife_collector_core thelife_c
 install(TARGETS thelife-collector RUNTIME DESTINATION bin)
 install(FILES packaging/systemd/thelife-collector.service DESTINATION lib/systemd/user)
 
+# Parsers of everything the backend or a hand-edited file can send (collector_lld.md §8). With
+# THELIFE_BUILD_FUZZERS (Clang, `cmake --preset fuzz`) they are libFuzzer + ASan/UBSan binaries (scripts/fuzz.sh);
+# otherwise they replay collector/fuzz/corpus as ordinary tests.
+option(THELIFE_BUILD_FUZZERS "Build the collector's libFuzzer targets (needs Clang)" OFF)
+if(THELIFE_BUILD_FUZZERS AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  message(FATAL_ERROR "THELIFE_BUILD_FUZZERS needs Clang (cmake --preset fuzz)")
+endif()
+if(THELIFE_BUILD_FUZZERS OR THELIFE_BUILD_TESTS)
+  set(_parser_sources src/core/json.cc src/core/time.cc src/core/log.cc src/core/files.cc
+      src/config/server_config.cc src/config/local_config.cc src/notify/notifications.cc)
+  foreach(_t server_config notifications local_config)
+    add_executable(collector_fuzz_${_t} fuzz/fuzz_${_t}.cc ${_parser_sources})
+    target_include_directories(collector_fuzz_${_t} PRIVATE src)
+    target_link_libraries(collector_fuzz_${_t} PRIVATE JsonCpp::JsonCpp tomlplusplus::tomlplusplus)
+    if(THELIFE_BUILD_FUZZERS)
+      set(_san -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+      target_compile_options(collector_fuzz_${_t} PRIVATE ${_san})
+      target_link_options(collector_fuzz_${_t} PRIVATE ${_san})
+    else()
+      target_sources(collector_fuzz_${_t} PRIVATE fuzz/replay_main.cc)
+      add_test(NAME CollectorFuzzReplay.${_t}
+               COMMAND collector_fuzz_${_t} ${CMAKE_CURRENT_SOURCE_DIR}/fuzz/corpus/${_t})
+      set_tests_properties(CollectorFuzzReplay.${_t} PROPERTIES LABELS "collector;unit")
+    endif()
+  endforeach()
+endif()
+
 if(THELIFE_BUILD_TESTS)
   add_subdirectory(tests)
 endif()

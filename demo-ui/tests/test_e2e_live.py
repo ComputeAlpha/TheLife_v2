@@ -119,3 +119,45 @@ def test_chat_command_round_trip(ui):
     # Resubmitting the same form does not send the message twice.
     again = ui.post("/chat", data={"csrf": ui.csrf, "text": "/help", "client_id": client_id})
     assert again.headers["Location"] == turn_url
+
+
+def test_timeline_correct_and_dispute(ui):
+    """Stage 4: a detection shows on the timeline; correcting it supersedes it, disputing stops it counting."""
+    start = datetime.now().replace(second=0, microsecond=0) - timedelta(hours=3)
+    r = ui.post("/r/detections/new", data={"csrf": ui.csrf, "source": "user", "area": "entertainment",
+                                           "category": "video", "summary": "e2e timeline guess", "confidence": "1",
+                                           "started_at": start.isoformat(),
+                                           "ended_at": (start + timedelta(minutes=40)).isoformat()})
+    assert r.status_code == 302, r.get_data(as_text=True)
+    did = created_id(r)
+
+    def page_with(text):
+        for day in (None, (start - timedelta(days=1)).date().isoformat(), start.date().isoformat()):
+            url = "/timeline" + (f"?day={day}" if day else "")
+            html = ui.get(url).get_data(as_text=True)
+            if text in html:
+                return url, html
+        raise AssertionError(f"{text!r} not on the timeline")
+
+    url, html = page_with("e2e timeline guess")
+    assert f'id="d-{did}"' in html
+    day = re.search(rf'/timeline/{did}/claim".*?name="day" value="([0-9-]+)"', html, re.S).group(1)
+    r = ui.post(f"/timeline/{did}/claim", data={"csrf": ui.csrf, "next": url, "day": day,
+                                               "start": start.strftime("%H:%M"),
+                                               "end": (start + timedelta(minutes=30)).strftime("%H:%M"),
+                                               "area": "skill", "category": "lecture",
+                                               "summary": "e2e timeline lecture"})
+    assert r.status_code == 302
+    html = ui.get(url).get_data(as_text=True)
+    assert "Corrected" in html and "e2e timeline lecture" in html
+    assert f'id="d-{did}"' not in html  # superseded: hidden unless asked for
+    assert f'id="d-{did}"' in ui.get(url + ("&" if "?" in url else "?") + "show=all").get_data(as_text=True)
+
+    new_id = re.search(r'id="d-([0-9a-f-]{36})"[^>]*>\s*<span class="when">[^<]*</span>\s*<a[^>]*>e2e timeline lecture',
+                       html).group(1)
+    r = ui.post(f"/timeline/{new_id}/dispute", data={"csrf": ui.csrf, "next": url, "reason": "e2e it was a podcast"})
+    assert r.status_code == 302
+    html = ui.get(url).get_data(as_text=True)
+    assert re.search(rf'class="entry detection source-user status-disputed" id="d-{new_id}"', html)
+    history = ui.get(f"/r/detections/{new_id}").get_data(as_text=True)
+    assert "e2e it was a podcast" in history

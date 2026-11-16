@@ -15,7 +15,7 @@ cd demo-ui && THELIFE_API_URL=http://127.0.0.1:8080 ../build/demo-venv/bin/pytho
 |---|---|---|
 | `THELIFE_API_URL` | `http://127.0.0.1:8080` | Backend base URL |
 | `THELIFE_CONTRACT` | `api/generated/openapi.yaml` | Contract the pages are generated from |
-| `THELIFE_STAGE` | `2` | Hide operations of later stages |
+| `THELIFE_STAGE` | `4` | Hide operations of later stages |
 | `DEMO_PORT` | `5000` | Listen port (always 127.0.0.1) |
 | `DEMO_SECURE_COOKIES` | `0` | Set to `1` behind HTTPS |
 
@@ -24,8 +24,13 @@ cd demo-ui && THELIFE_API_URL=http://127.0.0.1:8080 ../build/demo-venv/bin/pytho
 - **Generated from the contract.** Every `*.list` operation a user may call at the configured stage becomes a
   resource with list (filters from the query parameters), create, edit, delete/revoke and action pages. Forms
   are built from the request schemas. A new resource in `api/resources/` shows up without UI code.
-- **Hand-written pages:** login, the calendar (with done/skip for routine occurrences), chat, settings, and three
-  panels (task occurrences, detection history, conversation transcript).
+- **Hand-written pages:** login, the calendar (with done/skip for routine occurrences), chat, settings, the
+  detection timeline, and three panels (task occurrences, detection history, conversation transcript).
+- **Timeline** (`/timeline`, Stage 4): one day (from the user's day start) of detections from the collector, the
+  vision model and the user, in time order, with Confirm, Dispute (with a reason) and Correct (a claim: area,
+  category, summary, times) on each. Corrected detections are hidden unless asked for. Counted minutes per area
+  merge overlapping detections and leave out disputed and low-confidence ones. Collectors show when they were
+  last heard from (silent after 5 min), their queue and pause.
 - **Chat** (`/chat`, Stage 2): today's web conversation with each tool call and its result folded under the
   assistant step, pending approvals with Approve/Reject, and the assistant's status (online, offline until the
   quota resets, or not configured). There is no JavaScript, so the page refreshes itself every second while a turn

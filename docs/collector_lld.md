@@ -286,9 +286,12 @@ the implementation settled, and where it departs from the sections above:
   only from local configuration and a UUID-validated `ref_id`. Without a session bus, notifications are off and
   the long-poll does not run.
 - **Not used:** xcb-ewmh and xcb-icccm (the few EWMH atoms are read directly).
-- **libFuzzer targets are not in yet** (no clang toolchain here). The config and notification parsers are covered
-  by unit tests with hostile inputs and by a system test against a hostile fake backend (redirect, deep JSON,
-  out-of-range values, command-like fields).
+- **Fuzzing** (`collector/fuzz/`): libFuzzer + ASan/UBSan targets for the config response, the notification
+  response (and what is shown and opened from it) and `config.toml`, each with invariants (local bounds hold, no
+  markup survives, click URLs are only the local web UI plus a UUID, what enroll writes reads back the same).
+  `scripts/fuzz.sh [seconds]` builds them with clang-18 (`cmake --preset fuzz`); the first run, 2 min per target
+  (about 15 million inputs), found nothing. In the normal build the same targets replay `collector/fuzz/corpus/`
+  as tests, so a saved crash input stays a regression test.
 - **Test-only environment** (local, never from the server): `THELIFE_COLLECTOR_FAST_TIMERS=1` shortens the local
   timers (first capture 2 s, config 3 s, heartbeat 2 s, backoff cap 3 s) but not the §8 bounds;
   `THELIFE_COLLECTOR_NO_LOGIND=1`; `THELIFE_COLLECTOR_PROC_ROOT`; `THELIFE_COLLECTOR_CONFIG_DIR` / `_STATE_DIR`.
@@ -297,5 +300,6 @@ the implementation settled, and where it departs from the sections above:
   `collector/tests/fixtures/fake_backend.py`: offline and recovery, 409/503, hostile backend, pause, rotation,
   revoked token, notifications over a private `dbus-daemon` with a stub notification server, inotify proof that no
   JPEG bytes reach disk); e2e (the real backend and test database: a capture becomes a vision detection,
-  observations are stored, the token rotates).
+  observations are stored, the token rotates; and, labelled `slow`, 150 s of focus on a synthetic editor window
+  becomes the process detection "VS Code: TheLife_v2", which is then corrected with a claim).
 
