@@ -45,7 +45,7 @@ drogon::Task<void> defer(std::string id, std::chrono::system_clock::time_point r
 
 // Scheduler housekeeping (SECURITY DEFINER functions plus requeue of jobs stuck in running).
 struct Housekeeping {
-  int dayCloses = 0, staleTurns = 0, idempotencyKeys = 0, requeued = 0, ticks = 0;
+  int dayCloses = 0, staleTurns = 0, idempotencyKeys = 0, requeued = 0, ticks = 0, observationsRemoved = 0;
 };
 drogon::Task<Housekeeping> housekeeping();
 

@@ -1,5 +1,5 @@
 {
-  "contract_version": "678b717b7303cf80",
+  "contract_version": "664e3c00436dfbc5",
   "agent_groups": {
     "core": [
       "activities.create",
@@ -93,7 +93,12 @@
       "detections.create",
       "detections.get",
       "detections.history",
-      "detections.list"
+      "detections.list",
+      "ingest_rules.create",
+      "ingest_rules.delete",
+      "ingest_rules.get",
+      "ingest_rules.list",
+      "ingest_rules.update"
     ],
     "entertainment": [
       "entertainment_items.create",
@@ -438,7 +443,9 @@
           "notes"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -497,7 +504,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -711,7 +720,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -985,7 +996,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -1290,7 +1303,9 @@
           "notes"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -1657,7 +1672,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -1897,7 +1914,9 @@
           "expires_at"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -2117,7 +2136,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -2172,7 +2193,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -2382,7 +2405,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -2587,7 +2612,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -2833,7 +2860,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -3049,7 +3078,9 @@
           "reason"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -3178,7 +3209,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -3476,7 +3509,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -3681,7 +3716,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -3842,7 +3879,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4007,7 +4046,9 @@
           "note"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4066,7 +4107,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4219,7 +4262,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4413,7 +4458,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4592,7 +4639,9 @@
           "note"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4760,7 +4809,9 @@
           "description"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4819,7 +4870,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -4973,7 +5026,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -5156,7 +5211,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -5337,7 +5394,9 @@
           "description"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -5593,7 +5652,9 @@
           "ended_at"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -5812,7 +5873,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -6084,7 +6147,9 @@
           "evidence"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -6311,7 +6376,9 @@
           "reason"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -6530,7 +6597,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -6984,7 +7053,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -7274,7 +7345,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -7410,6 +7483,38 @@
             ],
             "format": "date-time"
           },
+          "status": {
+            "type": "object",
+            "description": "The collector's last heartbeat (empty before the first one).",
+            "properties": {
+              "queue_depth": {
+                "type": "integer"
+              },
+              "paused_until": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "x_ok": {
+                "type": "boolean"
+              },
+              "last_capture_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "last_error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -7445,7 +7550,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -7593,6 +7700,38 @@
                   ],
                   "format": "date-time"
                 },
+                "status": {
+                  "type": "object",
+                  "description": "The collector's last heartbeat (empty before the first one).",
+                  "properties": {
+                    "queue_depth": {
+                      "type": "integer"
+                    },
+                    "paused_until": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "x_ok": {
+                      "type": "boolean"
+                    },
+                    "last_capture_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "last_error": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
                 "name": {
                   "type": "string",
                   "minLength": 1,
@@ -7645,7 +7784,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -7792,6 +7933,38 @@
                 ],
                 "format": "date-time"
               },
+              "status": {
+                "type": "object",
+                "description": "The collector's last heartbeat (empty before the first one).",
+                "properties": {
+                  "queue_depth": {
+                    "type": "integer"
+                  },
+                  "paused_until": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "x_ok": {
+                    "type": "boolean"
+                  },
+                  "last_capture_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "last_error": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              },
               "name": {
                 "type": "string",
                 "minLength": 1,
@@ -7834,7 +8007,9 @@
           "platform"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -7889,7 +8064,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -7948,7 +8125,9 @@
           "clicked"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8029,7 +8208,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": true,
+        "idempotency_required": false
       }
     },
     {
@@ -8110,7 +8291,9 @@
           "last_error"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8215,7 +8398,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8264,7 +8449,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8460,7 +8647,9 @@
           "status"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8519,7 +8708,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8687,7 +8878,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -8905,7 +9098,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -9114,7 +9309,9 @@
           "status"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -9299,7 +9496,9 @@
           "notes"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -9358,7 +9557,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -9520,7 +9721,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -9727,7 +9930,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -9925,7 +10130,9 @@
           "notes"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -10238,7 +10445,9 @@
           "link_id"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -10297,7 +10506,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -10520,7 +10731,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -10799,7 +11012,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -11124,7 +11339,9 @@
           "link_id"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -11403,7 +11620,9 @@
           "status"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -11462,7 +11681,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -11669,7 +11890,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -11943,7 +12166,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -12234,7 +12459,9 @@
           "status"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -12462,7 +12689,9 @@
           "images"
         ],
         "if_match": false,
-        "content_type": "multipart/form-data"
+        "content_type": "multipart/form-data",
+        "conditional_get": false,
+        "idempotency_required": true
       }
     },
     {
@@ -12562,7 +12791,1010 @@
           "observations"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": true
+      }
+    },
+    {
+      "name": "ingest_rules.create",
+      "description": "Create a ingest rule.",
+      "effect": "create",
+      "scopes": [
+        "detections:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 4,
+      "target": null,
+      "policy": null,
+      "agent_group": "detections",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1,
+            "default": 0.7
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "app",
+          "category",
+          "area"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1,
+            "default": 0.7
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "app",
+          "category",
+          "area"
+        ],
+        "description": "How the user's own apps and windows are classified (backend_lld.md §7.4). Checked before the built-in defaults, most specific first. Matching is case-insensitive; window class and exe compare whole values (exe also by file name), the title by substring. At least one match field is required."
+      },
+      "rest": {
+        "method": "POST",
+        "path": "/api/v1/ingest/rules",
+        "success_status": 201,
+        "path_args": [],
+        "query_args": [],
+        "body_args": [
+          "match_wm_class",
+          "match_exe",
+          "match_title",
+          "app",
+          "category",
+          "area",
+          "confidence",
+          "enabled"
+        ],
+        "if_match": false,
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
+      }
+    },
+    {
+      "name": "ingest_rules.delete",
+      "description": "Delete a ingest rule (soft delete).",
+      "effect": "delete",
+      "scopes": [
+        "detections:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 4,
+      "target": {
+        "resource": "IngestRule",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "detections",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "null"
+      },
+      "rest": {
+        "method": "DELETE",
+        "path": "/api/v1/ingest/rules/{id}",
+        "success_status": 204,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": true,
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
+      }
+    },
+    {
+      "name": "ingest_rules.get",
+      "description": "Get a ingest rule.",
+      "effect": "read",
+      "scopes": [
+        "detections:read"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 4,
+      "target": {
+        "resource": "IngestRule",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "detections",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1,
+            "default": 0.7
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "app",
+          "category",
+          "area"
+        ],
+        "description": "How the user's own apps and windows are classified (backend_lld.md §7.4). Checked before the built-in defaults, most specific first. Matching is case-insensitive; window class and exe compare whole values (exe also by file name), the title by substring. At least one match field is required."
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/ingest/rules/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
+      }
+    },
+    {
+      "name": "ingest_rules.list",
+      "description": "List ingest rules.",
+      "effect": "read",
+      "scopes": [
+        "detections:read"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 4,
+      "target": null,
+      "policy": null,
+      "agent_group": "detections",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "UUIDv7."
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "version": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Optimistic-concurrency version; also returned as the ETag."
+                },
+                "created_by": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "agent",
+                        "external",
+                        "device",
+                        "system"
+                      ]
+                    },
+                    "id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "origin": {
+                  "type": "string",
+                  "enum": [
+                    "direct",
+                    "user_stated",
+                    "inferred",
+                    "imported"
+                  ],
+                  "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+                },
+                "source_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "deleted_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "match_wm_class": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 256,
+                  "description": "Window class, for example \"code\" or \"firefox\"."
+                },
+                "match_exe": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 4096,
+                  "description": "Executable path or file name."
+                },
+                "match_title": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 2,
+                  "maxLength": 200,
+                  "description": "Text the window title contains."
+                },
+                "app": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80,
+                  "description": "Display name of the app."
+                },
+                "category": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "area": {
+                  "type": "string",
+                  "enum": [
+                    "work",
+                    "skill",
+                    "fitness",
+                    "personal",
+                    "entertainment",
+                    "other"
+                  ]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0.1,
+                  "maximum": 1,
+                  "default": 0.7
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "created_at",
+                "updated_at",
+                "version",
+                "created_by",
+                "origin",
+                "app",
+                "category",
+                "area"
+              ],
+              "description": "How the user's own apps and windows are classified (backend_lld.md §7.4). Checked before the built-in defaults, most specific first. Matching is case-insensitive; window class and exe compare whole values (exe also by file name), the title by substring. At least one match field is required."
+            }
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "rest": {
+        "method": "GET",
+        "path": "/api/v1/ingest/rules",
+        "success_status": 200,
+        "path_args": [],
+        "query_args": [
+          "limit",
+          "cursor",
+          "updated_since",
+          "include_deleted"
+        ],
+        "body_args": [],
+        "if_match": false,
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
+      }
+    },
+    {
+      "name": "ingest_rules.update",
+      "description": "Update a ingest rule.",
+      "effect": "update",
+      "scopes": [
+        "detections:write"
+      ],
+      "exposure": [
+        "rest",
+        "agent",
+        "mcp"
+      ],
+      "principals": [
+        "user",
+        "agent",
+        "api_key"
+      ],
+      "stage": 4,
+      "target": {
+        "resource": "IngestRule",
+        "id_arg": "id"
+      },
+      "policy": null,
+      "agent_group": "detections",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic-concurrency version; also returned as the ETag."
+          },
+          "created_by": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "agent",
+                  "external",
+                  "device",
+                  "system"
+                ]
+              },
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              }
+            }
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "user_stated",
+              "inferred",
+              "imported"
+            ],
+            "description": "How the item came to exist (agent_lld.md §7.4). user_stated items count as user-entered for edits."
+          },
+          "source_message_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1,
+            "default": 0.7
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "version",
+          "created_by",
+          "origin",
+          "app",
+          "category",
+          "area"
+        ],
+        "description": "How the user's own apps and windows are classified (backend_lld.md §7.4). Checked before the built-in defaults, most specific first. Matching is case-insensitive; window class and exe compare whole values (exe also by file name), the title by substring. At least one match field is required."
+      },
+      "rest": {
+        "method": "PATCH",
+        "path": "/api/v1/ingest/rules/{id}",
+        "success_status": 200,
+        "path_args": [
+          "id"
+        ],
+        "query_args": [],
+        "body_args": [
+          "match_wm_class",
+          "match_exe",
+          "match_title",
+          "app",
+          "category",
+          "area",
+          "confidence",
+          "enabled"
+        ],
+        "if_match": true,
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -13151,7 +14383,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -13341,7 +14575,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -13575,7 +14811,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -13778,7 +15016,9 @@
           "clicked"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -13970,7 +15210,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -14196,7 +15438,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -14440,7 +15684,9 @@
           "status"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -14499,7 +15745,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -14675,7 +15923,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -14902,7 +16152,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -15128,7 +16380,9 @@
           "status"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -15396,7 +16650,9 @@
           "link_id"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -15455,7 +16711,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -15661,7 +16919,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -15906,7 +17166,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -16187,7 +17449,9 @@
           "link_id"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -16506,7 +17770,9 @@
           "instructions"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -16565,7 +17831,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -16802,7 +18070,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -17068,7 +18338,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -17317,7 +18589,9 @@
           "date"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -17645,7 +18919,9 @@
           "instructions"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -17714,7 +18990,9 @@
           "reason"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -17919,7 +19197,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -18135,7 +19415,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -18390,7 +19672,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -18493,7 +19777,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -18594,7 +19880,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -18653,7 +19941,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -18815,7 +20105,9 @@
           "plan_share"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -19099,7 +20391,9 @@
           "status"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -19158,7 +20452,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -19381,7 +20677,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -19652,7 +20950,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -19949,7 +21249,9 @@
           "status"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -20129,7 +21431,9 @@
           "duration_s"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -20188,7 +21492,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -20348,7 +21654,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -20543,7 +21851,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -20736,7 +22046,9 @@
           "duration_s"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -21012,7 +22324,9 @@
           "source"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -21071,7 +22385,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -21276,7 +22592,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -21526,7 +22844,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -21814,7 +23134,9 @@
           "source"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -22181,7 +23503,9 @@
           "active_to"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -22240,7 +23564,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -22490,7 +23816,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -22789,7 +24117,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -23165,7 +24495,9 @@
           "active_to"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -23282,7 +24614,9 @@
           "completed_at"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -23624,7 +24958,9 @@
           "track_consistency"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -23683,7 +25019,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -23923,7 +25261,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24234,7 +25574,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24357,7 +25699,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24474,7 +25818,9 @@
           "reason"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24827,7 +26173,9 @@
           "track_consistency"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24876,7 +26224,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24938,7 +26288,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -24974,7 +26326,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -25340,7 +26694,9 @@
           "active_to"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -25399,7 +26755,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -25583,7 +26941,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -25796,7 +27156,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -26039,7 +27401,9 @@
           "active_to"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -26247,7 +27611,9 @@
           "status"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -26306,7 +27672,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -26483,7 +27851,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -26710,7 +28080,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -26931,7 +28303,9 @@
           "status"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -27151,7 +28525,9 @@
           "due_on"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -27210,7 +28586,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -27389,7 +28767,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -27614,7 +28994,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -27848,7 +29230,9 @@
           "due_on"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28041,7 +29425,9 @@
           "active"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28100,7 +29486,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28266,7 +29654,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28471,7 +29861,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28677,7 +30069,9 @@
           "active"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28853,7 +30247,9 @@
           "active"
         ],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -28912,7 +30308,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -29070,7 +30468,9 @@
         "query_args": [],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -29261,7 +30661,9 @@
         ],
         "body_args": [],
         "if_match": false,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     },
     {
@@ -29451,7 +30853,9 @@
           "active"
         ],
         "if_match": true,
-        "content_type": null
+        "content_type": null,
+        "conditional_get": false,
+        "idempotency_required": false
       }
     }
   ]

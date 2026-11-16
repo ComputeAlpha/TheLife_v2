@@ -1,0 +1,22 @@
+name: ingest_rules
+agent_group: detections
+schema: IngestRule
+noun: ingest rule
+path: /ingest/rules
+scope: detections
+tag: Detections
+stage: 4
+description: How the user's own apps and windows are classified (backend_lld.md §7.4). Checked before the built-in
+  defaults, most specific first. Matching is case-insensitive; window class and exe compare whole values (exe also
+  by file name), the title by substring. At least one match field is required.
+fields:
+  match_wm_class: {type: [string, "null"], maxLength: 256, description: "Window class, for example \"code\" or \"firefox\"."}
+  match_exe: {type: [string, "null"], maxLength: 4096, description: "Executable path or file name."}
+  match_title: {type: [string, "null"], minLength: 2, maxLength: 200, description: Text the window title contains.}
+  app: {type: string, minLength: 1, maxLength: 80, description: Display name of the app.}
+  category: {type: string, minLength: 1, maxLength: 80}
+  area: {$ref: Area}
+  confidence: {type: number, minimum: 0.1, maximum: 1, default: 0.7}
+  enabled: {type: boolean, default: true}
+required: [app, category, area]
+ops: {list: {}, get: {}, create: {}, update: {}, delete: {}}

@@ -2063,6 +2063,240 @@
   {
     "type": "function",
     "function": {
+      "name": "ingest_rules_create",
+      "description": "Create a ingest rule.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1,
+            "default": 0.7
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "app",
+          "category",
+          "area"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ingest_rules_delete",
+      "description": "Delete a ingest rule (soft delete).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ingest_rules_get",
+      "description": "Get a ingest rule.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ingest_rules_list",
+      "description": "List ingest rules.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "updated_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_deleted": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ingest_rules_update",
+      "description": "Update a ingest rule.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUIDv7."
+          },
+          "match_wm_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256,
+            "description": "Window class, for example \"code\" or \"firefox\"."
+          },
+          "match_exe": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "description": "Executable path or file name."
+          },
+          "match_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 2,
+            "maxLength": 200,
+            "description": "Text the window title contains."
+          },
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Display name of the app."
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "area": {
+            "type": "string",
+            "enum": [
+              "work",
+              "skill",
+              "fitness",
+              "personal",
+              "entertainment",
+              "other"
+            ]
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Optimistic concurrency check. Required as If-Match over REST; optional for the agent."
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "memory_forget",
       "description": "Forget a remembered fact. Facts the user stated need their approval.",
       "parameters": {

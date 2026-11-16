@@ -30,6 +30,12 @@ ApiError ApiError::tooManyRequests(int retryAfterSec) {
   return e;
 }
 
+ApiError ApiError::serviceUnavailable(std::string detail, int retryAfterSec) {
+  ApiError e{503, "service-unavailable", "Service unavailable", std::move(detail)};
+  e.retryAfter_ = retryAfterSec;
+  return e;
+}
+
 drogon::HttpResponsePtr problemResponse(const ApiError& e, const std::string& requestId) {
   Json::Value body;
   body["type"] = std::string(kTypeBase) + e.slug();

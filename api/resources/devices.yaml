@@ -15,6 +15,15 @@ readonly:
   collector_version: {type: [string, "null"], maxLength: 64}
   last_seen_at: {type: [string, "null"], format: date-time}
   revoked_at: {type: [string, "null"], format: date-time}
+  status:
+    type: object
+    description: The collector's last heartbeat (empty before the first one).
+    properties:
+      queue_depth: {type: integer}
+      paused_until: {type: [string, "null"], format: date-time}
+      x_ok: {type: boolean}
+      last_capture_at: {type: [string, "null"], format: date-time}
+      last_error: {type: [string, "null"]}
 required: [name, platform]
 ops:
   list: {}
@@ -63,6 +72,7 @@ actions:
     principals: [device]
     scopes: ["devices:self"]
     stage: 4
+    conditional_get: true
     summary: Collector configuration for the calling device (poll with If-None-Match)
     returns: DeviceConfig
   - name: self_heartbeat

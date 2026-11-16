@@ -13,6 +13,7 @@
 #include "http/rest_adapter.h"
 #include "http/route.h"
 #include "db/field_crypt.h"
+#include "ingest/jobs.h"
 #include "jobs/worker.h"
 #include "llm/gateway.h"
 #include "memory/embedder.h"
@@ -24,6 +25,8 @@
 #include "web/search.h"
 #include "modules/modules.h"
 #include "tools/registry.h"
+
+constexpr std::size_t kMaxBody = 48 * 1024 * 1024;
 
 int main() {
   try {
@@ -56,6 +59,7 @@ int main() {
     thelife::memory::initEmbedder();
     thelife::telegram::registerJobs();
     thelife::fieldcrypt::registerJobs();
+    thelife::ingest::registerJobs();
     if (thelife::db::Database::instance().configured()) {
       thelife::jobs::startWorker();
       thelife::telegram::init();  // long polling, when THELIFE_TELEGRAM_BOT_TOKEN is set
@@ -68,6 +72,12 @@ int main() {
         .addListener(addr, static_cast<uint16_t>(port))
         .setThreadNum(static_cast<size_t>(threads))
         .setServerHeaderField("thelife")
+        // Request bodies stay in memory: Drogon spills bodies over the memory limit to files under the upload
+        // path, and capture images (and observation titles) must never reach the disk. The total limit fits a
+        // capture of 8 monitors; larger bodies are refused before they are read.
+        .setClientMaxBodySize(kMaxBody)
+        .setClientMaxMemoryBodySize(kMaxBody)
+        .setUploadPath(thelife::env::get("THELIFE_UPLOAD_DIR", "/tmp/thelife-backend-uploads"))
         .run();
   } catch (const std::exception& e) {
     std::cerr << "fatal: " << e.what() << '\n';

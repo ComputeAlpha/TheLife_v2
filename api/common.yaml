@@ -116,6 +116,12 @@ schemas:
       proposal_id: {$ref: Id}
 
 parameters:
+  IfNoneMatch:
+    name: If-None-Match
+    in: header
+    required: false
+    description: The ETag of the copy the client holds; 304 when it is still current.
+    schema: {type: string, maxLength: 64}
   IfMatch:
     name: If-Match
     in: header
@@ -139,8 +145,13 @@ headers:
   ETag:
     description: Quoted resource version.
     schema: {type: string}
+  ContentETag:
+    description: Quoted hash of the response body; send it back as If-None-Match.
+    schema: {type: string}
 
 responses:
+  NotModified:
+    description: The copy named by If-None-Match is current; no body.
   Accepted:
     description: Held for approval or recorded as a proposal; nothing changed yet.
     content:

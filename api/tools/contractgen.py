@@ -281,7 +281,9 @@ class Model:
                 "rest": {"method": spec["method"].upper(), "path": spec["path"], "success_status": spec["status"],
                          "path_args": list(params), "query_args": list(query),
                          "body_args": list(body_props), "if_match": bool(spec.get("if_match")),
-                         "content_type": spec.get("content_type")} if "rest" in meta["exposure"] else None,
+                         "content_type": spec.get("content_type"),
+                         "conditional_get": bool(spec.get("conditional_get")),
+                         "idempotency_required": bool(spec.get("idempotency_required"))} if "rest" in meta["exposure"] else None,
             })
 
         # ---- OpenAPI operation
@@ -298,6 +300,10 @@ class Model:
                                      "schema": to_openapi(qschema)})
         if spec.get("if_match"):
             op["parameters"].append({"$ref": "#/components/parameters/IfMatch"})
+        if spec.get("conditional_get"):
+            if spec["method"].lower() != "get":
+                raise ContractError(f"{name}: conditional_get applies to GET only")
+            op["parameters"].append({"$ref": "#/components/parameters/IfNoneMatch"})
         returns_secret = "token" in inline({"$ref": spec["returns"]} if isinstance(spec.get("returns"), str)
                                            else (spec.get("returns") or {}), self.schemas).get("properties", {})
         if spec["method"].lower() == "post" and not returns_secret:  # secrets are never stored for replay
@@ -318,6 +324,9 @@ class Model:
                 "schema": to_openapi({"$ref": returns} if isinstance(returns, str) else returns)}}}
             if spec.get("target") or spec["effect"] in ("create", "update"):
                 resp["headers"] = {"ETag": {"$ref": "#/components/headers/ETag"}}
+            if spec.get("conditional_get"):
+                resp["headers"] = {"ETag": {"$ref": "#/components/headers/ContentETag"}}
+                op["responses"]["304"] = {"$ref": "#/components/responses/NotModified"}
             op["responses"][status] = resp
         if spec["effect"] != "read" and "api_key" in meta["principals"]:
             op["responses"]["202"] = {"$ref": "#/components/responses/Accepted"}

@@ -197,16 +197,16 @@ Task<void> handleCallback(const Json::Value& cb) {
   co_await call("editMessageText", edit);
 }
 
+// Telegram keeps the poll position itself: updates stay pending until a getUpdates call passes an offset above
+// them. So the offset is sent once, right after a batch, to confirm it, and otherwise left out ("the earliest
+// unconfirmed update"). No position is stored: a stored one goes stale (Telegram restarts update ids at a random
+// value after a week without updates; anything below a stale offset would be confirmed unseen). A batch fetched
+// but not handled before a crash is fetched again; messages are idempotent by tg:<chat>:<message_id>.
 void pollLoop() {
-  int64_t offset = 0;
-  try {
-    offset = db::telegram::loadOffset(botKey);
-  } catch (const std::exception& e) {
-    LOG_ERROR << "telegram: cannot read the poll position: " << e.what();
-  }
+  std::optional<int64_t> confirm;
   for (;;) {
     Json::Value body;
-    body["offset"] = static_cast<Json::Int64>(offset);
+    if (confirm) body["offset"] = static_cast<Json::Int64>(*confirm);
     body["timeout"] = pollSeconds;
     body["allowed_updates"].append("message");
     body["allowed_updates"].append("callback_query");
@@ -223,16 +223,10 @@ void pollLoop() {
       continue;
     }
     std::vector<Json::Value> updates;
-    for (const auto& u : v["result"]) {
-      offset = std::max(offset, u["update_id"].asInt64() + 1);
-      updates.push_back(u);
-    }
+    for (const auto& u : v["result"]) updates.push_back(u);
+    // Returned in order: the last one's id + 1 confirms the whole batch on the next call.
+    confirm = updates.empty() ? std::nullopt : std::optional(updates.back()["update_id"].asInt64() + 1);
     if (updates.empty()) continue;
-    try {
-      db::telegram::saveOffset(botKey, offset);  // acknowledged on the next poll
-    } catch (const std::exception& e) {
-      LOG_ERROR << "telegram: poll position not saved: " << e.what();
-    }
     // In order, one after another (a chat's messages keep their order).
     drogon::app().getLoop()->queueInLoop([updates] {
       drogon::async_run([updates]() -> Task<void> {

@@ -139,6 +139,7 @@ const std::map<std::string, std::set<std::string>> kColumns{
     {"calendar_events", {"notes"}},
     {"activities", {"notes"}},
     {"detections", {"summary", "evidence"}},
+    {"observations", {"payload"}},  // sealed from the first write (migration 0015): never legacy
 };
 
 }  // namespace
@@ -255,6 +256,7 @@ Task<Json::Value> openText(db::TenantTx& tx, const std::string& table, const std
 Task<int> resealLegacy(const std::string& tenantId) {
   int sealed = 0;
   for (const auto& [table, cols] : kColumns) {
+    if (table == "observations") continue;
     for (const auto& col : cols) {
       for (;;) {
         auto tx = co_await db::TenantTx::beginSystem(tenantId);

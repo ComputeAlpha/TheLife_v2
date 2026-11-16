@@ -19,6 +19,8 @@ struct RestMapping {
   std::vector<std::string> pathArgs, queryArgs, bodyArgs;
   bool ifMatch = false;
   std::string contentType;  // empty → application/json (merge-patch for PATCH)
+  bool conditionalGet = false;       // ETag over the body; If-None-Match answers 304
+  bool idempotencyRequired = false;  // POST without Idempotency-Key is rejected (collector ingest)
 };
 
 struct ToolDef {

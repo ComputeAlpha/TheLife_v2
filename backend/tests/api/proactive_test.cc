@@ -52,14 +52,13 @@ class Proactive : public ::testing::Test {
   void SetUp() override {
     THELIFE_SKIP_WITHOUT_DB();
     user = createTenantWithUser();
+    disableDefaultRoutines(user.tenantId);  // tests add their own, before this test's server claims jobs
     start();
     // Proactive messages hold during quiet hours unless the user was just active; a fresh log keeps the tests
-    // independent of the time of day. The default routines are switched off; tests add their own.
+    // independent of the time of day.
     Json::Value a = J(R"({"title":"Setup","area":"other"})");
     a["started_at"] = at(-5), a["ended_at"] = at(-4);
     ASSERT_EQ(api->post("/activities", a).status, 201);
-    sql(user.tenantId, "SELECT ops.enqueue_proactive_ticks()");  // seeds the default routines
-    sql(user.tenantId, "UPDATE routines SET enabled = false");
     settle();
   }
 

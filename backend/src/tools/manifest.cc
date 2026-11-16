@@ -55,6 +55,8 @@ Manifest parseManifest(std::string_view text) {
       rm.bodyArgs = strings(r["body_args"]);
       rm.ifMatch = r["if_match"].asBool();
       if (r["content_type"].isString()) rm.contentType = r["content_type"].asString();
+      rm.conditionalGet = r["conditional_get"].asBool();
+      rm.idempotencyRequired = r["idempotency_required"].asBool();
       d.rest = rm;
     }
     m.tools.emplace(d.name, std::move(d));
