@@ -391,6 +391,13 @@ REST controllers are thin: map path/query/body to `args`, call `invoke`, map the
 
 - Passwords: argon2id (libsodium `crypto_pwhash`, moderate limits). Login is rate-limited per email and per IP (in-memory token bucket while single-process).
 - User session tokens: 30-day sliding expiry **(proposed)**; `last_used_at` is updated at most once per minute per token.
+- **Web UI session (Stage 5, `frontend_lld.md` §2).**
+  - `POST /auth/web-session` sets the session token as the cookie `tl_session` (HttpOnly, Secure, SameSite=Strict, Path=/api). The token never appears in the body.
+  - The authenticator falls back to that cookie only when there is no `Authorization` header, and accepts only `tlu_` user sessions from it.
+  - Cookie-authenticated POST, PATCH, PUT and DELETE requests need `X-TheLife-CSRF: 1` (otherwise 403 `csrf-required`).
+  - `THELIFE_WEB_ROOT` serves the built UI with an SPA fallback and a strict CSP (`src/http/web_root.cc`).
+  - Drogon's default static file serving from the working directory is turned off (`setFileTypes({})`). Before this, it served files such as `.txt` or `.svg` from the working directory.
+  - Unknown `/api/*` paths answer with a problem+json 404.
 - **Envelope encryption: deferred to Stage 2 (decision C).** Stage 1 holds no encrypted columns. Stage 2 adds a per-tenant DEK in `tenant_keys`, wrapped by a KEK from a file or env var. Encrypted fields become `bytea` and opaque to SQL (no `ILIKE`, no FTS), so the field list is chosen in Stage 2. Free-text columns are kept in their own column (never folded into jsonb) so they can be converted in place later.
 - **Implemented (2026-11-13, migration 0014, `src/db/field_crypt.*`).**
   - **What is encrypted** (decided 2026-11-13: what is sensitive and never searched): free-text notes and descriptions (`goals.description`, `plans.body`, `work_roles/responsibilities/projects/deliverables.description`, `tasks.notes`, `calendar_events.notes`, `activities.notes`, `skill_sessions.notes`, `entertainment_slots.notes`), detection `summary` and `evidence`, and (Stage 4) collector observations from the start. Chat messages, memory facts, day summaries, digests and all titles stay plaintext so keyword search keeps working.

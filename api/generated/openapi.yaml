@@ -819,6 +819,88 @@ paths:
         principals:
         - user
         stage: 1
+  /api/v1/auth/web-session:
+    delete:
+      operationId: auth.web_session_delete
+      tags:
+      - Auth
+      summary: Sign out of the web UI; revokes the session and clears the cookie
+      description: Sign out of the web UI; revokes the session and clears the cookie.
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: delete
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 1
+    post:
+      operationId: auth.web_session_create
+      tags:
+      - Auth
+      summary: Sign in from the web UI; the session token is set as an HttpOnly cookie
+      description: 'Same credentials and rate limits as auth.login. The token is never in the body: it is set as the cookie
+        tl_session (HttpOnly, Secure, SameSite=Strict, Path=/api). Requests authenticated by that cookie must send X-TheLife-CSRF:
+        1 on POST, PATCH, PUT and DELETE (frontend_lld.md §2.2).'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebSession'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 320
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+      x-thelife-tool:
+        effect: create
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 1
   /api/v1/calendar:
     get:
       operationId: calendar.view
@@ -13928,6 +14010,16 @@ components:
             - FR
             - SA
             - SU
+    WebSession:
+      type: object
+      required:
+      - expires_at
+      - user
+      properties:
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        user:
+          $ref: '#/components/schemas/User'
     WorkContext:
       type: object
       properties:

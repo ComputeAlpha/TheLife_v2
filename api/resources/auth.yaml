@@ -27,6 +27,12 @@ extra_schemas:
       token: {type: string, description: "tlu_ session token; shown once."}
       expires_at: {$ref: Timestamp}
       user: {$ref: User}
+  WebSession:
+    type: object
+    required: [expires_at, user]
+    properties:
+      expires_at: {$ref: Timestamp}
+      user: {$ref: User}
 actions:
   - name: login
     tool: false
@@ -50,6 +56,33 @@ actions:
     path: /auth/logout
     effect: delete
     summary: Revoke the current session token
+    status: 204
+  - name: web_session_create
+    tool: false
+    public: true
+    method: post
+    path: /auth/web-session
+    effect: create
+    summary: Sign in from the web UI; the session token is set as an HttpOnly cookie
+    description: >-
+      Same credentials and rate limits as auth.login. The token is never in the body: it is set as the cookie
+      tl_session (HttpOnly, Secure, SameSite=Strict, Path=/api). Requests authenticated by that cookie must send
+      X-TheLife-CSRF: 1 on POST, PATCH, PUT and DELETE (frontend_lld.md §2.2).
+    extra_responses: {401: Unauthorized, 429: TooManyRequests}
+    body:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: {type: string, format: email, maxLength: 320}
+        password: {type: string, minLength: 1, maxLength: 1024}
+    returns: WebSession
+  - name: web_session_delete
+    tool: false
+    method: delete
+    path: /auth/web-session
+    effect: delete
+    summary: Sign out of the web UI; revokes the session and clears the cookie
     status: 204
   - name: me
     tool: false

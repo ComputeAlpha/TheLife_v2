@@ -15,6 +15,8 @@ struct HttpResult {
   Json::Value json;  // null unless the body parsed as JSON
   std::string header(const std::string& name) const;
   std::vector<std::pair<std::string, std::string>> headers;
+  // Set-Cookie lines, as the client parsed them back into a cookie string ("name=value; HttpOnly; ...").
+  std::vector<std::string> setCookies;
 };
 
 // Blocking requests for tests. They use their own event loop thread, so they are safe from the test thread.

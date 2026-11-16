@@ -216,6 +216,8 @@ Each stage has deliverables and an exit gate. There are no timelines; stages run
 
 **Exit gate:** the frontend replaces the Flask demo UI with no loss of function.
 
+**Design:** `docs/frontend_lld.md` (screen specs, increments 5a–5e). Started 2026-11-16.
+
 ### Stage 6 (deferred): Custom inference
 - Scheduling, measurement and analytics models.
 - ONNX Runtime first (with the TensorRT execution provider), then libtorch where needed.

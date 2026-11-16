@@ -12,6 +12,7 @@
 #include "http/llm_routes.h"
 #include "http/rest_adapter.h"
 #include "http/route.h"
+#include "http/web_root.h"
 #include "db/field_crypt.h"
 #include "ingest/jobs.h"
 #include "jobs/worker.h"
@@ -51,6 +52,9 @@ int main() {
     registry.verifyComplete(thelife::build::kStage);  // refuse to start with an unimplemented contract tool
     thelife::http::registerToolRoutes();
     thelife::http::installMethodNotAllowed();
+    if (const auto webRoot = thelife::env::get("THELIFE_WEB_ROOT", ""); !webRoot.empty()) {
+      thelife::http::installWebRoot(webRoot);
+    }
     thelife::memory::registerJobs();
     thelife::memory::registerSemanticJobs();
     thelife::scoring::registerJobs();
@@ -77,6 +81,9 @@ int main() {
         // capture of 8 monitors; larger bodies are refused before they are read.
         .setClientMaxBodySize(kMaxBody)
         .setClientMaxMemoryBodySize(kMaxBody)
+        // Drogon serves files of common types from its working directory by default (document root "./");
+        // nothing is served that way. The web UI has its own handler (THELIFE_WEB_ROOT, http/web_root.cc).
+        .setFileTypes({})
         .setUploadPath(thelife::env::get("THELIFE_UPLOAD_DIR", "/tmp/thelife-backend-uploads"))
         .run();
   } catch (const std::exception& e) {

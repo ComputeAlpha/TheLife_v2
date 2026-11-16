@@ -114,6 +114,7 @@ add_library(thelife_core STATIC
   src/auth/authenticator.cc
   src/auth/rate_limiter.cc
   src/http/route.cc
+  src/http/web_root.cc
   src/http/health.cc
   src/http/auth_routes.cc
   src/http/rest_adapter.cc
