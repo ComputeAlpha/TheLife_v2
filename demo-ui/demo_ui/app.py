@@ -1,6 +1,7 @@
 """Flask demo UI (prelim_spec.md §8): a pure API client for exercising the backend. Pages for resources are
 generated from the contract; the only hand-written pages are login, the calendar, chat, settings and a few
-resource-specific panels (task occurrences, detection history, conversation transcript)."""
+resource-specific panels (task occurrences, detection history, conversation transcript) and the detection
+timeline."""
 from __future__ import annotations
 
 import json
@@ -34,7 +35,7 @@ def create_app(config: dict | None = None) -> Flask:
     app.config.update(
         API_URL=os.environ.get("THELIFE_API_URL", "http://127.0.0.1:8080"),
         CONTRACT=os.environ.get("THELIFE_CONTRACT", str(REPO / "api/generated/openapi.yaml")),
-        STAGE=int(os.environ.get("THELIFE_STAGE", "2")),
+        STAGE=int(os.environ.get("THELIFE_STAGE", "4")),
         SECURE_COOKIES=os.environ.get("DEMO_SECURE_COOKIES", "0") == "1",
         HTTP_SESSION=None,  # tests inject a requests.Session with a fake transport
     )
@@ -378,6 +379,88 @@ def create_app(config: dict | None = None) -> Flask:
         target = result.get("id", id) if isinstance(result, dict) else id
         return redirect(url_for("resource_get", prefix=prefix, id=target))
 
+    # ------------------------------------------------------------------ timeline (Stage 4)
+    def areas() -> list[str]:
+        return contract.schemas.get("Area", {}).get("enum", [])
+
+    @app.get("/timeline")
+    @login_required
+    def timeline():
+        if not contract.ops.get("detections.list"):
+            abort(404)
+        day_start = int(g.s.user.get("day_start_hour", 0))
+        today = (datetime.now(g.tz) - timedelta(hours=day_start)).date()
+        try:
+            day = date.fromisoformat(request.args["day"]) if request.args.get("day") else today
+        except ValueError:
+            abort(400, "day must be YYYY-MM-DD")
+        show_all = request.args.get("show") == "all"
+        frm = datetime(day.year, day.month, day.day, day_start, tzinfo=g.tz)
+        to = frm + timedelta(days=1)
+        items: list[dict] = []
+        cursor = None
+        for _ in range(10):
+            page = g.api.get("/api/v1/detections", **{"from": frm.isoformat(), "to": to.isoformat(), "limit": 200,
+                                                     "cursor": cursor})
+            items += page["items"]
+            cursor = page.get("next_cursor")
+            if not cursor:
+                break
+        else:
+            flash(f"Showing the first {len(items)} detections only.", "error")
+        superseded = sum(1 for d in items if d["status"] == "superseded")
+        if not show_all:
+            items = [d for d in items if d["status"] != "superseded"]
+        items.sort(key=lambda d: (d["started_at"], d["ended_at"], d["id"]))
+        devices = []
+        if contract.ops.get("devices.list"):
+            now = datetime.now(g.tz)
+            for dev in g.api.get("/api/v1/devices", limit=50)["items"]:
+                if dev.get("revoked_at"):
+                    continue
+                seen = datetime.fromisoformat(dev["last_seen_at"]) if dev.get("last_seen_at") else None
+                dev["silent"] = not seen or now - seen > timedelta(minutes=5)
+                devices.append(dev)
+        return render_template("timeline.html", day=day, today=today, items=items, show_all=show_all,
+                               superseded=superseded, totals=area_minutes(items, frm, to), areas=areas(),
+                               devices=devices, prev=(day - timedelta(days=1)).isoformat(),
+                               next=(day + timedelta(days=1)).isoformat())
+
+    @app.post("/timeline/<id>/<verb>")
+    @login_required
+    def timeline_action(id, verb):
+        check_id(id)
+        if verb not in ("confirm", "dispute", "claim"):
+            abort(404)
+        back = safe_next(request.form.get("next")) or url_for("timeline")
+        f = request.form
+        try:
+            if verb == "confirm":
+                g.api.post(f"/api/v1/detections/{id}:confirm", None)
+                flash("Confirmed.", "ok")
+            elif verb == "dispute":
+                reason = f.get("reason", "").strip()
+                if not reason:
+                    flash("Say what is wrong with it, so the assistant can re-evaluate.", "error")
+                    return redirect(back)
+                g.api.post(f"/api/v1/detections/{id}:dispute", {"reason": reason[:1000]})
+                flash("Disputed: it no longer counts until the assistant has looked at it again.", "ok")
+            else:
+                body = {"area": f.get("area", ""), "category": f.get("category", "").strip()[:80],
+                        "summary": f.get("summary", "").strip()[:500]}
+                times = claim_times(f, g.tz)
+                if times is None:
+                    flash("Times must be HH:MM.", "error")
+                    return redirect(back)
+                body.update(times)
+                g.api.post(f"/api/v1/detections/{id}:claim", body)
+                flash("Corrected: your version replaces the detection.", "ok")
+        except ApiError as e:
+            if e.status == 401:
+                raise
+            flash(describe(e), "error")
+        return redirect(back)
+
     # ------------------------------------------------------------------ chat
     @app.get("/chat")
     @login_required
@@ -503,6 +586,49 @@ def create_app(config: dict | None = None) -> Flask:
 
     return app
 
+
+
+def area_minutes(items: list[dict], frm: datetime, to: datetime) -> dict[str, int]:
+    """Minutes per area that count (detected or confirmed, confidence >= 0.4), clipped to the day. Detections of
+    different sources overlap (a vision and a process detection of the same minutes), so each area's intervals
+    are merged before they are added up."""
+    spans: dict[str, list[tuple[datetime, datetime]]] = {}
+    for d in items:
+        if d["status"] not in ("detected", "confirmed") or float(d.get("confidence", 1)) < 0.4:
+            continue
+        s, e = max(datetime.fromisoformat(d["started_at"]), frm), min(datetime.fromisoformat(d["ended_at"]), to)
+        if e > s:
+            spans.setdefault(d["area"], []).append((s, e))
+    out = {}
+    for area, iv in spans.items():
+        iv.sort()
+        total, cur_s, cur_e = timedelta(), iv[0][0], iv[0][1]
+        for s, e in iv[1:]:
+            if s <= cur_e:
+                cur_e = max(cur_e, e)
+            else:
+                total += cur_e - cur_s
+                cur_s, cur_e = s, e
+        total += cur_e - cur_s
+        out[area] = round(total.total_seconds() / 60)
+    return dict(sorted(out.items(), key=lambda kv: -kv[1]))
+
+
+def claim_times(form, tz: ZoneInfo) -> dict | None:
+    """Optional HH:MM start/end on the detection's local day (`day`); an end at or before the start is the next
+    day. {} when the form keeps the detected times, None when they are malformed."""
+    start, end, day = form.get("start", "").strip(), form.get("end", "").strip(), form.get("day", "")
+    if not start and not end:
+        return {}
+    try:
+        d = date.fromisoformat(day)
+        s = datetime.combine(d, datetime.strptime(start, "%H:%M").time(), tz)
+        e = datetime.combine(d, datetime.strptime(end, "%H:%M").time(), tz)
+    except ValueError:
+        return None
+    if e <= s:
+        e += timedelta(days=1)
+    return {"started_at": s.isoformat(), "ended_at": e.isoformat()}
 
 def transcript(messages: list[dict]) -> list[dict]:
     """Chat messages as display entries: user and assistant text, with each assistant step's tool calls and

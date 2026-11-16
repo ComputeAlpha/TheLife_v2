@@ -43,6 +43,7 @@ class ApiError : public std::runtime_error {
   static ApiError preconditionFailed(std::string detail = "If-Match does not match the current version.");
   static ApiError preconditionRequired();
   static ApiError tooManyRequests(int retryAfterSec);
+  static ApiError serviceUnavailable(std::string detail, int retryAfterSec);
 
   int retryAfter() const { return retryAfter_; }
 

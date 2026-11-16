@@ -58,13 +58,19 @@ class Telegram : public ::testing::Test {
     THELIFE_SKIP_WITHOUT_DB();
     user = createTenantWithUser();
     chat = randomChat();
+    disableDefaultRoutines(user.tenantId);  // no routine turn may take this test's scripted replies
     fake = std::make_unique<FakeLlm>();
     tg = std::make_unique<FakeTelegram>();
+    startServer();
+  }
+
+  void startServer() {
+    server.reset();
     server = startServerWithDb({{"THELIFE_LLM_BASE_URL", fake->baseUrl()},
                                 {"THELIFE_TELEGRAM_BOT_TOKEN", FakeTelegram::kToken},
                                 {"THELIFE_TELEGRAM_API", tg->apiBase()},
                                 {"THELIFE_TELEGRAM_POLL_S", "1"},
-                                {"THELIFE_PROACTIVE", "on"},  // ticks run only when the test queues one
+                                {"THELIFE_PROACTIVE", "on"},  // for the notification routing test
                                 {"THELIFE_JOBS", "on"},
                                 {"THELIFE_JOBS_TENANT", user.tenantId},
                                 {"THELIFE_JOBS_HOUSEKEEPING", "off"},
@@ -105,6 +111,29 @@ class Telegram : public ::testing::Test {
 };
 
 }  // namespace
+
+TEST_F(Telegram, ARestartedBotNeitherMissesNorRepeatsMessages) {
+  link();
+  fake->script(J(R"([{"content":"Noted."},{"content":"Still here."}])"));
+  auto before = sent().size();
+  tg->message(chat, "first");
+  ASSERT_TRUE(waitSent(before + 1));
+  settle();
+  // A restart right away: the batch may not have been confirmed to Telegram yet, so it can arrive again; the
+  // message is handled once. No stored position can make the new process skip anything.
+  startServer();  // stops the old process first
+  before = sent().size();
+  tg->message(chat, "second");
+  ASSERT_TRUE(waitSent(before + 1));
+  settle();
+  std::this_thread::sleep_for(std::chrono::milliseconds(1500));  // a redelivered "first" would answer by now
+  const auto texts = sent();
+  EXPECT_EQ(std::count(texts.begin(), texts.end(), "Noted."), 1);
+  EXPECT_EQ(std::count(texts.begin(), texts.end(), "Still here."), 1);
+  EXPECT_EQ(sql(user.tenantId, "SELECT count(*)::int AS n FROM messages WHERE role = 'user' AND content = 'first'")
+                [0]["n"].as<int>(),
+            1);
+}
 
 TEST_F(Telegram, LinkingByCodeAndOnlyLinkedPrivateChatsAreServed) {
   auto st = api->get("/telegram/link");
@@ -272,6 +301,14 @@ TEST_F(Telegram, ApprovalButtonsAreSignedAndDecideTheApproval) {
 
 TEST_F(Telegram, NotificationsGoToTelegramWhenTheUserIsAway) {
   link();
+  // Quiet hours (22:30–07:30 for these UTC users) hold proactive messages unless the user was active in the last
+  // 10 minutes: a fresh activity keeps the test independent of the time of day.
+  Json::Value act = J(R"({"title":"Setup","area":"other"})");
+  act["started_at"] = sql(user.tenantId, "SELECT to_char(now() - interval '5 minutes', "
+                                         "'YYYY-MM-DD\"T\"HH24:MI:SS\"+00:00\"') AS t")[0]["t"].as<std::string>();
+  act["ended_at"] = sql(user.tenantId, "SELECT to_char(now() - interval '4 minutes', "
+                                       "'YYYY-MM-DD\"T\"HH24:MI:SS\"+00:00\"') AS t")[0]["t"].as<std::string>();
+  ASSERT_EQ(api->post("/activities", act).status, 201);
   // A due reminder (template path, no model) while no web tab is open and no collector is fresh: Telegram at once.
   Json::Value r = J(R"({"text":"Call the bank"})");
   r["due_at"] = sql(user.tenantId,
@@ -329,7 +366,15 @@ TEST_F(Telegram, EachChannelSeesTheOthersDigestOfToday) {
   ASSERT_TRUE(waitSent(before + 1));
   ASSERT_TRUE(eventually([&] {
     return !sql(user.tenantId, "SELECT 1 FROM channel_digests WHERE channel = 'telegram'").empty();
-  }, 15000));
+  }, 40000)) << [&] {  // the digest job runs 5 s after the turn
+    std::string s;
+    for (const auto& r : fake->requests()) {
+      const auto& m = r["messages"][r["messages"].size() - 1];
+      s += m["role"].asString() + ": " + json::compact(m["content"]).substr(0, 160) + " | tools " +
+           std::to_string(r["tools"].size()) + "\n";
+    }
+    return s;
+  }();
   const auto d = sql(user.tenantId, "SELECT content, messages_seen FROM channel_digests WHERE channel = 'telegram'");
   EXPECT_EQ(d[0]["content"].as<std::string>(), "Added a task to call the bank.");
   EXPECT_EQ(d[0]["messages_seen"].as<int>(), 2);

@@ -88,7 +88,8 @@ TEST_F(ContractMatrix, DeviceTokenReachesOnlyDeviceTools) {
       EXPECT_EQ(r.status, 403) << def->name << " " << r.body;
     }
   }
-  EXPECT_EQ(deviceTools, thelife::build::kStage >= 4 ? 5 : 2);  // notification poll and ack (Stage 2)
+  // notification poll and ack (Stage 2); config, heartbeat, token rotation, observations, captures (Stage 4)
+  EXPECT_EQ(deviceTools, thelife::build::kStage >= 4 ? 7 : 2);
 }
 
 TEST_F(ContractMatrix, ApiKeyNeedsTheToolsScope) {

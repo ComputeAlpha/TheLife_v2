@@ -446,6 +446,17 @@ std::string Gateway::mode(std::optional<Clock::time_point>* resetsAt) {
   return "manual";
 }
 
+bool Gateway::visionAvailable() {
+  std::lock_guard lock(mu_);
+  for (auto& s : providers_) {
+    if (s.provider->config().kind == "stub" || !s.provider->config().caps.vision) continue;
+    const auto& st = s.status.state;
+    if (st == "healthy" || st == "throttled") return true;
+    if (st == "exhausted" && s.status.until && now() >= *s.status.until) return true;
+  }
+  return false;
+}
+
 // ------------------------------------------------------------------------------------------------ config
 
 GatewayConfig parseConfig(const Json::Value& doc) {

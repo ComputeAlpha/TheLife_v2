@@ -1,0 +1,106 @@
+{
+  "_comment": "Payload schema per observation kind (collector_lld.md §10). One source of truth: the backend embeds this file and validates every uploaded payload against it; the collector tests check what they emit against it.",
+  "window": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["window_id", "wm_class", "title"],
+    "properties": {
+      "window_id": {"type": "string", "pattern": "^0x[0-9a-f]{1,8}$"},
+      "wm_class": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string", "maxLength": 256}},
+      "title": {"type": "string", "maxLength": 1024},
+      "pid": {"type": ["integer", "null"], "minimum": 1},
+      "exe": {"type": ["string", "null"], "maxLength": 4096},
+      "monitor": {"type": ["integer", "null"], "minimum": 0},
+      "fullscreen": {"type": "boolean"}
+    }
+  },
+  "idle": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["event", "at"],
+    "properties": {
+      "event": {"type": "string", "enum": ["start", "end"]},
+      "at": {"type": "string", "format": "date-time"},
+      "passive": {"type": "boolean"},
+      "locked": {"type": "boolean"}
+    }
+  },
+  "process_snapshot": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["full"],
+    "properties": {
+      "full": {"type": "boolean"},
+      "procs": {"type": "array", "maxItems": 500, "items": {"$ref": "#/definitions/proc"}},
+      "started": {"type": "array", "maxItems": 500, "items": {"$ref": "#/definitions/proc"}},
+      "exited": {"type": "array", "maxItems": 500, "items": {"type": "string", "maxLength": 4096}},
+      "changed": {"type": "array", "maxItems": 500, "items": {"$ref": "#/definitions/proc"}}
+    },
+    "definitions": {
+      "proc": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["exe"],
+        "properties": {
+          "exe": {"type": "string", "maxLength": 4096},
+          "comm": {"type": "string", "maxLength": 64},
+          "pids": {"type": "array", "maxItems": 1000, "items": {"type": "integer", "minimum": 1}},
+          "cpu_pct": {"type": "number", "minimum": 0},
+          "rss_mb": {"type": "number", "minimum": 0},
+          "has_window": {"type": "boolean"},
+          "focused": {"type": "boolean"},
+          "args": {"type": "array", "maxItems": 32, "items": {"type": "string", "maxLength": 1024}}
+        }
+      }
+    }
+  },
+  "capture_meta": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "capture_id": {"type": "string", "format": "uuid"},
+      "skipped": {"type": "string", "enum": ["idle", "locked", "paused", "disabled", "offline", "backend_busy",
+                                              "vision_failed", "error"]},
+      "monitors": {"type": "integer", "minimum": 0, "maximum": 8},
+      "active_monitor": {"type": ["integer", "null"], "minimum": 0},
+      "duration_ms": {"type": "integer", "minimum": 0}
+    }
+  },
+  "gap": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["from_seq", "to_seq", "reason"],
+    "properties": {
+      "from_seq": {"type": "integer", "minimum": 0},
+      "to_seq": {"type": "integer", "minimum": 0},
+      "reason": {"type": "string", "enum": ["queue_full", "queue_expired", "corrupt"]}
+    }
+  },
+  "session": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["event"],
+    "properties": {
+      "event": {"type": "string", "enum": ["start", "end"]},
+      "collector_version": {"type": "string", "maxLength": 64},
+      "x_screen": {"type": "string", "maxLength": 64},
+      "monitors": {
+        "type": "array",
+        "maxItems": 8,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["index", "width", "height"],
+          "properties": {
+            "index": {"type": "integer", "minimum": 0},
+            "x": {"type": "integer"},
+            "y": {"type": "integer"},
+            "width": {"type": "integer", "minimum": 1},
+            "height": {"type": "integer", "minimum": 1},
+            "primary": {"type": "boolean"}
+          }
+        }
+      }
+    }
+  }
+}

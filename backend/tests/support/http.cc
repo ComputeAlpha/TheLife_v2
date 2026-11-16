@@ -73,6 +73,12 @@ HttpResult send(const Request& r) {
   out.contentType = std::string(resp->getHeader("content-type"));
   out.body = std::string(resp->body());
   for (const auto& [k, v] : resp->headers()) out.headers.emplace_back(k, v);
+  for (const auto& [k, c] : resp->cookies()) {
+    auto line = c.cookieString();  // "Set-Cookie: name=value; ...\r\n"
+    if (line.starts_with("Set-Cookie: ")) line = line.substr(12);
+    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) line.pop_back();
+    out.setCookies.push_back(line);
+  }
   Json::CharReaderBuilder builder;
   std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
   std::string errs;

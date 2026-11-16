@@ -14,6 +14,7 @@
   <nav>
     <a href="{{ url_for('calendar') }}">Calendar</a>
     <a href="{{ url_for('chat') }}">Chat</a>
+    {% if contract.ops.get('detections.list') %}<a href="{{ url_for('timeline') }}">Timeline</a>{% endif %}
     {% for tag, resources in contract.nav() %}
     {% if resources|length == 1 %}<a href="{{ url_for('resource_list', prefix=resources[0].prefix) }}">{{ tag }}</a>{% else %}
     <details>

@@ -9,12 +9,14 @@
 #   scripts/db.sh test      create (if missing) and migrate the separate test database, thelife_test, and print
 #                           the THELIFE_TEST_* URLs. Tests create thousands of tenants and run jobs; keeping them
 #                           out of the dev database keeps the demo backend from processing (and paying for) them.
+#   scripts/db.sh test-reset  drop thelife_test and create it again (test runs accumulate tenants and jobs; cross-
+#                           tenant housekeeping slows down as it grows). Only ever touches thelife_test.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORT="${THELIFE_PG_PORT:-55432}"
 DB="${THELIFE_DB_NAME:-thelife}"
-[[ "${1:-}" == "test" ]] && DB=thelife_test
+[[ "${1:-}" == "test" || "${1:-}" == "test-reset" ]] && DB=thelife_test
 OWNER_URL="postgres://thelife_owner:${THELIFE_OWNER_PASSWORD:-owner-dev-only}@127.0.0.1:${PORT}/${DB}?sslmode=disable"
 APP_URL="postgresql://thelife_app:${THELIFE_APP_PASSWORD:-app-dev-only}@127.0.0.1:${PORT}/${DB}"
 ADMIN_URL="postgresql://thelife_admin:${THELIFE_ADMIN_PASSWORD:-admin-dev-only}@127.0.0.1:${PORT}/${DB}"
@@ -33,6 +35,10 @@ case "${1:-}" in
   status)   dbmate status ;;
   reset)    docker compose -f docker/compose.yml down -v && docker compose -f docker/compose.yml up -d --wait ;;
   urls)     echo "owner: $OWNER_URL"; echo "app:   $APP_URL" ;;
+  test-reset)
+    docker compose -f docker/compose.yml exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -q \
+      -c "DROP DATABASE IF EXISTS thelife_test WITH (FORCE)" >&2
+    exec "$0" test ;;
   test)
     # Same roles as the dev database (created by docker/postgres/init); only the database is new.
     if ! docker compose -f docker/compose.yml exec -T postgres psql -U postgres -tAc \
@@ -52,5 +58,5 @@ SQL
     dbmate up >&2
     echo "export THELIFE_TEST_DB_URL=$APP_URL"
     echo "export THELIFE_TEST_ADMIN_DB_URL=$ADMIN_URL" ;;
-  *)        sed -n '2,9p' "$0"; exit 2 ;;
+  *)        sed -n '2,11p' "$0"; exit 2 ;;
 esac

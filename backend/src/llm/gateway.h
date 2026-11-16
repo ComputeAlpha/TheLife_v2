@@ -102,6 +102,8 @@ class Gateway {
   std::vector<ProviderStatus> status();
   // "online", "manual" (no usable provider; resetsAt says until when, if known) or "unconfigured".
   std::string mode(std::optional<Clock::time_point>* resetsAt = nullptr);
+  // A vision-capable provider can take a call now (healthy, throttled, or exhausted past its reset estimate).
+  bool visionAvailable();
 
  private:
   struct Slot {

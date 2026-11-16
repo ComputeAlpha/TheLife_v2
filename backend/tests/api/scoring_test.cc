@@ -85,8 +85,10 @@ class Scoring : public ::testing::Test {
 
   void waitIdle() {
     ASSERT_TRUE(eventually([&] {
+      // Proactive ticks may be queued for this tenant by other tests' cross-tenant scheduling; this server runs
+      // without proactivity and never claims them.
       return sql(user.tenantId, "SELECT count(*)::int AS n FROM ops.jobs WHERE tenant_id = $1::uuid AND status IN ('queued', 'running') "
-                                "AND run_at <= now()",
+                                "AND run_at <= now() AND kind <> 'proactive.tick'",
                  {user.tenantId})[0]["n"].as<int>() == 0;
     }));
   }
@@ -124,6 +126,8 @@ class Scoring : public ::testing::Test {
 }  // namespace
 
 TEST_F(Scoring, DayScoreWithAdjustmentRecomputeAndDispute) {
+  // A workday whatever the calendar says (the expectations below are for the workday profile).
+  ASSERT_EQ(api->patch("/me", J(R"({"workdays":["MO","TU","WE","TH","FR","SA","SU"]})"), "").status, 200);
   planYesterday();
   fake->script(J(R"([{"content":"","tool_calls":[{"name":"submit_score_adjustment","arguments":{
       "adjustment_pct":5,"reasons":[{"text":"Strong reading progress on an active skill goal.","direction":"up"}],

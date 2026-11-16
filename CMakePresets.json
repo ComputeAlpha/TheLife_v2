@@ -32,6 +32,19 @@
         "THELIFE_WERROR": "ON",
         "THELIFE_BUILD_EMBEDDER": "OFF"
       }
+    },
+    {
+      "name": "fuzz",
+      "inherits": "base",
+      "displayName": "Collector libFuzzer targets (clang-18, ASan/UBSan)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "clang-18",
+        "CMAKE_CXX_COMPILER": "clang++-18",
+        "THELIFE_BUILD_BACKEND": "OFF",
+        "THELIFE_BUILD_TESTS": "OFF",
+        "THELIFE_BUILD_FUZZERS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -42,6 +55,10 @@
     {
       "name": "ci",
       "configurePreset": "ci"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
     }
   ],
   "testPresets": [

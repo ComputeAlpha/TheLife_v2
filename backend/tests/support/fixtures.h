@@ -24,6 +24,12 @@ TestUser createTenantWithUser();
 // Adds a user to an existing tenant.
 TestUser createUser(const std::string& tenantId);
 
+// For a test server running proactive work: seeds the tenant's default routines (morning, evening, weekly) and
+// switches them off. Call before the server starts claiming jobs. Without this, other tests' cross-tenant
+// scheduling seeds them enabled at any moment, and inside a routine's window (06:00–10:00 UTC for the morning one)
+// a routine turn takes the test's scripted model replies.
+void disableDefaultRoutines(const std::string& tenantId);
+
 drogon::orm::DbClientPtr appDb();
 drogon::orm::DbClientPtr adminDb();
 

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "auth/principal.h"
+#include "core/secure_buffer.h"
 #include "db/tenant_tx.h"
 #include "tools/manifest.h"
 #include "tools/policy.h"
@@ -29,6 +30,8 @@ struct ToolCall {
   std::optional<std::string> sourceMessageId;
   std::vector<std::function<void()>> afterCommit;  // run once the call's transaction has committed
   std::optional<std::string> conversationId;       // agent calls: the conversation of the turn
+  // Binary request parts (multipart uploads: capture images), never part of `args`, never stored.
+  std::shared_ptr<Attachments> attachments;
 };
 
 using ToolHandler = std::function<drogon::Task<Json::Value>(ToolCall&)>;
@@ -55,6 +58,7 @@ struct InvokeOptions {
   std::optional<std::string> turnId;
   bool userTurn = false;
   bool untrustedContext = false;  // web content entered the turn: writes are held for approval
+  std::shared_ptr<Attachments> attachments;  // multipart binary parts, handed to the handler as is
 };
 
 // The single gate every capability passes through, from REST today and from the agent and MCP later

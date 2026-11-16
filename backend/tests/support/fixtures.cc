@@ -1,7 +1,11 @@
 #include "support/fixtures.h"
 
+#include <chrono>
 #include <cstdlib>
+#include <future>
 #include <mutex>
+#include <stdexcept>
+#include <thread>
 
 #include "core/crypto.h"
 #include "core/ids.h"
@@ -49,6 +53,29 @@ TestUser createUser(const std::string& tenantId) {
                                         ids::newUuidV7(), tenantId, u.email, std::string("Test User"), kHash);
   u.userId = r[0]["id"].as<std::string>();
   return u;
+}
+
+void disableDefaultRoutines(const std::string& tenantId) {
+  // Another test's seeding of this tenant may commit concurrently (the unique index lets one of them win), so
+  // repeat until the routines exist and are all off.
+  for (int i = 0; i < 100; ++i) {
+    std::promise<bool> committed;
+    int total = 0, on = 0;
+    {
+      auto tx = appDb()->newTransaction();
+      tx->execSqlSync("SELECT set_config('app.tenant_id', $1, true)", tenantId);
+      tx->execSqlSync(
+          "DO $$ BEGIN PERFORM ops.enqueue_proactive_ticks(); UPDATE routines SET enabled = false; END $$");
+      const auto r = tx->execSqlSync("SELECT count(*)::int AS n, (count(*) FILTER (WHERE enabled))::int AS on "
+                                     "FROM routines");
+      total = r[0]["n"].as<int>();
+      on = r[0]["on"].as<int>();
+      tx->setCommitCallback([&committed](bool ok) { committed.set_value(ok); });
+    }
+    if (committed.get_future().get() && total > 0 && on == 0) return;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  }
+  throw std::runtime_error("could not switch off the default routines of tenant " + tenantId);
 }
 
 TestUser createTenantWithUser() {

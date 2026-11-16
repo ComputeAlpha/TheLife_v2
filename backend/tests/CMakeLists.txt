@@ -14,7 +14,7 @@ target_compile_definitions(thelife_test_support PUBLIC
 
 # unit: no database, no server
 add_executable(thelife_unit_tests unit/core_test.cc unit/tools_test.cc unit/recurrence_test.cc unit/llm_test.cc
-               unit/scoring_test.cc unit/field_crypt_test.cc)
+               unit/scoring_test.cc unit/field_crypt_test.cc unit/ingest_test.cc)
 target_link_libraries(thelife_unit_tests PRIVATE thelife_core GTest::gtest_main thelife_warnings)
 target_compile_definitions(thelife_unit_tests PRIVATE
   THELIFE_LLM_FIXTURES="${CMAKE_SOURCE_DIR}/docker/fake-llm/fixtures" THELIFE_REPO_ROOT="${CMAKE_SOURCE_DIR}")
@@ -25,7 +25,7 @@ add_executable(thelife_api_tests api/health_test.cc api/auth_test.cc api/plannin
                api/resources_test.cc api/contract_test.cc api/domain_test.cc api/llm_test.cc
                api/agent_test.cc api/memory_test.cc api/web_test.cc api/embeddings_test.cc
                api/scoring_test.cc api/proactive_test.cc api/telegram_test.cc
-               api/encryption_test.cc)
+               api/encryption_test.cc api/ingest_test.cc api/web_session_test.cc)
 target_link_libraries(thelife_api_tests PRIVATE thelife_test_support GTest::gtest_main CURL::libcurl thelife_warnings)
 add_dependencies(thelife_api_tests thelife-backend)
 gtest_discover_tests(thelife_api_tests PROPERTIES LABELS "api")

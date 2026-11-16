@@ -1,0 +1,5 @@
+backend_url = "https://life.example.org"
+web_ui_url = "http://127.0.0.1:5000"
+log_level = "debug"
+args_allowlist = ["code"]
+pin_sha256 = "sha256//AAAA"

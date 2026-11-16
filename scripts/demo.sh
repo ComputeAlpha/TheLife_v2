@@ -2,8 +2,13 @@
 # Run the backend and the demo UI together on this machine (dev defaults, 127.0.0.1 only).
 #   scripts/demo.sh account EMAIL "NAME" [TIMEZONE]   create a tenant and user; prints the password once
 #   scripts/demo.sh up                              Postgres + migrations + backend (:8080) + demo UI (:5000)
+#   scripts/demo.sh collector                       build and run the X11 collector against it (enrolls first;
+#                                                   paste the device token from Devices → New in the demo UI)
 # Ctrl-C stops both. Logs: build/demo-backend.log. Ports: THELIFE_LISTEN_PORT, DEMO_PORT.
 # LLM: config/llm.json (local Ollama, glm-5.3-flash:cloud). DEMO_FAKE_LLM=1 uses docker/fake-llm instead (no quota).
+# Background jobs (routines, digests, nudges, ingest) run only for the tenant in build/demo-tenant, written by
+# `account`, so leftover test tenants in the dev database never call the LLM. THELIFE_JOBS_TENANT overrides it.
+# Telegram: export THELIFE_TELEGRAM_BOT_TOKEN (from @BotFather) before `up`; link the chat in the demo UI Settings.
 # Web search: export OLLAMA_API_KEY (https://ollama.com/settings/keys) before starting; without it the tool is off.
 # Embeddings: thelife-embedder starts when built and the model files exist (THELIFE_EMBED_MODEL, THELIFE_EMBED_SPM;
 # default: the Stage 0 spike download under spikes/embed/models). DEMO_EMBEDDER=0 skips it (keyword search only).
@@ -35,9 +40,16 @@ database() {
 
 build() {
   [[ -d build/dev ]] || cmake --preset dev
-  local targets=(thelife-backend thelife-admin)
+  local targets=(thelife-backend thelife-admin thelife-collector)
   [[ "${DEMO_EMBEDDER:-1}" == 1 ]] && targets+=(thelife-embedder)
   cmake --build build/dev -j"$(nproc)" --target "${targets[@]}"
+  # The web UI (Stage 5), served by the backend from frontend/dist.
+  if command -v npm >/dev/null; then
+    (cd frontend && { [[ -d node_modules ]] || npm ci --no-audit --no-fund; } && npm run build >/dev/null) \
+      || echo "web UI build failed (cd frontend && npm run build)" >&2
+  else
+    echo "npm not found: the web UI is not built (Node 22 needed)" >&2
+  fi
 }
 
 venv() {
@@ -56,6 +68,18 @@ case "${1:-}" in
     build >/dev/null
     tenant="$("$BIN/thelife-admin" tenant create --name "$name" | grep -oE '[0-9a-f-]{36}')"
     "$BIN/thelife-admin" user create --tenant "$tenant" --email "$email" --name "$name" --timezone "$tz"
+    echo "$tenant" > build/demo-tenant
+    echo "background jobs of 'scripts/demo.sh up' will run for this tenant only (build/demo-tenant)"
+    ;;
+  collector)
+    cmake --build build/dev -j"$(nproc)" --target thelife-collector >/dev/null
+    col=build/dev/collector/thelife-collector
+    if [[ ! -s "${XDG_CONFIG_HOME:-$HOME/.config}/thelife-collector/device.token" ]]; then
+      echo "Register a device in the demo UI (Devices → New, platform linux-x11) and paste its tld_ token here."
+      "$col" enroll --url "http://127.0.0.1:$API_PORT" --web-ui "http://127.0.0.1:$UI_PORT"
+    fi
+    echo "collector running on $DISPLAY (Ctrl-C stops it; 'thelife-collector status' / 'pause 30m' in another terminal)"
+    exec "$col" run
     ;;
   up)
     database
@@ -80,6 +104,16 @@ case "${1:-}" in
     else
       echo "embedder not started (keyword search only)" >&2
     fi
+    if [[ -z "${THELIFE_JOBS_TENANT:-}" ]]; then
+      if [[ -s build/demo-tenant ]]; then
+        export THELIFE_JOBS_TENANT="$(cat build/demo-tenant)"
+      else
+        echo "no build/demo-tenant (run 'scripts/demo.sh account' first): background jobs are off" >&2
+        export THELIFE_JOBS=off
+      fi
+    fi
+    # The React web UI (Stage 5) is served by the backend itself once it is built (npm run build in frontend/).
+    if [[ -z "${THELIFE_WEB_ROOT:-}" && -f frontend/dist/index.html ]]; then export THELIFE_WEB_ROOT="$PWD/frontend/dist"; fi
     THELIFE_LISTEN_PORT="$API_PORT" "$BIN/thelife-backend" > build/demo-backend.log 2>&1 &
     backend=$!
     trap 'kill "$backend" $fake $embedder 2>/dev/null || true' EXIT INT TERM
@@ -92,6 +126,9 @@ case "${1:-}" in
     echo "backend  http://127.0.0.1:$API_PORT   (log: build/demo-backend.log)"
     [[ -n "$embedder" ]] && echo "embedder $THELIFE_EMBEDDER_SOCKET   (log: build/demo-embedder.log)"
     [[ -n "${OLLAMA_API_KEY:-}" ]] && echo "web search on (OLLAMA_API_KEY)" || echo "web search off (no OLLAMA_API_KEY)"
+    [[ -n "${THELIFE_TELEGRAM_BOT_TOKEN:-}" ]] && echo "telegram on (link your chat in Settings)" || echo "telegram off (no THELIFE_TELEGRAM_BOT_TOKEN)"
+    [[ -n "${THELIFE_JOBS_TENANT:-}" ]] && echo "jobs     tenant $THELIFE_JOBS_TENANT only"
+    [[ -n "${THELIFE_WEB_ROOT:-}" ]] && echo "web UI   http://127.0.0.1:$API_PORT   ($THELIFE_WEB_ROOT)"
     echo "demo UI  http://127.0.0.1:$UI_PORT   (Ctrl-C stops both)"
     cd demo-ui
     env -u PYTHONPATH THELIFE_API_URL="http://127.0.0.1:$API_PORT" DEMO_PORT="$UI_PORT" \

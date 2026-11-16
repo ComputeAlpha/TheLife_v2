@@ -16,6 +16,21 @@ message(STATUS "TheLife schema version: ${THELIFE_SCHEMA_VERSION}")
 
 # The tool manifest is compiled into the binary so code and contract cannot drift (docs/tool_registry.md §5).
 set(THELIFE_MANIFEST "${CMAKE_SOURCE_DIR}/api/generated/tools.json")
+# Collector observation payload schemas and the default window classification rules (backend_lld.md §7.4).
+set(THELIFE_EMBEDDED_CC)
+foreach(_pair "api/schemas/observations.json|kObservationSchemasJson" "config/ingest_rules.json|kIngestRulesJson")
+  string(REPLACE "|" ";" _pair "${_pair}")
+  list(GET _pair 0 _in)
+  list(GET _pair 1 _sym)
+  set(_out "${CMAKE_CURRENT_BINARY_DIR}/generated/${_sym}.cc")
+  add_custom_command(
+    OUTPUT "${_out}"
+    COMMAND ${CMAKE_COMMAND} -DIN=${CMAKE_SOURCE_DIR}/${_in} -DOUT=${_out} -DSYMBOL=${_sym}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_text.cmake
+    DEPENDS "${CMAKE_SOURCE_DIR}/${_in}" ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_text.cmake
+    COMMENT "Embedding ${_in}")
+  list(APPEND THELIFE_EMBEDDED_CC "${_out}")
+endforeach()
 set(THELIFE_MANIFEST_CC "${CMAKE_CURRENT_BINARY_DIR}/generated/tools_manifest.cc")
 add_custom_command(
   OUTPUT "${THELIFE_MANIFEST_CC}"
@@ -51,7 +66,7 @@ configure_file("${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc.in"
                "${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc" COPYONLY)
 list(APPEND THELIFE_PROMPT_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/generated/prompts/table.cc")
 
-set(THELIFE_STAGE 2 CACHE STRING "Delivery stage implemented by this build")
+set(THELIFE_STAGE 4 CACHE STRING "Delivery stage implemented by this build")
 configure_file(src/core/build_info.h.in "${CMAKE_CURRENT_BINARY_DIR}/generated/core/build_info.h" @ONLY)
 
 add_library(thelife_warnings INTERFACE)
@@ -86,12 +101,20 @@ add_library(thelife_core STATIC
   src/telegram/bot.cc
   src/db/telegram_store.cc
   src/db/field_crypt.cc
+  src/ingest/rules.cc
+  src/ingest/derive.cc
+  src/ingest/jobs.cc
+  src/modules/ingest.cc
+  src/ingest/config.cc
+  src/vision/captures.cc
+  src/core/secure_buffer.cc
   src/modules/memory.cc
   src/modules/web.cc
   src/web/search.cc
   src/auth/authenticator.cc
   src/auth/rate_limiter.cc
   src/http/route.cc
+  src/http/web_root.cc
   src/http/health.cc
   src/http/auth_routes.cc
   src/http/rest_adapter.cc
@@ -122,6 +145,7 @@ add_library(thelife_core STATIC
   src/agent/commands.cc
   src/http/chat_routes.cc
   "${THELIFE_MANIFEST_CC}"
+  ${THELIFE_EMBEDDED_CC}
   ${THELIFE_PROMPT_SOURCES}
 )
 target_include_directories(thelife_core PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/generated")

@@ -23,5 +23,6 @@ void bindWeb(tools::ToolRegistry& reg);
 void bindScoring(tools::ToolRegistry& reg);
 void bindProactive(tools::ToolRegistry& reg);
 void bindTelegram(tools::ToolRegistry& reg);
+void bindIngest(tools::ToolRegistry& reg);
 
 }  // namespace thelife::modules

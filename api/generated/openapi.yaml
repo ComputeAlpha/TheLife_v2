@@ -819,6 +819,88 @@ paths:
         principals:
         - user
         stage: 1
+  /api/v1/auth/web-session:
+    delete:
+      operationId: auth.web_session_delete
+      tags:
+      - Auth
+      summary: Sign out of the web UI; revokes the session and clears the cookie
+      description: Sign out of the web UI; revokes the session and clears the cookie.
+      responses:
+        '204':
+          description: Done
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      x-thelife-tool:
+        effect: delete
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 1
+    post:
+      operationId: auth.web_session_create
+      tags:
+      - Auth
+      summary: Sign in from the web UI; the session token is set as an HttpOnly cookie
+      description: 'Same credentials and rate limits as auth.login. The token is never in the body: it is set as the cookie
+        tl_session (HttpOnly, Secure, SameSite=Strict, Path=/api). Requests authenticated by that cookie must send X-TheLife-CSRF:
+        1 on POST, PATCH, PUT and DELETE (frontend_lld.md §2.2).'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebSession'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - email
+              - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 320
+                password:
+                  type: string
+                  minLength: 1
+                  maxLength: 1024
+      x-thelife-tool:
+        effect: create
+        scopes: []
+        exposure:
+        - rest
+        principals:
+        - user
+        stage: 1
   /api/v1/calendar:
     get:
       operationId: calendar.view
@@ -2242,17 +2324,26 @@ paths:
       - Devices
       summary: Collector configuration for the calling device (poll with If-None-Match)
       description: Collector configuration for the calling device (poll with If-None-Match).
+      parameters:
+      - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '304':
+          $ref: '#/components/responses/NotModified'
         '200':
           description: OK
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeviceConfig'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ContentETag'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
       x-thelife-tool:
         effect: read
         scopes:
@@ -3852,6 +3943,267 @@ paths:
         - rest
         principals:
         - device
+        stage: 4
+  /api/v1/ingest/rules:
+    get:
+      operationId: ingest_rules.list
+      tags:
+      - Detections
+      summary: List ingest rules
+      description: List ingest rules.
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 50
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 512
+      - name: updated_since
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Timestamp'
+      - name: include_deleted
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestRulePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - detections:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 4
+    post:
+      operationId: ingest_rules.create
+      tags:
+      - Detections
+      summary: Create a ingest rule
+      description: Create a ingest rule.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '201':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestRule'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestRuleCreate'
+      x-thelife-tool:
+        effect: create
+        scopes:
+        - detections:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 4
+  /api/v1/ingest/rules/{id}:
+    delete:
+      operationId: ingest_rules.delete
+      tags:
+      - Detections
+      summary: Delete a ingest rule (soft delete)
+      description: Delete a ingest rule (soft delete).
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204':
+          description: Done
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      x-thelife-tool:
+        effect: delete
+        scopes:
+        - detections:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 4
+    get:
+      operationId: ingest_rules.get
+      tags:
+      - Detections
+      summary: Get a ingest rule
+      description: Get a ingest rule.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestRule'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+      x-thelife-tool:
+        effect: read
+        scopes:
+        - detections:read
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
+        stage: 4
+    patch:
+      operationId: ingest_rules.update
+      tags:
+      - Detections
+      summary: Update a ingest rule
+      description: Update a ingest rule.
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestRule'
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '202':
+          $ref: '#/components/responses/Accepted'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/IngestRulePatch'
+      x-thelife-tool:
+        effect: update
+        scopes:
+        - detections:write
+        exposure:
+        - rest
+        - agent
+        - mcp
+        principals:
+        - user
+        - agent
+        - api_key
         stage: 4
   /api/v1/insights/preemptions:
     get:
@@ -10496,6 +10848,28 @@ components:
           - string
           - 'null'
           format: date-time
+        status:
+          type: object
+          description: The collector's last heartbeat (empty before the first one).
+          properties:
+            queue_depth:
+              type: integer
+            paused_until:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            x_ok:
+              type: boolean
+            last_capture_at:
+              type:
+              - string
+              - 'null'
+              format: date-time
+            last_error:
+              type:
+              - string
+              - 'null'
         name:
           $ref: '#/components/schemas/Text200'
         platform:
@@ -11067,6 +11441,198 @@ components:
       type: string
       format: uuid
       description: UUIDv7.
+    IngestRule:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/Id'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic-concurrency version; also returned as the ETag.
+        created_by:
+          type: object
+          additionalProperties: false
+          required:
+          - kind
+          properties:
+            kind:
+              $ref: '#/components/schemas/PrincipalKind'
+            id:
+              type:
+              - string
+              - 'null'
+              format: uuid
+        origin:
+          $ref: '#/components/schemas/Origin'
+        source_message_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        deleted_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        match_wm_class:
+          type:
+          - string
+          - 'null'
+          maxLength: 256
+          description: Window class, for example "code" or "firefox".
+        match_exe:
+          type:
+          - string
+          - 'null'
+          maxLength: 4096
+          description: Executable path or file name.
+        match_title:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          maxLength: 200
+          description: Text the window title contains.
+        app:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Display name of the app.
+        category:
+          type: string
+          minLength: 1
+          maxLength: 80
+        area:
+          $ref: '#/components/schemas/Area'
+        confidence:
+          type: number
+          minimum: 0.1
+          maximum: 1
+          default: 0.7
+        enabled:
+          type: boolean
+          default: true
+      additionalProperties: false
+      required:
+      - id
+      - created_at
+      - updated_at
+      - version
+      - created_by
+      - origin
+      - app
+      - category
+      - area
+      description: How the user's own apps and windows are classified (backend_lld.md §7.4). Checked before the built-in defaults,
+        most specific first. Matching is case-insensitive; window class and exe compare whole values (exe also by file name),
+        the title by substring. At least one match field is required.
+    IngestRuleCreate:
+      type: object
+      properties:
+        match_wm_class:
+          type:
+          - string
+          - 'null'
+          maxLength: 256
+          description: Window class, for example "code" or "firefox".
+        match_exe:
+          type:
+          - string
+          - 'null'
+          maxLength: 4096
+          description: Executable path or file name.
+        match_title:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          maxLength: 200
+          description: Text the window title contains.
+        app:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Display name of the app.
+        category:
+          type: string
+          minLength: 1
+          maxLength: 80
+        area:
+          $ref: '#/components/schemas/Area'
+        confidence:
+          type: number
+          minimum: 0.1
+          maximum: 1
+          default: 0.7
+        enabled:
+          type: boolean
+          default: true
+      additionalProperties: false
+      required:
+      - app
+      - category
+      - area
+    IngestRulePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestRule'
+        next_cursor:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+      required:
+      - items
+      - next_cursor
+    IngestRulePatch:
+      type: object
+      properties:
+        match_wm_class:
+          type:
+          - string
+          - 'null'
+          maxLength: 256
+          description: Window class, for example "code" or "firefox".
+        match_exe:
+          type:
+          - string
+          - 'null'
+          maxLength: 4096
+          description: Executable path or file name.
+        match_title:
+          type:
+          - string
+          - 'null'
+          minLength: 2
+          maxLength: 200
+          description: Text the window title contains.
+        app:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Display name of the app.
+        category:
+          type: string
+          minLength: 1
+          maxLength: 80
+        area:
+          $ref: '#/components/schemas/Area'
+        confidence:
+          type: number
+          minimum: 0.1
+          maximum: 1
+        enabled:
+          type: boolean
+      additionalProperties: false
+      minProperties: 1
     LocalDate:
       type: string
       format: date
@@ -13444,6 +14010,16 @@ components:
             - FR
             - SA
             - SU
+    WebSession:
+      type: object
+      required:
+      - expires_at
+      - user
+      properties:
+        expires_at:
+          $ref: '#/components/schemas/Timestamp'
+        user:
+          $ref: '#/components/schemas/User'
     WorkContext:
       type: object
       properties:
@@ -14148,6 +14724,14 @@ components:
       additionalProperties: false
       minProperties: 1
   parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: The ETag of the copy the client holds; 304 when it is still current.
+      schema:
+        type: string
+        maxLength: 64
     IfMatch:
       name: If-Match
       in: header
@@ -14182,7 +14766,13 @@ components:
       description: Quoted resource version.
       schema:
         type: string
+    ContentETag:
+      description: Quoted hash of the response body; send it back as If-None-Match.
+      schema:
+        type: string
   responses:
+    NotModified:
+      description: The copy named by If-None-Match is current; no body.
     Accepted:
       description: Held for approval or recorded as a proposal; nothing changed yet.
       content:

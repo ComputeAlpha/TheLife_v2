@@ -1,0 +1,1 @@
+{"enabled": true, "capture_interval_s": 300, "jitter_pct": 10, "capture_monitors": "all", "capture_max_px": 1600, "idle_threshold_s": 120, "process_interval_s": 60}

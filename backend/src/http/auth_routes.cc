@@ -7,6 +7,7 @@
 
 #include <chrono>
 
+#include "auth/authenticator.h"
 #include "auth/rate_limiter.h"
 #include "core/blocking.h"
 #include "core/crypto.h"
@@ -51,7 +52,14 @@ std::string lowerAscii(std::string s) {
   return s;
 }
 
-Task<drogon::HttpResponsePtr> login(RequestContext& ctx) {
+struct OpenedSession {
+  std::string token;
+  std::string expiresAt;
+  Json::Value user;
+};
+
+// Checks email and password (rate-limited per email and per IP) and creates a 30-day user_session credential.
+Task<OpenedSession> openSession(RequestContext& ctx, const std::string& name) {
   const auto body = ctx.jsonBody();
   BodyReader in{body, {"email", "password"}};
   in.rejectUnknown();
@@ -90,22 +98,62 @@ Task<drogon::HttpResponsePtr> login(RequestContext& ctx) {
       "INSERT INTO credentials (id, tenant_id, kind, user_id, name, token_prefix, token_hash, expires_at) "
       "VALUES ($1, $2, 'user_session', $3, $4, $5, $6::bytea, now() + interval '30 days') "
       "RETURNING to_char(expires_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS expires_at",
-      ids::newUuidV7(), p.tenantId, p.userId, std::string("web session"), token.prefix,
-      crypto::pgByteaHex(token.hash));
-  Json::Value out;
-  out["token"] = token.token;
-  out["expires_at"] = created[0]["expires_at"].as<std::string>();
-  out["user"] = co_await loadUser(tx, p.userId);
+      ids::newUuidV7(), p.tenantId, p.userId, name, token.prefix, crypto::pgByteaHex(token.hash));
+  OpenedSession out{token.token, created[0]["expires_at"].as<std::string>(), co_await loadUser(tx, p.userId)};
   co_await tx.commit();
+  co_return out;
+}
+
+constexpr int kSessionMaxAgeS = 30 * 24 * 3600;
+
+// tl_session: HttpOnly so scripts never see it, Secure (browsers accept it on http://127.0.0.1 and localhost),
+// SameSite=Strict, and scoped to the API paths.
+drogon::Cookie sessionCookie(const std::string& value, int maxAge) {
+  drogon::Cookie c(auth::kSessionCookie, value);
+  c.setHttpOnly(true);
+  c.setSecure(true);
+  c.setSameSite(drogon::Cookie::SameSite::kStrict);
+  c.setPath("/api");
+  c.setMaxAge(maxAge);
+  return c;
+}
+
+Task<drogon::HttpResponsePtr> login(RequestContext& ctx) {
+  const auto s = co_await openSession(ctx, "web session");
+  Json::Value out;
+  out["token"] = s.token;
+  out["expires_at"] = s.expiresAt;
+  out["user"] = s.user;
   co_return jsonResponse(out);
 }
 
-Task<drogon::HttpResponsePtr> logout(RequestContext& ctx) {
+Task<drogon::HttpResponsePtr> webLogin(RequestContext& ctx) {
+  const auto s = co_await openSession(ctx, "web session (browser)");
+  Json::Value out;
+  out["expires_at"] = s.expiresAt;
+  out["user"] = s.user;
+  auto resp = jsonResponse(out);
+  resp->addCookie(sessionCookie(s.token, kSessionMaxAgeS));
+  co_return resp;
+}
+
+Task<void> revokeCurrent(RequestContext& ctx) {
   auto tx = co_await TenantTx::begin(ctx.who());
   co_await tx.exec("UPDATE credentials SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
                    ctx.who().credentialId);
   co_await tx.commit();
+}
+
+Task<drogon::HttpResponsePtr> logout(RequestContext& ctx) {
+  co_await revokeCurrent(ctx);
   co_return noContent();
+}
+
+Task<drogon::HttpResponsePtr> webLogout(RequestContext& ctx) {
+  co_await revokeCurrent(ctx);
+  auto resp = noContent();
+  resp->addCookie(sessionCookie("", 0));
+  co_return resp;
 }
 
 Task<drogon::HttpResponsePtr> me(RequestContext& ctx) {
@@ -192,6 +240,8 @@ Task<drogon::HttpResponsePtr> changePassword(RequestContext& ctx) {
 void registerAuthRoutes() {
   addRoute("/api/v1/auth/login", drogon::Post, Access::Public, login);
   addRoute("/api/v1/auth/logout", drogon::Post, Access::Authenticated, logout);
+  addRoute("/api/v1/auth/web-session", drogon::Post, Access::Public, webLogin);
+  addRoute("/api/v1/auth/web-session", drogon::Delete, Access::Authenticated, webLogout);
   addRoute("/api/v1/me", drogon::Get, Access::Authenticated, me);
   addRoute("/api/v1/me", drogon::Patch, Access::Authenticated, updateMe);
   addRoute("/api/v1/me/password", drogon::Post, Access::Authenticated, changePassword);

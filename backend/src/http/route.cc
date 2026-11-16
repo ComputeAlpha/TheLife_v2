@@ -87,8 +87,17 @@ void addRoute(const std::string& path, drogon::HttpMethod method, Access access,
         bool internal = false;
         try {
           if (access == Access::Authenticated) {
-            ctx.principal = co_await auth::authenticate(req);
+            bool viaCookie = false;
+            ctx.principal = co_await auth::authenticate(req, &viaCookie);
             if (!ctx.principal) throw ApiError::unauthorized();
+            // Cookie sessions need a header a cross-site page cannot send without a CORS preflight, which this
+            // server never grants (frontend_lld.md §2.2). SameSite=Strict is the first line; this is the second.
+            const auto m = req->method();
+            if (viaCookie && m != drogon::Get && m != drogon::Head && m != drogon::Options &&
+                req->getHeader("x-thelife-csrf") != "1") {
+              throw ApiError{403, "csrf-required", "Forbidden",
+                             "Requests signed in by the session cookie must send X-TheLife-CSRF: 1."};
+            }
             if (std::find(allowedKinds.begin(), allowedKinds.end(), ctx.principal->kind) == allowedKinds.end()) {
               throw ApiError::forbidden("This endpoint is not available to this kind of token.");
             }
@@ -174,7 +183,16 @@ void installMethodNotAllowed() {
       if (entry.methods.count(method)) return next();
       allowed.insert(entry.methods.begin(), entry.methods.end());
     }
-    if (!matched) return next();  // unknown path: Drogon's 404
+    if (!matched) {
+      // Unknown API paths answer in the API's error format; anything else falls through (the web root, or
+      // Drogon's 404).
+      if (!req->path().starts_with("/api/")) return next();
+      const auto requestId = ids::newUuidV7();
+      auto resp = problemResponse(ApiError::notFound("No such endpoint."), requestId);
+      resp->addHeader("X-Request-Id", requestId);
+      resp->addHeader("Cache-Control", "no-store");
+      return respond(resp);
+    }
     std::string allow;
     for (const auto& m : allowed) allow += (allow.empty() ? "" : ", ") + m;
     const auto requestId = ids::newUuidV7();

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdlib>
 
+#include "core/crypto.h"
 #include "core/errors.h"
 #include "core/json.h"
 #include "http/route.h"
@@ -58,6 +59,48 @@ Json::Value coerceQuery(const std::string& name, const std::string& raw, const J
   return Json::Value(raw);
 }
 
+// multipart/form-data (capture uploads, backend_lld.md §7.2): text fields become arguments (JSON-parsed when they
+// are objects in the schema), file parts become in-memory attachments; each file argument holds "attachment:<n>".
+// Nothing is written to disk.
+Json::Value parseMultipart(const drogon::HttpRequestPtr& req, const Json::Value& props, Attachments& out) {
+  if (req->contentType() != drogon::CT_MULTIPART_FORM_DATA) {
+    throw ApiError{415, "unsupported-media-type", "Unsupported media type", "Send multipart/form-data."};
+  }
+  drogon::MultiPartParser mp;
+  if (mp.parse(req) != 0) throw ApiError::badRequest("The multipart body could not be parsed.");
+  Json::Value args(Json::objectValue);
+  for (const auto& [name, value] : mp.getParameters()) {
+    if (!props.isMember(name)) throw ApiError::validation({{"/" + name, "unknown field"}});
+    if (schemaType(props[name]) == "object" || schemaType(props[name]) == "array") {
+      try {
+        args[name] = json::parse(value);
+      } catch (const std::exception&) {
+        throw ApiError::validation({{"/" + name, "must be JSON"}});
+      }
+    } else {
+      args[name] = value;
+    }
+  }
+  for (const auto& f : mp.getFiles()) {
+    const auto& name = f.getItemName();
+    if (!props.isMember(name) || schemaType(props[name]) != "array") {
+      throw ApiError::validation({{"/" + name, "unexpected file part"}});
+    }
+    const auto& item = props[name]["items"];
+    const auto content = f.fileContent();
+    const auto max = item.get("maxLength", 8 * 1024 * 1024).asUInt64();
+    if (content.size() > max) throw ApiError::validation({{"/" + name, "a part is too large"}});
+    if (item.get("contentMediaType", "").asString() == "image/jpeg" &&
+        (content.size() < 3 || static_cast<unsigned char>(content[0]) != 0xFF ||
+         static_cast<unsigned char>(content[1]) != 0xD8 || static_cast<unsigned char>(content[2]) != 0xFF)) {
+      throw ApiError::validation({{"/" + name, "must be JPEG images"}});
+    }
+    args[name].append("attachment:" + std::to_string(out.size()));
+    out.emplace_back(std::string(content));
+  }
+  return args;
+}
+
 std::optional<int> parseIfMatch(const std::string& header) {
   // "3" (quoted strong ETag); weak or list forms are not accepted for writes.
   if (header.size() < 3 || header.front() != '"' || header.back() != '"') return std::nullopt;
@@ -99,8 +142,12 @@ void registerOne(const ToolDef& toolDef) {
         }
 
         // body
+        auto attachments = std::make_shared<Attachments>();
         const bool hasBody = !rest.bodyArgs.empty() || rest.method == "POST" || rest.method == "PATCH";
-        if (hasBody && !(rest.method == "POST" && rest.bodyArgs.empty() && ctx.req->body().empty())) {
+        if (rest.contentType == "multipart/form-data") {
+          const auto body = parseMultipart(ctx.req, props, *attachments);
+          for (const auto& k : body.getMemberNames()) args[k] = body[k];
+        } else if (hasBody && !(rest.method == "POST" && rest.bodyArgs.empty() && ctx.req->body().empty())) {
           Json::Value body;
           if (rest.method == "PATCH") {
             body = ctx.jsonBody({"application/merge-patch+json", "application/json"});
@@ -126,6 +173,7 @@ void registerOne(const ToolDef& toolDef) {
         }
         tools::InvokeOptions opts;
         opts.requestId = ctx.requestId;
+        if (!attachments->empty()) opts.attachments = attachments;
         if (rest.method == "POST") {
           // Present but empty is invalid, not absent. Visible ASCII only, so length is unambiguous.
           const auto& headers = ctx.req->headers();
@@ -136,6 +184,8 @@ void registerOne(const ToolDef& toolDef) {
               throw ApiError::validation({{"Idempotency-Key", "must be 8 to 128 visible ASCII characters"}});
             }
             opts.idempotencyKey = key;
+          } else if (rest.idempotencyRequired) {
+            throw ApiError::validation({{"Idempotency-Key", "is required"}});
           }
         }
 
@@ -152,6 +202,18 @@ void registerOne(const ToolDef& toolDef) {
         }
 
         drogon::HttpResponsePtr resp;
+        if (rest.conditionalGet && result.outcome == tools::Outcome::Executed) {
+          // ETag over the body: a client polling with If-None-Match gets 304 until something changes.
+          const auto etag = "\"" + crypto::hex(crypto::sha256(json::compact(result.value))).substr(0, 32) + "\"";
+          if (ctx.req->getHeader("if-none-match") == etag) {
+            resp = noContent();
+            resp->setStatusCode(drogon::k304NotModified);
+          } else {
+            resp = jsonResponse(result.value, drogon::k200OK);
+          }
+          resp->addHeader("ETag", etag);
+          co_return resp;
+        }
         if (result.outcome != tools::Outcome::Executed) {
           resp = jsonResponse(result.value, drogon::k202Accepted);
         } else if (result.status == 204 || result.value.isNull()) {

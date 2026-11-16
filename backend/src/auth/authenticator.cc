@@ -55,8 +55,17 @@ drogon::Task<std::optional<Principal>> authenticateToken(std::string_view token)
   co_return p;
 }
 
-drogon::Task<std::optional<Principal>> authenticate(const drogon::HttpRequestPtr& req) {
+drogon::Task<std::optional<Principal>> authenticate(const drogon::HttpRequestPtr& req, bool* viaCookie) {
+  if (viaCookie) *viaCookie = false;
   const auto& header = req->getHeader("authorization");
+  if (header.empty()) {
+    const auto& cookie = req->getCookie(kSessionCookie);
+    if (cookie.empty()) co_return std::nullopt;
+    auto p = co_await authenticateToken(cookie);
+    if (!p || p->kind != PrincipalKind::User || !cookie.starts_with("tlu_")) co_return std::nullopt;
+    if (viaCookie) *viaCookie = true;
+    co_return p;
+  }
   constexpr std::string_view kBearer = "Bearer ";
   if (header.size() <= kBearer.size() || !std::string_view(header).starts_with(kBearer)) co_return std::nullopt;
   co_return co_await authenticateToken(std::string_view(header).substr(kBearer.size()));
