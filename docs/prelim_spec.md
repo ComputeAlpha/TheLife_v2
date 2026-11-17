@@ -218,6 +218,11 @@ Each stage has deliverables and an exit gate. There are no timelines; stages run
 
 **Design:** `docs/frontend_lld.md` (screen specs, increments 5a–5e). Started 2026-11-16.
 
+**Met (2026-11-17):** the parity gate (`frontend/scripts/parity.mjs`, in CI) finds every user operation of the contract
+called by the web UI (160/160), and each hand-written demo page maps to a screen with a Playwright test against the
+real backend (desktop and phone). The Flask demo UI was retired: moved to `spikes/demo-ui` for reference, no longer
+started by `scripts/demo.sh` or run in CI.
+
 ### Stage 6 (deferred): Custom inference
 - Scheduling, measurement and analytics models.
 - ONNX Runtime first (with the TensorRT execution provider), then libtorch where needed.
@@ -234,6 +239,8 @@ Each stage has deliverables and an exit gate. There are no timelines; stages run
 - **Regression rule:** a stage is not complete until its tests pass and all earlier stage tests still pass.
 
 ## 8. Flask Demo UI
+
+**Retired on 2026-11-17** (Stage 5 exit gate); kept under `spikes/demo-ui` for reference.
 
 - A thin API client in Python, kept separate from the backend code.
 - Grows with each stage so backend and collector can be exercised in parallel.

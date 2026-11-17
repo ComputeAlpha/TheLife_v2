@@ -2,10 +2,14 @@ import { Command } from "cmdk";
 import * as D from "@radix-ui/react-dialog";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { MessageSquare, Search, LogOut } from "lucide-react";
+import { BookOpen, CalendarDays, Flag, ListTodo, MessageSquare, Search, LogOut } from "lucide-react";
 import { NAV } from "./nav";
 import { Kbd } from "@/ui/Badge";
-import { useSignOut } from "@/api/auth";
+import { useMe, useSignOut } from "@/api/auth";
+import { useSearchIndex, type Hit } from "@/api/search";
+import { dayOf } from "@/lib/calendar/days";
+
+const FIND_ICON: Record<Hit["kind"], typeof Search> = { task: ListTodo, goal: Flag, resource: BookOpen, event: CalendarDays };
 
 /** True when typing in a field, so single-key shortcuts stay out of the way. */
 export function isTyping(e: KeyboardEvent): boolean {
@@ -18,6 +22,9 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const navigate = useNavigate();
   const signOut = useSignOut();
   const [query, setQuery] = useState("");
+  const user = useMe().data;
+  // Loaded as the palette opens, so hits are there before Enter (cmdk keeps its first selection otherwise).
+  const index = useSearchIndex(open, (iso) => dayOf(Date.parse(iso), user?.timezone ?? "UTC"));
 
   useEffect(() => {
     let pendingG = 0;
@@ -87,7 +94,22 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                   </Command.Item>
                 ))}
               </Command.Group>
-              {query.trim().length > 2 ? (
+              {query.trim().length >= 2 ? (
+                <Command.Group heading="Find" className={groupCls}>
+                  {(index.data ?? []).map((h) => {
+                    const I = FIND_ICON[h.kind];
+                    return (
+                      <Command.Item key={`${h.kind}:${h.id}`} value={`find ${h.kind} ${h.id}`} keywords={[h.title]} onSelect={() => go(h.to)} className={itemCls}>
+                        <I className="size-4 text-text-2" />
+                        <span className="flex-1 truncate">{h.title}</span>
+                        <span className="text-[11.5px] capitalize text-text-3">{h.hint ?? h.kind}</span>
+                      </Command.Item>
+                    );
+                  })}
+                </Command.Group>
+              ) : null}
+              {/* "Ask" waits for the search index: shown earlier, cmdk would select it and Enter would skip real hits. */}
+              {query.trim().length > 2 && (index.data || index.isError) ? (
                 <Command.Group heading="Assistant" className={groupCls}>
                   <Command.Item
                     value={`ask ${query}`}
@@ -114,8 +136,14 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 }
 
 /** Substring beats in-order letters; "Ask" always ranks last so it never steals Enter from a page match. */
-export function paletteFilter(value: string, search: string): number {
+export function paletteFilter(value: string, search: string, keywords?: string[]): number {
   if (value.startsWith("ask ")) return 0.001;
+  if (value.startsWith("find ")) {
+    // Titles only (never ids), and no in-order-letter matches: long titles would match nearly anything.
+    const t = (keywords ?? []).join(" ").toLowerCase();
+    const q = search.toLowerCase().trim();
+    return !q ? 0 : t.startsWith(q) ? 0.7 : t.includes(q) ? 0.5 : 0;
+  }
   const v = value.toLowerCase().replace(/^go /, "");
   const s = search.toLowerCase().trim();
   if (!s) return 1;

@@ -34,19 +34,6 @@ export function LoginPage() {
 
   return (
     <div className="relative grid min-h-dvh place-items-center overflow-hidden bg-bg px-4">
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-1/2 size-[720px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_30%_30%,rgb(34_211_238/.22),transparent_60%)] blur-3xl animate-drift" />
-        <div className="absolute left-[60%] top-[30%] size-[420px] rounded-full bg-[radial-gradient(circle,rgb(219_39_119/.10),transparent_65%)] blur-3xl animate-drift [animation-delay:-6s]" />
-        <svg className="absolute inset-0 h-full w-full opacity-[.06]">
-          <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M40 0H0V40" fill="none" stroke="#fff" strokeWidth=".5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-        </svg>
-      </div>
-
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -60,7 +47,7 @@ export function LoginPage() {
         </div>
         <form
           onSubmit={submit}
-          className="rounded-2xl border border-line-strong bg-surface-1/80 p-6 shadow-[0_30px_80px_-30px_rgb(0_0_0/.9)] backdrop-blur-xl"
+          className="rounded-2xl border border-line-strong bg-bg p-6"
           noValidate
         >
           <div className="space-y-4">

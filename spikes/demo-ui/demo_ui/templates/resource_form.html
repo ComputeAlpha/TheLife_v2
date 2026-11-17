@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field %}
+{% block title %}{{ op.summary }}{% endblock %}
+{% block body %}
+<p><a href="{{ url_for('resource_list', prefix=r.prefix) }}">← {{ r.label }}</a></p>
+<h1>{{ op.summary }}</h1>
+<form method="post" class="card grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for f in fields %}{{ field(f) }}{% endfor %}
+  <div class="actions"><button>{{ op.verb|capitalize }}</button></div>
+</form>
+{% endblock %}

@@ -55,7 +55,7 @@ export function StatusPill({ compact }: { compact?: boolean }) {
           ) : null}
           {data?.usage ? (
             <p className="mt-3 text-[12px] text-text-3 tabular">
-              Today: {data.usage.requests ?? 0} requests · {data.usage.images ?? 0} images
+              This week: {data.usage.requests ?? 0} requests · {data.usage.images ?? 0} images
             </p>
           ) : null}
         </P.Content>

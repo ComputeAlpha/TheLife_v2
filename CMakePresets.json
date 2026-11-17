@@ -24,6 +24,15 @@
       }
     },
     {
+      "name": "release",
+      "inherits": "base",
+      "displayName": "Release for the machine's own deployment (deploy/, scripts/prod.sh)",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "THELIFE_BUILD_TESTS": "OFF"
+      }
+    },
+    {
       "name": "ci",
       "inherits": "base",
       "displayName": "CI (RelWithDebInfo, warnings as errors)",
@@ -55,6 +64,10 @@
     {
       "name": "ci",
       "configurePreset": "ci"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
     },
     {
       "name": "fuzz",

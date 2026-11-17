@@ -1,0 +1,111 @@
+# TheLife on this machine, always on (deploy/README.md). Run through scripts/prod.sh, which passes
+# --env-file ~/.config/thelife/server.env (created by `scripts/prod.sh init`, mode 0600).
+# Separate from the dev stack (docker/compose.yml): its own project, Postgres volume and port, so test runs and
+# dev resets never touch real data.
+name: thelife-prod
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "5"}
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?run scripts/prod.sh init}
+      POSTGRES_DB: postgres
+      # consumed by docker/postgres/init/01-roles.sh on the first start of an empty volume
+      THELIFE_DB_NAME: thelife
+      THELIFE_OWNER_PASSWORD: ${PG_OWNER_PASSWORD:?}
+      THELIFE_APP_PASSWORD: ${PG_APP_PASSWORD:?}
+      THELIFE_ADMIN_PASSWORD: ${PG_ADMIN_PASSWORD:?}
+    ports:
+      - "127.0.0.1:${THELIFE_PG_PORT:-55433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d thelife"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: applies pending migrations on every `prod.sh up`; the backend starts only after it succeeds.
+  migrate:
+    image: thelife-migrate:latest
+    build: {context: ../build/deploy, target: migrate}
+    restart: "no"
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      DATABASE_URL: postgres://thelife_owner:${PG_OWNER_PASSWORD}@postgres:5432/thelife?sslmode=disable
+
+  backend:
+    image: thelife-backend:latest
+    build: {context: ../build/deploy, target: backend}
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      postgres: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+    # Host network: Ollama listens on 127.0.0.1:11434 only, and the backend itself binds to 127.0.0.1.
+    network_mode: host
+    user: "${THELIFE_UID:?}:${THELIFE_GID:?}"
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      THELIFE_DB_URL: postgresql://thelife_app:${PG_APP_PASSWORD}@127.0.0.1:${THELIFE_PG_PORT:-55433}/thelife
+      THELIFE_LISTEN_ADDR: 127.0.0.1
+      THELIFE_LISTEN_PORT: ${THELIFE_PORT:-8090}
+      THELIFE_KEK_FILE: /run/secrets/thelife-kek
+      THELIFE_EMBEDDER_SOCKET: /run/thelife/embedder.sock
+      THELIFE_LOG_LEVEL: ${THELIFE_LOG_LEVEL:-info}
+      # Optional; empty turns the feature off. Only one backend may poll a bot token at a time.
+      THELIFE_TELEGRAM_BOT_TOKEN: ${THELIFE_TELEGRAM_BOT_TOKEN:-}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+    volumes:
+      - ${THELIFE_DATA_DIR:?}/kek:/run/secrets/thelife-kek:ro
+      # The embedder (a user service on the host, for the GPU) creates its socket here.
+      - ${THELIFE_STATE_DIR:?}/run:/run/thelife
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:${THELIFE_PORT:-8090}/readyz >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # A compressed dump of the database once a day (and at start), the last 14 kept. Encrypted fields stay sealed
+  # in the dump: a restore also needs the KEK (THELIFE_DATA_DIR/kek).
+  backup:
+    image: pgvector/pgvector:0.8.1-pg17
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      postgres: {condition: service_healthy}
+    user: "${THELIFE_UID:?}:${THELIFE_GID:?}"
+    environment:
+      PGPASSWORD: ${PG_SUPERUSER_PASSWORD}
+      TZ: ${TZ:-UTC}  # backup file names in local time
+      KEEP_DAYS: ${THELIFE_BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ${THELIFE_DATA_DIR:?}/backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u
+        while true; do
+          f="/backups/thelife-$$(date +%Y%m%d-%H%M).dump"
+          if pg_dump -h postgres -U postgres -d thelife -Fc -f "$$f.part"; then
+            mv "$$f.part" "$$f" && echo "backup: $$f"
+          else
+            rm -f "$$f.part"; echo "backup: FAILED" >&2
+          fi
+          find /backups -name 'thelife-*.dump' -mtime +$$KEEP_DAYS -delete
+          sleep 86400
+        done
+
+volumes:
+  pgdata:

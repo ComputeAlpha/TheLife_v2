@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_fields.html" import field, value %}
+{% block title %}{{ r.label }}{% endblock %}
+{% block body %}
+<div class="bar">
+  <h1>{{ r.label }}</h1>
+  {% if r.create %}<a class="btn" href="{{ url_for('resource_new', prefix=r.prefix) }}">{{ r.create.summary }}</a>{% endif %}
+</div>
+{% if r.description %}<p class="muted">{{ r.description }}</p>{% endif %}
+{% if filters %}
+<details class="filters"{% if args %} open{% endif %}>
+  <summary>Filters</summary>
+  <form method="get" class="grid">
+    {% for f in filters %}{{ field(f) }}{% endfor %}
+    <div class="actions"><button>Apply</button> <a href="{{ url_for('resource_list', prefix=r.prefix) }}">Clear</a></div>
+  </form>
+</details>
+{% endif %}
+<table>
+  <thead><tr><th>{{ 'Title' }}</th>{% for c in columns %}<th>{{ c|replace('_', ' ') }}</th>{% endfor %}<th>updated</th></tr></thead>
+  <tbody>
+  {% for item in page['items'] %}
+    <tr{% if item.deleted_at %} class="deleted"{% endif %}>
+      <td><a href="{{ url_for('resource_get', prefix=r.prefix, id=item.id) }}">{{ r.title_of(item) }}</a></td>
+      {% for c in columns %}<td>{{ value(item.get(c)) }}</td>{% endfor %}
+      <td>{{ value(item.updated_at) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="{{ columns|length + 2 }}" class="muted">None yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if page.next_cursor %}
+{% set q = args.to_dict() %}{% set _ = q.update({'cursor': page.next_cursor}) %}
+<p><a class="btn" href="{{ url_for('resource_list', prefix=r.prefix, **q) }}">Next page →</a></p>
+{% endif %}
+{% endblock %}
