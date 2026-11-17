@@ -17,10 +17,13 @@ leaves it out.
 
 ## Use
 
-1. Register a device in TheLife (`POST /api/v1/devices`); it returns a `tld_…` token once.
+1. Register a device in TheLife (Settings → Connections → Devices, or `POST /api/v1/devices`); it returns a
+   `tld_…` token once.
 2. Enroll (the token is read from standard input, never from the command line):
 
-       thelife-collector enroll --url https://life.example.org [--web-ui http://127.0.0.1:5000]
+       thelife-collector enroll --url https://life.example.org [--web-ui https://life.example.org]
+
+   `--web-ui` is where notification clicks open; the web UI is served by the backend, so it is usually the same URL.
 
 3. Run it as a user service bound to the graphical session:
 

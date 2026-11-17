@@ -18,6 +18,7 @@ import { entryKey, isPoint } from "@/lib/calendar/entries";
 import { fmt, greeting, minutesLabel, relative, timeRange } from "@/lib/time";
 import { useNow } from "@/lib/useNow";
 import { Page } from "../common/Page";
+import { Bar } from "@/ui/Bar";
 import { Card, CardHeader } from "@/ui/Card";
 import { Badge } from "@/ui/Badge";
 import { Button } from "@/ui/Button";
@@ -445,19 +446,6 @@ function NeedsYouCard({ tz, now, today }: { tz: string; now: number; today: Day 
 
 // ------------------------------------------------------------------ areas and coming up
 
-function Bar({ value, color }: { value: number; color: string }) {
-  return (
-    <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-      <motion.div
-        className="h-full rounded-full"
-        style={{ background: `linear-gradient(90deg, color-mix(in oklab, ${color} 55%, transparent), ${color})`, boxShadow: `0 0 10px -2px ${color}` }}
-        initial={{ width: 0 }}
-        animate={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-      />
-    </div>
-  );
-}
 
 function AreasCard({ progress, loading, error, className }: { progress?: Record<string, AreaProgress>; loading: boolean; error: unknown; className?: string }) {
   const areas = Object.entries(progress ?? {});

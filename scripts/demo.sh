@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Run the backend and the demo UI together on this machine (dev defaults, 127.0.0.1 only).
+# Run TheLife on this machine (dev defaults, 127.0.0.1 only): the backend serves the web UI on the same port.
 #   scripts/demo.sh account EMAIL "NAME" [TIMEZONE]   create a tenant and user; prints the password once
-#   scripts/demo.sh up                              Postgres + migrations + backend (:8080) + demo UI (:5000)
+#   scripts/demo.sh up                              Postgres + migrations + backend and web UI (:8080)
 #   scripts/demo.sh collector                       build and run the X11 collector against it (enrolls first;
-#                                                   paste the device token from Devices → New in the demo UI)
-# Ctrl-C stops both. Logs: build/demo-backend.log. Ports: THELIFE_LISTEN_PORT, DEMO_PORT.
+#                                                   paste the token from Settings → Connections → Devices → Register)
+# Ctrl-C stops it. Logs: build/demo-backend.log. Port: THELIFE_LISTEN_PORT.
+# The Flask demo UI was retired on 2026-11-17 (kept for reference under spikes/demo-ui; not started any more).
 # LLM: config/llm.json (local Ollama, glm-5.3-flash:cloud). DEMO_FAKE_LLM=1 uses docker/fake-llm instead (no quota).
 # Background jobs (routines, digests, nudges, ingest) run only for the tenant in build/demo-tenant, written by
 # `account`, so leftover test tenants in the dev database never call the LLM. THELIFE_JOBS_TENANT overrides it.
-# Telegram: export THELIFE_TELEGRAM_BOT_TOKEN (from @BotFather) before `up`; link the chat in the demo UI Settings.
+# Telegram: export THELIFE_TELEGRAM_BOT_TOKEN (from @BotFather) before `up`; link the chat in Settings → Connections.
 # Web search: export OLLAMA_API_KEY (https://ollama.com/settings/keys) before starting; without it the tool is off.
 # Embeddings: thelife-embedder starts when built and the model files exist (THELIFE_EMBED_MODEL, THELIFE_EMBED_SPM;
 # default: the Stage 0 spike download under spikes/embed/models). DEMO_EMBEDDER=0 skips it (keyword search only).
@@ -17,7 +18,6 @@ cd "$(dirname "$0")/.."
 
 PG_PORT="${THELIFE_PG_PORT:-55432}"
 API_PORT="${THELIFE_LISTEN_PORT:-8080}"
-UI_PORT="${DEMO_PORT:-5000}"
 BIN=build/dev/backend
 export THELIFE_DB_URL="${THELIFE_DB_URL:-postgresql://thelife_app:${THELIFE_APP_PASSWORD:-app-dev-only}@127.0.0.1:${PG_PORT}/thelife}"
 export THELIFE_LLM_CONFIG="${THELIFE_LLM_CONFIG:-config/llm.json}"
@@ -52,13 +52,6 @@ build() {
   fi
 }
 
-venv() {
-  if [[ ! -x build/demo-venv/bin/python ]]; then
-    python3 -m venv build/demo-venv
-    env -u PYTHONPATH build/demo-venv/bin/pip install -q -r demo-ui/requirements.txt
-  fi
-}
-
 case "${1:-}" in
   account)
     email="${2:?usage: scripts/demo.sh account EMAIL \"NAME\" [TIMEZONE]}"
@@ -75,8 +68,8 @@ case "${1:-}" in
     cmake --build build/dev -j"$(nproc)" --target thelife-collector >/dev/null
     col=build/dev/collector/thelife-collector
     if [[ ! -s "${XDG_CONFIG_HOME:-$HOME/.config}/thelife-collector/device.token" ]]; then
-      echo "Register a device in the demo UI (Devices → New, platform linux-x11) and paste its tld_ token here."
-      "$col" enroll --url "http://127.0.0.1:$API_PORT" --web-ui "http://127.0.0.1:$UI_PORT"
+      echo "Register a device in the web UI (Settings → Connections → Devices → Register) and paste its tld_ token here."
+      "$col" enroll --url "http://127.0.0.1:$API_PORT" --web-ui "http://127.0.0.1:$API_PORT"
     fi
     echo "collector running on $DISPLAY (Ctrl-C stops it; 'thelife-collector status' / 'pause 30m' in another terminal)"
     exec "$col" run
@@ -84,7 +77,6 @@ case "${1:-}" in
   up)
     database
     build
-    venv
     fake=""
     if [[ "${DEMO_FAKE_LLM:-0}" == 1 ]]; then
       python3 -I docker/fake-llm/fake_llm.py --port "${DEMO_FAKE_LLM_PORT:-11435}" > build/demo-fake-llm.log 2>&1 &
@@ -129,10 +121,9 @@ case "${1:-}" in
     [[ -n "${THELIFE_TELEGRAM_BOT_TOKEN:-}" ]] && echo "telegram on (link your chat in Settings)" || echo "telegram off (no THELIFE_TELEGRAM_BOT_TOKEN)"
     [[ -n "${THELIFE_JOBS_TENANT:-}" ]] && echo "jobs     tenant $THELIFE_JOBS_TENANT only"
     [[ -n "${THELIFE_WEB_ROOT:-}" ]] && echo "web UI   http://127.0.0.1:$API_PORT   ($THELIFE_WEB_ROOT)"
-    echo "demo UI  http://127.0.0.1:$UI_PORT   (Ctrl-C stops both)"
-    cd demo-ui
-    env -u PYTHONPATH THELIFE_API_URL="http://127.0.0.1:$API_PORT" DEMO_PORT="$UI_PORT" \
-      ../build/demo-venv/bin/python -m demo_ui
+    [[ -n "${THELIFE_WEB_ROOT:-}" ]] || echo "web UI not built: run 'npm ci && npm run build' in frontend/ (Node 22)" >&2
+    echo "Ctrl-C stops it."
+    wait "$backend"
     ;;
   *)
     sed -n '2,5p' "$0"; exit 2 ;;

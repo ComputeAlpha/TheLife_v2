@@ -34,7 +34,8 @@ TheLife_v2/
     tests/
       unit/  integration/  api/  isolation/
   collector/                  # see collector_lld.md (next)
-  demo-ui/                    # Flask, pure API client
+  frontend/                   # React web UI (Stage 5, frontend_lld.md), served by the backend
+  spikes/demo-ui/             # retired Flask demo UI (reference only since 2026-11-17)
   docker/                     # compose: postgres+pgvector, fake-llm
   .github/workflows/
 ```
@@ -454,7 +455,7 @@ Later: `vision.analyze`, `memory.summarize`, `embeddings.upsert`, `scores.recomp
 | memory and jobs (implemented, Stage 2) | remember/recall/update/forget with provenance and approvals, mentioned-entity retrieval, history search, day close (summary, facts active vs proposed, conversation closed, routine missed, exactly once), deferral while the model is offline, week rollup; named policies in unit tests | `api/memory_test.cc` with a tenant-scoped worker against `docker/fake-llm`; `unit/tools_test.cc` |
 | agent (implemented, Stage 2) | chat capture provenance (`user_stated`, `source_message_id`) and audit, tool groups, approvals (held → approve runs pinned to the version, stale on change, reject, 72 h expiry), kill switch, `user_reported_progress` and undo, weekly limit → deterministic replies and commands, step limit, model and argument errors, idempotent sends, SSE events, turn merging, desktop notification long poll and ack | `api/agent_test.cc`: the real binary against `docker/fake-llm` with scripted conversations |
 | LLM gateway (implemented) | error classification against the recorded Stage 0 bodies, response and SSE parsing (split anywhere, leaked `</think>` retracted), provider state machine on a fake clock (transient backoff, weekly exhaustion → manual → probe → healthy, restart persistence, auth → disabled, rate limits), structured output (tool-as-output → repair → schema-in-prompt) | `unit/llm_test.cc`; `api/llm_test.cc` over libcurl against `docker/fake-llm` plus `ops.provider_state` / `llm_calls` / `llm_usage` in Postgres; `live/llm_live_test.cc` against the real endpoint when `THELIFE_LIVE_LLM_URL` is set |
-| demo UI (implemented) | contract-generated pages render for every resource; forms send contract bodies (local time → RFC 3339, merge patch with If-Match, only changed fields); tokens never reach the browser; end-to-end flows against the built backend | `demo-ui/tests` (pytest, fake backend); `test_e2e_live.py` in the backend CI job |
+| demo UI (retired 2026-11-17; was in `demo-ui/`, now `spikes/demo-ui/`, no longer run in CI) | contract-generated pages render for every resource; forms send contract bodies (local time → RFC 3339, merge patch with If-Match, only changed fields); tokens never reach the browser; end-to-end flows against the built backend | `demo-ui/tests` (pytest, fake backend); `test_e2e_live.py` in the backend CI job |
 
 Cross-tenant reads return **404, not 403**, so ids from other tenants cannot be probed.
 

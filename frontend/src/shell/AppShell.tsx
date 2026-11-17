@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import * as DM from "@radix-ui/react-dropdown-menu";
 import { AnimatePresence, motion } from "motion/react";
@@ -96,7 +96,9 @@ export function AppShell() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Outlet />
+              <Suspense fallback={<RouteLoading />}>
+                <Outlet />
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </main>
@@ -268,5 +270,14 @@ function ApprovalsCount({ collapsed }: { collapsed: boolean }) {
     <span className={cn("grid min-w-5 place-items-center rounded-full bg-warn px-1.5 text-[11px] font-bold leading-5 text-black", collapsed ? "absolute right-1 top-0.5 min-w-4 px-1 text-[10px] leading-4" : "ml-auto")}>
       <span className="sr-only">, </span>{n}<span className="sr-only"> waiting</span>
     </span>
+  );
+}
+
+function RouteLoading() {
+  return (
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8" aria-busy="true" aria-label="Loading">
+      <div className="h-8 w-48 animate-pulse rounded-lg bg-surface-2" />
+      <div className="mt-6 h-64 animate-pulse rounded-2xl bg-surface-2" />
+    </div>
   );
 }

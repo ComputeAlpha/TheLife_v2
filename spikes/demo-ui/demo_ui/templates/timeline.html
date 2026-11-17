@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Timeline{% endblock %}
+{% block body %}
+<div class="bar">
+  <h1>Timeline</h1>
+  <form method="get" action="{{ url_for('timeline') }}" class="inline">
+    <a class="btn" href="{{ url_for('timeline', day=prev, show='all' if show_all else None) }}">←</a>
+    <input type="date" name="day" value="{{ day.isoformat() }}">
+    <label class="checks"><input type="checkbox" name="show" value="all"{% if show_all %} checked{% endif %}> corrected ones too</label>
+    <button>Show</button>
+    <a class="btn" href="{{ url_for('timeline', day=next, show='all' if show_all else None) }}">→</a>
+  </form>
+</div>
+<p class="muted">What the collector, the vision model and you recorded on {{ day.isoformat() }}{% if day == today %} (today){% endif %}.
+  Confirm what is right, dispute what is wrong (it stops counting until the assistant re-evaluates it), or correct it
+  with what you actually did.</p>
+
+{% if devices %}
+<section class="card devices">
+  <h2>Collectors</h2>
+  <table>
+    <tr><th>Device</th><th>Last heard</th><th>Queue</th><th>Last capture</th><th>State</th></tr>
+    {% for d in devices %}
+    <tr class="{{ 'silent' if d.silent }}">
+      <td><a href="{{ url_for('resource_get', prefix='devices', id=d.id) }}">{{ d.name }}</a>{% if d.collector_version %} <small>{{ d.collector_version }}</small>{% endif %}</td>
+      <td>{% if d.last_seen_at %}{{ d.last_seen_at|local('%d %b %H:%M') }}{% else %}never{% endif %}{% if d.silent %} <span class="tag warn">silent</span>{% endif %}</td>
+      <td>{{ d.status.queue_depth if d.status and d.status.queue_depth is not none else '' }}</td>
+      <td>{{ d.status.last_capture_at|local('%H:%M') if d.status and d.status.last_capture_at else '' }}</td>
+      <td>{% if d.status and d.status.paused_until %}paused until {{ d.status.paused_until|local('%H:%M') }}{% endif %}
+          {% if d.status and d.status.last_error %}<span class="muted">{{ d.status.last_error }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+
+{% if totals %}
+<section class="card">
+  <h2>Counted time by area <small>overlapping detections counted once; disputed and low-confidence ones left out</small></h2>
+  <p>{% for area, minutes in totals.items() %}<span class="tag area">{{ area }}</span> {{ minutes // 60 }}h {{ '%02d'|format(minutes % 60) }}m{% if not loop.last %} · {% endif %}{% endfor %}</p>
+</section>
+{% endif %}
+
+{% if not items %}<p class="muted">No detections for this day.</p>{% endif %}
+{% if superseded and not show_all %}<p class="muted">{{ superseded }} corrected detection{{ 's' if superseded > 1 }} hidden.</p>{% endif %}
+<ul class="entries timeline">
+{% for d in items %}
+  <li class="entry detection source-{{ d.source }} status-{{ d.status }}" id="d-{{ d.id }}">
+    <span class="when">{{ d.started_at|local('%H:%M') }}–{{ d.ended_at|local('%H:%M') }}</span>
+    <a href="{{ url_for('resource_get', prefix='detections', id=d.id) }}">{{ d.summary }}</a>
+    <span class="tag">{{ d.source }}</span>
+    <span class="tag area">{{ d.area }}</span>
+    <span class="tag">{{ d.category }}</span>
+    {% if d.confidence < 0.4 %}<span class="tag warn" title="below the scoring threshold">{{ '%.0f'|format(d.confidence * 100) }}%</span>
+    {% elif d.confidence < 1 %}<span class="tag">{{ '%.0f'|format(d.confidence * 100) }}%</span>{% endif %}
+    <span class="tag status">{{ d.status }}</span>
+    {% if d.status in ('detected', 'confirmed') %}
+    <details class="act">
+      <summary>Review</summary>
+      {% if d.status == 'detected' %}
+      <form method="post" action="{{ url_for('timeline_action', id=d.id, verb='confirm') }}" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}#d-{{ d.id }}">
+        <button class="small">Confirm</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('timeline_action', id=d.id, verb='dispute') }}" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}#d-{{ d.id }}">
+        <input type="text" name="reason" placeholder="what is wrong?" maxlength="1000" required class="small">
+        <button class="small secondary">Dispute</button>
+      </form>
+      <form method="post" action="{{ url_for('timeline_action', id=d.id, verb='claim') }}" class="claim">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+        <input type="hidden" name="day" value="{{ d.started_at|local('%Y-%m-%d') }}">
+        <label>From <input type="time" name="start" value="{{ d.started_at|local('%H:%M') }}"></label>
+        <label>to <input type="time" name="end" value="{{ d.ended_at|local('%H:%M') }}"></label>
+        <select name="area">{% for a in areas %}<option{% if a == d.area %} selected{% endif %}>{{ a }}</option>{% endfor %}</select>
+        <input type="text" name="category" value="{{ d.category }}" maxlength="80" required class="small">
+        <input type="text" name="summary" value="{{ d.summary }}" maxlength="500" required>
+        <button class="small">Correct it</button>
+      </form>
+    </details>
+    {% endif %}
+    {% if d.evidence %}<details><summary class="muted">evidence</summary><pre class="mono">{{ d.evidence|pretty }}</pre></details>{% endif %}
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}

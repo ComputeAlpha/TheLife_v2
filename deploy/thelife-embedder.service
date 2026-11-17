@@ -1,0 +1,19 @@
+# TheLife embedder (bge-m3 on the GPU) as a user service; installed by `scripts/prod.sh install-embedder`.
+# It runs on the host because Docker here has no GPU runtime. The backend container reaches it through the socket
+# in ~/.local/state/thelife/run. Without it the backend falls back to keyword search and catches up later.
+[Unit]
+Description=TheLife embedder
+After=default.target
+
+[Service]
+Environment=LD_LIBRARY_PATH=%h/.local/lib/thelife/embedder:/usr/local/cuda-12.8/lib64
+ExecStart=%h/.local/lib/thelife/embedder/thelife-embedder \
+  --model %h/.local/share/thelife/models/bge-m3-fp16/model.onnx \
+  --spm %h/.local/share/thelife/models/sentencepiece.bpe.model \
+  --socket %h/.local/state/thelife/run/embedder.sock
+Restart=always
+RestartSec=10
+Nice=5
+
+[Install]
+WantedBy=default.target

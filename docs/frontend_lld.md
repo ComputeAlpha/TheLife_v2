@@ -1,6 +1,6 @@
 # TheLife v2: Frontend Low-Level Design (Stage 5)
 
-Status: 5a–5c done (2026-11-16): foundation, sign-in, shell, Settings → Profile and Security, Calendar, Today, Chat, Approvals and notifications. Replaces the Flask demo UI with no loss of function.
+Status: Stage 5 done (2026-11-17), 5a–5e: every screen in §6. The parity gate passes (160/160 user operations) and the Flask demo UI is retired to `spikes/demo-ui`.
 
 User preferences (2026-11-16):
 - One theme only: pure black (AMOLED) with a cyan accent. There is no theme setting.
@@ -374,9 +374,12 @@ Review what the collector and the assistant detected; confirm, dispute or correc
 
 The exit gate is "no loss of function". It is checked mechanically:
 
-- **Operation coverage:** `frontend/scripts/parity.ts` lists every operation in the contract whose principals include `user` and whose exposure includes `rest`, then checks that the frontend source calls each one through the typed client. Device-only operations (`ingest.*`, `devices.self.*`) and `auth.login` (the bearer form) are allow-listed with reasons. The check runs in CI.
+- **Operation coverage:** `frontend/scripts/parity.mjs` (`npm run parity`, in CI) lists every operation in the contract whose principals include `user` and whose exposure includes `rest` (operations without the tool extension count as user REST operations), then checks that the frontend source calls each one through the typed client (the event stream through `EventSource`).
+  - Allow-listed with reasons: device-only operations (`ingest.*`, `devices.self.*`) and the bearer-token `auth.login` / `auth.logout` (the web uses the cookie session).
+  - An `X.get` counts as covered when `X.list` is called: the list returns the same full rows the UI opens items from, which is all the demo's item page showed (24 operations).
+  - Every exported `use…` hook in `src/api` must be used by some screen, so a hook written only to satisfy the scan fails the gate.
 - **Hand-written demo pages** (calendar, timeline, chat with approvals, settings, task occurrences, detection history, conversation transcript, token-once pages) each map to a screen above and to a Playwright test.
-- **Retirement:** once the gate passes, `scripts/demo.sh` stops starting the Flask UI and `demo-ui/` moves to `spikes/` or is deleted. Which of the two is the user's call.
+- **Retirement (done 2026-11-17):** the user chose to keep the code for reference: `demo-ui/` moved to `spikes/demo-ui`. `scripts/demo.sh` no longer starts it (`up` runs the backend, which serves the web UI); `demo.sh collector` enrolls with the web UI's URL for notification clicks; its workflow and the backend CI's live demo test were removed.
 
 ## 8. Project Layout
 
@@ -393,7 +396,7 @@ frontend/
     features/   today/, calendar/, chat/, activity/, approvals/, scores/, plan/, tasks/, skills/, work/,
                 entertainment/, assistant/, settings/, auth/
   tests/        e2e/*.spec.ts (Playwright), fixtures
-  scripts/      gen-api.mjs, parity.ts
+  scripts/      check-api.mjs, parity.mjs, e2e-backend.sh
 ```
 
 ## 9. Testing
@@ -468,3 +471,84 @@ frontend/
   - an approval deep link.
 
   `src/api/stream.test.tsx` covers notification toasts, acks and event fan-out.
+
+**5d (2026-11-17).** These are the behaviours the screen specs leave open, and the fixes that came with them.
+
+- **Chat side panel.** "Waiting for you" is a 52 px rail by default (shield, count, vertical label), from `lg` up. It slides open whenever the pending count rises, folds away when it reaches zero, and the user can toggle it. The state is derived during render from the count, not an effect.
+- **Activity (`/activity/:date`).**
+  - Data: detections overlapping the local day (every page, superseded included), and the calendar for the same day (`to` is exclusive: `day → day + 1`).
+  - Counted minutes follow §6.5: confirmed, plus detected with confidence ≥ 0.4. Intervals are merged per area, because vision and process detections overlap; this matches the demo's `area_minutes`. One difference: the demo also applies the 0.4 floor to confirmed rows; here a confirmation always counts.
+  - The summary bar orders areas other → work → skill → fitness → entertainment → personal. The area colours fail the dataviz CVD check in any order (they are the app-wide identity); this order gives the best worst adjacent pair (ΔE 6.6, the legal floor band). The secondary encoding that band requires is there: icons, labels with minutes and %, and 2 px gaps.
+  - The plan is drawn as a narrow "Planned" lane of dashed ghost blocks beside the detections, not behind them, so labels never collide. Detections use the calendar's `layoutColumn` at 96 px per hour. The visible hours run from an hour before the first item (the day start when empty) and cover at least 8 hours.
+  - Superseded detections are hidden unless "Show corrections" is on; then they draw dashed and struck through. Disputed ones are hatched amber ("Under review"). Contrast comes from colour and borders, never opacity.
+  - The detail view is a side panel on `lg`, a sheet below that. It holds the facts and the scalar evidence fields, Confirm, Dispute (optional reason), and Correct (`:claim` with area, category, summary and range). A correction selects the new detection, and the panel holds open with a skeleton until the refetch brings it in. History shows the events (actor, from → to, reason) and the correction chain.
+  - Bulk: "Select" mode, then "Select all to review" or pick blocks, then "Confirm N". It only sends rows still `detected`.
+  - Keys: ← → change the day, `t` goes to today, Esc clears the selection. On phones the filter chips fold behind a "Filters · n" button.
+  - Activities tab: the manual log for the day, with a sheet to log, edit or delete (two-step delete).
+- **Scores (`/scores/:period/:date`).**
+  - The JSON columns are typed in `src/api/scores.ts` from the engine's writers (`engine.cc` scoreDay, `jobs.cc` closePeriod and adjust).
+  - The trend is a hand-rolled SVG on one 0–100 axis. Score is the cyan line with a soft fill; base is dashed and dim.
+  - Markers: final is filled, provisional hollow. Unobserved and not-scored days sit on the baseline as grey markers, so they never read as zero.
+  - It has a crosshair tooltip, ←/→ on the focused chart, and a table view. The window pages by whole windows (30 days, 12 weeks, 12 months).
+  - Detail: a ring coloured by band (≥ 75 good, ≥ 50 accent, else warn; always with the number) and base ± adjustment in % and points.
+  - Reasons are ▲/▼ with ref chips; goal, plan and target refs link to `/plan?goal=…`.
+  - Per-area cards: weight, minutes seen, adherence and target bars, items with weight and completion, the targets, and the over-target bonus. Not-applicable areas are dashed.
+  - Also shown: consistency items, displaced time, week and month day bars (click one to open that day), weekly targets, daily mean and coverage. The profile and formula version are shown.
+  - Dispute (day scores only) returns 202 queued; Versions lists `/scores/{id}/history`.
+- **Plan (`/plan`, `?tab=plans|targets`, `?goal|plan|target=id` highlights and scrolls).**
+  - Goals: nested lists with disclosure buttons (`aria-expanded`), not ARIA tree roles, since there is no arrow-key tree navigation. Each row shows a horizon icon, area, due countdown (amber within 7 days, pink when overdue), a time-elapsed bar, and counts of sub-goals, plans, targets and open tasks.
+  - "Open" hides achieved and abandoned goals but keeps the ancestors of open ones. Each row has "+ <finer horizon>". The parent picker offers only strictly coarser horizons, never the goal itself or its descendants (`lib/goals.ts`).
+  - Plans: Now, Upcoming and Past cards with a faded Markdown body and a day N of M bar. The sheet has Write and Preview modes.
+  - Targets: cards with today's progress from `/progress/today`. It carries no target ids, so the match is by area, title and metric. Weekly targets say they count when the week closes; inactive targets are dashed. The sheet covers day profiles, the category match, the goal, track-as-habit and the active range.
+- **Shared fixes.**
+  - `IconButton` icons were squeezed to 8 px app-wide since 5a. `cn` is plain `clsx`, so the size's `px-*` beat the later `px-0`. `Button` now has `iconOnly`, and svgs never shrink.
+  - `Page` actions wrap on phones.
+  - The year view's density fill skips alpha 0.53–0.69, where neither digit colour reaches 4.5:1 on cyan over black.
+  - Route-level code splitting (`React.lazy` in `App.tsx`, Suspense in the shell): the entry chunk went from 1.07 MB to 720 kB, and each screen loads its own chunk.
+  - New shared pieces: `ui/Segmented` (tabs and filter chips), `ui/Bar`, `api/paging.collect`, `lib/useMediaQuery`, `lib/useElementWidth`.
+- **Tests.**
+  - Unit: `lib/activity/review` (counting, merging, filters, bulk, hours), `lib/scores` (periods, points), `lib/goals` (tree, parents, filter).
+  - e2e: `activity.spec.ts` (confirm, dispute, correct with the chain and corrections; bulk confirm; activity log CRUD), `plan.spec.ts` (tree, plan with Markdown, target, counts, delete; the parent picker rules), `scores.spec.ts`, and the chat panel sliding open.
+  - The e2e backend runs with jobs off, so it computes no scores. `scores.spec.ts` serves engine-shaped rows for the `/scores` calls only (`tests/e2e/score-fixtures.ts`); everything else is the real backend.
+  - The activity tests seed on random far-past days, because the desktop and phone projects share one user.
+  - Also fixed: a weekday-dependent date bug in the calendar "leave" test.
+
+**5e (2026-11-17).** The behaviours the screen specs leave open, and the fixes that came with them.
+
+- **Shared building blocks.**
+  - `FormSheet`: a declarative editor (text, textarea, number, date, datetime, time, select, segmented, chips, checkbox, area). It maps server field errors onto inputs, has a two-step delete, and reports changes (`onChange`) for state outside the field list. Used by Work, Entertainment, Assistant and Settings.
+  - `RecurrenceBuilder` (`lib/recurrence.ts`): frequency, interval, weekdays (weekly) and end (never, until a date, after N), with the next five dates (`rrule` on floating time, so zones never shift days). Rules it can't model (e.g. `BYDAY=1MO`) fall back to editing the text. Used by tasks, reminders and work responsibilities.
+  - `OriginBadge` marks rows the assistant, an API key or an import created. `ui/Switch` and `ui/Segmented` are shared.
+- **`cn` now merges Tailwind conflicts** (`tailwind-merge` 3). With plain `clsx`, a `className` override lost or won by stylesheet order, so `NativeSelect`'s `w-full` beat `w-auto`. One item card's select took the whole row and the title had zero width, which an e2e test caught. The icon squeeze fixed in 5d was the same bug.
+- **Secrets never take an Idempotency-Key.** The server refuses one on operations that issue a token, because the replay store would hold the plaintext. The client skips the header on `NO_IDEMPOTENCY_KEY` (`src/api/client.ts`), and `check:api` verifies that list against the contract (POSTs that declare no `IdempotencyKey` parameter).
+- **Tasks (`/tasks`, `?g=` group, `?task=` opens one).**
+  - Groups: Today, Overdue, Upcoming, Recurring, No date, Done. "Today" runs to the next day start, not midnight (`localDayEndMs`); at 02:30 with a 04:00 day start it is still yesterday. Quick add on Today is due one minute before that end.
+  - Filters: area chips, minimum priority, goal, project, title search.
+  - Repeating tasks have no checkbox; the sheet's occurrence strip (14 days back and ahead) completes or skips days that have come. Recurring tasks take `rrule_dtstart` (Starts) instead of a due date, plus day profiles and track-as-habit.
+- **Skills (`/skills`, `/skills/:id`).**
+  - The library grid shows progress rings from the server's `progress`.
+  - Course sections can be added, removed and reordered. Ordinals are unique, so a swap parks one section on a free ordinal first and carries the version each write returns. A section counts as "started" once a session names it.
+  - A course's total length follows its sections unless you set your own, so progress works in the grid too.
+  - Book sessions start at the next page to read (pages are 1-based).
+- **Work (`/work`, `/work/projects/:id`).**
+  - Role cards hold responsibilities (cadence is an RRULE, shown in words) and projects with due countdowns and open-deliverable counts. Projects without a role get their own card.
+  - The project page shows deliverables on a due-date line with a "Today" marker and late highlighting, plus the project's open tasks (a new task defaults to the project).
+  - Work contexts live in Settings → Tracking, linked from the page.
+- **Entertainment.** It carries the "planned, never limited" note. Slots for the next 14 days are grouped by day, with "Mark enjoyed" (`consumed`). Items have kind tabs, status chips and an inline status select; an item can "Plan time for it".
+- **Assistant (`/assistant/routines|reminders|memory`).**
+  - Routines: cards show the learned time (or the default), the window, weekdays and kinds of day, with an enable switch, "Skip today" (`:skip` for today) and the instructions as Markdown.
+  - Reminders: Coming up and Earlier lists, done or cancel, a recurrence and a channel.
+  - Memory: Remembered, Proposed and All views, search, the superseded chain (followed back through `superseded_by`), and Forget (a delete) behind a confirmation. The user can't create facts, so the e2e test serves them from a fixture.
+- **Settings.**
+  - Connections: Telegram (status, a `/link CODE` code with a countdown that polls until linked, unlink); devices (last seen, version, health, revoke; register shows the token once with the enroll command built from the page's origin); API keys (scopes chosen per area read/write, optional expiry, token shown once, revoke).
+  - Tracking: app rules (match fields → app, category, area, confidence, enable switch) and work contexts.
+  - Days & scoring: the built-in kinds explained, custom kinds, planned exceptions for 90 days (changed in place with PATCH, removed, or added), and the weights. Weights are relative, so the sliders show each area's share live instead of forcing a sum; plan share (α) is per area.
+  - Notifications: browser permission, a test alert, and where alerts go.
+  - Assistant: mode, providers with their state, and this week's usage. StatusPill's "Today" label was wrong: the figures are weekly.
+  - About: web build (version and time from Vite `define`), server version (`/healthz`) and readiness checks (`/readyz`). The dev server proxies both.
+- **Activity "Add".** A user-entered detection (`detections.create`, source `user`) for time the collector missed; it is selected once added.
+- **Command palette "Find".** Titles of open tasks, goals, books and courses, and events (`events.list`, −30 to +180 days). It loads when the palette opens and ranks below page jumps by title only (never ids or in-order letters). "Ask" waits for the index, or cmdk would keep it selected and Enter would skip real hits.
+- **Tests.**
+  - Unit: `lib/recurrence`, `lib/tasks` (groups, the day-start boundary), palette ranking, the Idempotency-Key exemption.
+  - e2e: `tasks`, `library` (skills and entertainment), `work`, `assistant`, `settings` and the Activity "Add" flow, on desktop and phone.
+  - Tests that write the user's shared settings move them to a value different from the current one, since both projects share one user.

@@ -137,11 +137,11 @@ test.describe("calendar", () => {
   test("a day can be marked as leave", async ({ page, isMobile }) => {
     test.skip(isMobile, "week headers");
     await page.goto(`/calendar/week/${at(14, 12).slice(0, 10)}`);
-    const day = at(14, 12).slice(0, 10);
     await page.getByRole("button", { name: /^Day options for / }).first().click();
     await page.getByRole("menuitem", { name: "leave" }).click();
     await expect(page.getByText(/is now a leave day/).first()).toBeVisible();
-    const monday = (await api(page, "get", `/day-profile-overrides?from=${day}&to=${at(21, 12).slice(0, 10)}`)).items;
+    // The first header is that week's Monday, which can fall before `day`.
+    const monday = (await api(page, "get", `/day-profile-overrides?from=${at(7, 12).slice(0, 10)}&to=${at(21, 12).slice(0, 10)}`)).items;
     expect(monday.some((o: { profile: string }) => o.profile === "leave")).toBe(true);
   });
 });

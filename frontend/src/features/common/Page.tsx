@@ -16,7 +16,7 @@ export function Page({ title, subtitle, actions, children, className, wide }: {
           <h1 className="text-2xl font-semibold sm:text-[28px]">{title}</h1>
           {subtitle ? <p className="mt-1 text-sm text-text-2">{subtitle}</p> : null}
         </div>
-        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
       {children}
     </div>

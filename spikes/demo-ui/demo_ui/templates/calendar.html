@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set links = {'event': 'events', 'task_occurrence': 'tasks', 'entertainment_slot': 'entertainment_slots', 'skill_session': 'skill_sessions'} %}
+{% block title %}Calendar{% endblock %}
+{% block body %}
+<div class="bar">
+  <h1>Calendar</h1>
+  <form method="get" action="{{ url_for('calendar') }}" class="inline">
+    <a class="btn" href="{{ url_for('calendar', start=prev, days=days) }}">←</a>
+    <input type="date" name="start" value="{{ start.isoformat() }}">
+    <select name="days">{% for d in (1, 7, 14, 31) %}<option value="{{ d }}"{% if d == days %} selected{% endif %}>{{ d }} day{{ 's' if d > 1 }}</option>{% endfor %}</select>
+    <button>Show</button>
+    <a class="btn" href="{{ url_for('calendar', start=next, days=days) }}">→</a>
+  </form>
+</div>
+{% if progress and progress.areas %}
+<section class="card progress">
+  <h2>Today so far <small>{{ progress.profile }}; plan progress, not a score</small></h2>
+  <table>
+    <tr><th>Area</th><th>Items done</th><th>Planned blocks covered</th><th>Targets</th></tr>
+    {% for area, p in progress.areas.items() %}
+    <tr><td>{{ area }}</td><td>{{ p.done_items }} / {{ p.planned_items }}</td>
+      <td>{% if p.block_minutes_so_far %}{{ p.block_minutes_covered }} of {{ p.block_minutes_so_far }} min{% else %}<span class="muted">none yet</span>{% endif %}</td>
+      <td>{% for t in p.targets %}{{ t.title }}: {{ t.achieved }} / {{ t.amount }} {{ t.metric }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endif %}
+{% for day, entries in by_day %}
+<section class="day{% if day == today.isoformat() %} today{% endif %}">
+  <h2>{{ day }}{% if day == today.isoformat() %} <small>today</small>{% endif %}</h2>
+  {% if not entries %}<p class="muted">Nothing planned.</p>{% endif %}
+  <ul class="entries">
+  {% for e in entries %}
+    <li class="entry kind-{{ e.kind }} status-{{ e.status or 'none' }}">
+      <span class="when">{% if e.all_day %}all day{% else %}{{ e.starts_at|local('%H:%M') }}{% if e.ends_at != e.starts_at %}–{{ e.ends_at|local('%H:%M') }}{% endif %}{% endif %}</span>
+      {% if e.kind in links %}<a href="{{ url_for('resource_get', prefix=links[e.kind], id=e.id) }}">{{ e.title }}</a>{% else %}{{ e.title }}{% endif %}
+      <span class="tag">{{ e.kind|replace('_', ' ') }}</span>
+      {% if e.area %}<span class="tag area">{{ e.area }}</span>{% endif %}
+      {% if e.status %}<span class="tag">{{ e.status }}</span>{% endif %}
+      {% if e.kind == 'task_occurrence' and e.all_day and e.status == 'todo' %}
+      <form method="post" action="{{ url_for('occurrence_action', task_id=e.id, day=e.occurs_on, verb='complete') }}" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+        <button class="small">Done</button>
+      </form>
+      <form method="post" action="{{ url_for('occurrence_action', task_id=e.id, day=e.occurs_on, verb='skip') }}" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ request.full_path }}">
+        <input type="text" name="reason" placeholder="reason (optional)" maxlength="500" class="small">
+        <button class="small secondary">Skip</button>
+      </form>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}

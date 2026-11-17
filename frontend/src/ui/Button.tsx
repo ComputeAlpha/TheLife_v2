@@ -10,6 +10,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size;
   loading?: boolean;
   icon?: ReactNode;
+  /** Square icon button: no horizontal padding (cn is clsx, so a later px-0 can't override the size's px-*). */
+  iconOnly?: boolean;
 }
 
 const variants: Record<Variant, string> = {
@@ -26,7 +28,7 @@ const sizes: Record<Size, string> = {
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = "secondary", size = "md", loading, icon, className, children, disabled, type = "button", ...rest },
+  { variant = "secondary", size = "md", loading, icon, iconOnly, className, children, disabled, type = "button", ...rest },
   ref,
 ) {
   return (
@@ -36,11 +38,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center justify-center rounded-[var(--radius-control)] font-medium whitespace-nowrap select-none",
+        "inline-flex items-center justify-center rounded-[var(--radius-control)] font-medium whitespace-nowrap select-none [&_svg]:shrink-0",
         "transition-[background,box-shadow,color,border-color,transform] duration-150 active:scale-[.98]",
         "disabled:opacity-50 disabled:pointer-events-none",
         variants[variant],
-        sizes[size],
+        iconOnly ? sizes[size].replace(/\bpx-\d+\b/, "") : sizes[size],
         className,
       )}
       {...rest}
@@ -62,7 +64,8 @@ export const IconButton = forwardRef<HTMLButtonElement, ButtonProps & { label: s
       title={label}
       variant={variant}
       size={size}
-      className={cn(size === "sm" ? "w-8 px-0" : size === "lg" ? "w-12 px-0" : "w-10 px-0", className)}
+      iconOnly
+      className={cn("shrink-0", size === "sm" ? "w-8" : size === "lg" ? "w-12" : "w-10", className)}
       {...rest}
     >
       {children}

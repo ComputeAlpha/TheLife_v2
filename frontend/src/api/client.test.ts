@@ -46,3 +46,17 @@ describe("api client", () => {
     expect(err.summary).toBe("Too many attempts. Try again in 10 min.");
   });
 });
+
+describe("Idempotency-Key", () => {
+  it("is added to creates but never to operations that issue a secret", async () => {
+    const seen: Record<string, string | null> = {};
+    server.use(
+      http.post("*/api/v1/tasks", ({ request }) => { seen.tasks = request.headers.get("Idempotency-Key"); return HttpResponse.json({}, { status: 201 }); }),
+      http.post("*/api/v1/devices", ({ request }) => { seen.devices = request.headers.get("Idempotency-Key"); return HttpResponse.json({}, { status: 201 }); }),
+    );
+    await api.POST("/api/v1/tasks", { body: { title: "x", area: "work" } });
+    await api.POST("/api/v1/devices", { body: { name: "x", platform: "linux-x11" } });
+    expect(seen.tasks).toMatch(/^[0-9a-f-]{36}$/);
+    expect(seen.devices).toBeNull();
+  });
+});

@@ -1,5 +1,6 @@
 #include <drogon/drogon.h>
 
+#include <cstdio>
 #include <exception>
 #include <iostream>
 
@@ -30,6 +31,9 @@
 constexpr std::size_t kMaxBody = 48 * 1024 * 1024;
 
 int main() {
+  // Logs go to stdout; line-buffer it so a container or redirected log shows each line as it happens
+  // (fully buffered by default when stdout is not a terminal).
+  std::setvbuf(stdout, nullptr, _IOLBF, 0);
   try {
     const auto addr = thelife::env::get("THELIFE_LISTEN_ADDR", "127.0.0.1");
     const auto port = thelife::env::getInt("THELIFE_LISTEN_PORT", 8080, 1, 65535);

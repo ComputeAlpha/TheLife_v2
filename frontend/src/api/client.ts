@@ -17,11 +17,24 @@ export function newId(): string {
   return crypto.randomUUID();
 }
 
+/**
+ * POSTs whose contract declares no Idempotency-Key, chiefly those that issue a secret (a replayed response would
+ * hand the token out again). `npm run check:api` checks this list against the contract.
+ */
+export const NO_IDEMPOTENCY_KEY = new Set([
+  "/api/v1/api-keys",
+  "/api/v1/auth/login",
+  "/api/v1/devices",
+  "/api/v1/devices/self/token:rotate",
+  "/api/v1/ingest/captures", // device-only; listed so the set matches the contract
+  "/api/v1/ingest/observations",
+]);
+
 const middleware: Middleware = {
   onRequest({ request }) {
     if (request.method !== "GET" && request.method !== "HEAD") {
       request.headers.set("X-TheLife-CSRF", "1");
-      if (request.method === "POST" && !request.headers.has("Idempotency-Key")) {
+      if (request.method === "POST" && !request.headers.has("Idempotency-Key") && !NO_IDEMPOTENCY_KEY.has(new URL(request.url).pathname)) {
         request.headers.set("Idempotency-Key", newId());
       }
     }

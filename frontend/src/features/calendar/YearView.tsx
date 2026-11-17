@@ -44,13 +44,15 @@ export function YearView({ year, entries, scores, tz, now, metric, onDay }: {
                 if (!d.startsWith(m.slice(0, 7))) return <span key={d} />;
                 const n = counts.get(d) ?? 0;
                 const s = scores.get(d);
-                const alpha = 0.12 + 0.68 * (n / max);
+                // Fill strength skips 0.53–0.69, where neither digit colour reaches 4.5:1 on cyan over black.
+                const t = n / max;
+                const alpha = t <= 0.5 ? 0.12 + 0.8 * t : 0.7 + 0.4 * (t - 0.5);
                 const bg =
                   metric === "score"
                     ? s?.final != null ? scoreColor(s.final) : undefined
                     : n ? `rgb(34 211 238 / ${alpha})` : undefined;
                 // Dark digits on bright fills, light digits on dim ones (contrast ≥ 4.5:1 either way).
-                const darkText = metric === "score" ? s?.final != null : n > 0 && alpha > 0.42;
+                const darkText = metric === "score" ? s?.final != null : n > 0 && alpha >= 0.7;
                 return (
                   <button
                     key={d}

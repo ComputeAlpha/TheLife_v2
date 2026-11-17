@@ -38,3 +38,13 @@ export async function seedWeek(req: APIRequestContext, tag = "") {
   await post(req, "/detections", { source: "user", area: "work", category: "coding", summary: "Editing calendar.cc in VS Code" + tag, started_at: at(0, 9, 5), ended_at: at(0, 10, 0), confidence: 0.9 });
   await post(req, "/reminders", { text: "Call mom" + tag, due_at: at(0, 20, 0) });
 }
+
+/** The local day (Asia/Kolkata) at an offset from today, as YYYY-MM-DD. */
+export function dayAt(dayOffset: number): string {
+  return at(dayOffset, 12).slice(0, 10);
+}
+
+/** A past day no other test uses (the desktop and phone projects share one user). */
+export function freshPastDay(): number {
+  return -(30 + Math.floor(Math.random() * 3000));
+}

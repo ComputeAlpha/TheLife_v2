@@ -1,11 +1,19 @@
+import { Suspense } from "react";
 import { NavLink, Outlet } from "react-router";
-import { KeyRound, UserRound } from "lucide-react";
+import { Skeleton } from "@/ui/States";
+import { Bell, Bot, CalendarCog, Info, KeyRound, Plug, Radar, UserRound } from "lucide-react";
 import { Page } from "../common/Page";
 import { cn } from "@/ui/cn";
 
 const TABS = [
   { to: "/settings/profile", label: "Profile", icon: UserRound },
   { to: "/settings/security", label: "Security", icon: KeyRound },
+  { to: "/settings/connections", label: "Connections", icon: Plug },
+  { to: "/settings/tracking", label: "Tracking", icon: Radar },
+  { to: "/settings/days", label: "Days & scoring", icon: CalendarCog },
+  { to: "/settings/notifications", label: "Notifications", icon: Bell },
+  { to: "/settings/assistant", label: "Assistant", icon: Bot },
+  { to: "/settings/about", label: "About", icon: Info },
 ];
 
 export function SettingsLayout() {
@@ -37,7 +45,7 @@ export function SettingsLayout() {
           </ul>
         </nav>
         <div className="min-w-0 flex-1">
-          <Outlet />
+          <Suspense fallback={<Skeleton className="h-64" />}><Outlet /></Suspense>
         </div>
       </div>
     </Page>

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Chat{% endblock %}
+{% block head %}{% if busy %}<meta http-equiv="refresh" content="1">{% endif %}{% endblock %}
+{% block body %}
+<div class="bar">
+  <h1>Chat <small>today, web</small></h1>
+  {% if status %}
+  <span class="tag assistant-{{ status.mode }}">
+    {% if status.mode == "online" %}Assistant online
+    {% elif status.mode == "manual" %}Assistant offline{% if status.resets_at %} until {{ status.resets_at|local }}{% endif %}: commands only
+    {% else %}Assistant not configured: commands only{% endif %}
+  </span>
+  {% endif %}
+</div>
+
+{% if pending %}
+<div class="card approvals">
+  <h2>Waiting for your approval</h2>
+  {% for a in pending %}
+  <div class="approval">
+    <p>{{ a.summary }}</p>
+    <form method="post" action="{{ url_for('chat_decide', id=a.id, verb='approve') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button>Approve</button>
+    </form>
+    <form method="post" action="{{ url_for('chat_decide', id=a.id, verb='reject') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input name="reason" maxlength="500" placeholder="reason (optional)"><button class="secondary">Reject</button>
+    </form>
+    <small>expires {{ a.expires_at|local }}</small>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card chat">
+  {% for e in entries %}
+  <div class="msg {{ e.role }} {{ e.kind }}">
+    <div class="meta">{{ "You" if e.role == "user" else "TheLife" }} · {{ e.created_at|local("%H:%M") }}{% if e.kind not in ("normal",) %} · {{ e.kind }}{% endif %}</div>
+    {% if e.content %}<div class="text">{{ e.content }}</div>{% endif %}
+    {% for st in e.steps %}
+    <details class="step">
+      <summary><code>{{ st.name }}</code>{% if st.result is none %} <span class="muted">(no result)</span>{% endif %}</summary>
+      <pre class="mono">{{ st.arguments|pretty }}</pre>
+      {% if st.result is not none %}<pre class="mono result">{{ st.result|pretty }}</pre>{% endif %}
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No messages today. Tell TheLife what you did or plan to do, or send /help for commands.</p>
+  {% endfor %}
+  {% if busy %}<p class="muted thinking">TheLife is working on it… (this page refreshes itself)</p>{% endif %}
+  {% if turn and turn.status == "failed" %}<p class="flash error">That turn failed{% if turn.error %} ({{ turn.error }}){% endif %}.</p>{% endif %}
+</div>
+
+<form method="post" action="{{ url_for('chat_send') }}" class="card send">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="client_id" value="{{ client_id }}">
+  <textarea name="text" rows="3" maxlength="8000" required autofocus placeholder="e.g. did 45 min of the Rust course, section 4; remind me to call the bank at 6"></textarea>
+  <button>Send</button>
+</form>
+{% endblock %}

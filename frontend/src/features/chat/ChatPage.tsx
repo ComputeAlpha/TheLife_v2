@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Link, NavLink, useNavigate, useParams, useSearchParams } from "react-router";
-import { Globe, MessageSquarePlus, Send, ShieldCheck } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Globe, MessageSquarePlus, Send, ShieldCheck } from "lucide-react";
 import { useUser } from "@/api/auth";
 import { useConversations, useTodayConversation, type Conversation } from "@/api/chat";
 import { usePendingApprovals } from "@/api/today";
@@ -10,6 +11,7 @@ import { localDay } from "@/lib/time";
 import { useNow } from "@/lib/useNow";
 import { cn } from "@/ui/cn";
 import { Badge } from "@/ui/Badge";
+import { IconButton } from "@/ui/Button";
 import { Thread } from "./Thread";
 import { ApprovalCard } from "../approvals/ApprovalCard";
 
@@ -124,18 +126,82 @@ function History({ items, today, todayId }: { items: Conversation[]; today: stri
   );
 }
 
+/**
+ * Pending approvals beside the thread. Collapsed to a slim rail by default; it slides open whenever
+ * a new approval arrives and folds away again once nothing is waiting. The user can toggle it.
+ */
 function ContextPanel() {
   const approvals = usePendingApprovals();
   const items = approvals.data?.items ?? [];
+  const count = items.length;
+  const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(0);
+  if (count !== seen) {
+    // Adjusting state from a changed input during render (no effect round-trip).
+    setSeen(count);
+    if (count > seen) setOpen(true);
+    else if (count === 0) setOpen(false);
+  }
   return (
-    <aside className="hidden w-80 shrink-0 overflow-y-auto border-l border-line p-4 xl:block" aria-label="Waiting for you">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="size-4 text-accent" /> Waiting for you {items.length ? <Badge tone="warn">{items.length}</Badge> : null}</h2>
-      {items.length ? (
-        <div className="space-y-3">{items.map((a) => <ApprovalCard key={a.id} a={a} />)}</div>
-      ) : (
-        <p className="text-[13px] text-text-3">Nothing to approve. When the assistant wants to make a bigger change, it asks here first.</p>
-      )}
-    </aside>
+    <motion.aside
+      className="relative hidden shrink-0 overflow-hidden border-l border-line lg:block"
+      aria-label="Waiting for you"
+      initial={false}
+      animate={{ width: open ? 320 : 52 }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <AnimatePresence initial={false} mode="popLayout">
+        {open ? (
+          <motion.div
+            key="open"
+            className="flex h-full w-80 flex-col"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div className="flex items-center gap-2 px-4 pb-3 pt-4">
+              <h2 className="flex flex-1 items-center gap-2 text-sm font-semibold">
+                <ShieldCheck className="size-4 text-accent" /> Waiting for you {count ? <Badge tone="warn">{count}</Badge> : null}
+              </h2>
+              <IconButton label="Collapse panel" onClick={() => setOpen(false)}>
+                <ChevronsRight className="size-4" />
+              </IconButton>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+              {count ? (
+                <div className="space-y-3">{items.map((a) => <ApprovalCard key={a.id} a={a} />)}</div>
+              ) : (
+                <p className="text-[13px] text-text-3">Nothing to approve. When the assistant wants to make a bigger change, it asks here first.</p>
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.button
+            key="rail"
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={count ? `Show ${count} waiting for you` : "Show waiting for you"}
+            aria-expanded={false}
+            className="flex h-full w-[52px] flex-col items-center gap-3 pt-4 text-text-3 transition-colors hover:bg-surface-2 hover:text-text"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ChevronsLeft className="size-4" aria-hidden />
+            <span className="relative">
+              <ShieldCheck className={cn("size-5", count ? "text-accent" : "")} aria-hidden />
+              {count ? (
+                <span className="absolute -right-2 -top-2 grid min-w-4 place-items-center rounded-full bg-warn px-1 text-[10px] font-bold leading-4 text-black">
+                  {count}
+                </span>
+              ) : null}
+            </span>
+            <span className="text-[11px] font-medium uppercase tracking-wider [writing-mode:vertical-rl]">Waiting for you</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+    </motion.aside>
   );
 }
-

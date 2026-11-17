@@ -67,7 +67,13 @@ test.describe("chat", () => {
     await expect(card).toBeVisible({ timeout: 15_000 });
     await expect(card.getByText("Waiting for you")).toBeVisible();
     await expect(card.getByText(`“${title}”`)).toBeVisible(); // named, not an id
-    if (!isMobile) await expect(page.getByRole("link", { name: /Approvals.*waiting/ })).toBeVisible();
+    if (!isMobile) {
+      await expect(page.getByRole("link", { name: /Approvals.*waiting/ })).toBeVisible();
+      // The side panel slides open by itself when something new waits.
+      const panel = page.getByRole("complementary", { name: "Waiting for you" });
+      await expect(panel.getByText(`“${title}”`)).toBeVisible();
+      await expect(panel.getByRole("button", { name: "Collapse panel" })).toBeVisible();
+    }
     await card.getByRole("button", { name: "Approve" }).click();
     await expect(page.getByText("Approved and done").first()).toBeVisible();
     await expect(card.getByText("Approved")).toBeVisible();
