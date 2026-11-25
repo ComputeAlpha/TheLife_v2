@@ -490,6 +490,38 @@ TEST(LlmGateway, RateLimitWaitedOutForInteractiveRescheduledForBackground) {
   EXPECT_EQ(f.gw->status()[0].state, "healthy");
 }
 
+TEST(LlmGateway, OutOfTokensWhileReasoningRetriesWithLowEffort) {
+  // 2026-11-25: a many-part message made the model think through all of max_tokens (finish_reason "length",
+  // no content, no tool call); the same request again failed the same way.
+  LlmResponse thinking;
+  thinking.finishReason = "length";
+  thinking.reasoning = "planning...";
+  const auto bad = checkCompletion(thinking);
+  ASSERT_TRUE(bad);
+  EXPECT_EQ(bad->cls, ErrorClass::InvalidOutput);
+  EXPECT_TRUE(bad->outOfTokens);
+  LlmResponse cut = thinking;
+  cut.content = "partial answer";
+  EXPECT_FALSE(checkCompletion(cut));  // text cut at the limit is still an answer
+
+  Fixture f;
+  const Step outOfTokens = [](const LlmRequest&, StreamSink*) -> LlmResponse {
+    LlmError e(ErrorClass::InvalidOutput, "scripted");
+    e.outOfTokens = true;
+    throw e;
+  };
+  f.primary->steps = {outOfTokens, ok("done")};
+  EXPECT_EQ(f.gw->completeBlocking(f.req()).content, "done");
+  ASSERT_EQ(f.primary->seen.size(), 2u);
+  EXPECT_FALSE(f.primary->seen[0].reasoningEffort);
+  EXPECT_EQ(f.primary->seen[1].reasoningEffort, std::optional<std::string>("low"));
+
+  f.primary->seen.clear();
+  f.primary->steps = {fail(ErrorClass::InvalidOutput), ok("fine")};  // other invalid output: same request again
+  EXPECT_EQ(f.gw->completeBlocking(f.req()).content, "fine");
+  EXPECT_FALSE(f.primary->seen[1].reasoningEffort);
+}
+
 TEST(LlmGateway, InvalidOutputRetriedOnceAndContextTooLongNotRetried) {
   Fixture f;
   f.primary->steps = {fail(ErrorClass::InvalidOutput), ok("fine")};

@@ -51,4 +51,5 @@ did, what you expected and what happened. Logs: `scripts/prod.sh logs backend`,
 
 | # | Day | Layer | What happened | Status |
 |---|---|---|---|---|
-| | | | | |
+| 1 | Wed 25 Nov | agent / LLM gateway | A long, many-part message made every chat and Telegram turn fail with `invalid_output`: the model spent the whole 2048-token budget reasoning (`finish_reason: length`, no text, no tool call), and the retry sent the same request. Fix: agent budget 8192; a reply that runs out while reasoning is retried with `reasoning_effort=low`; final LLM failures are logged | fixed, to deploy |
+| 2 | Wed 25 Nov | deploy / backup | No backup since 21 Nov: after a reboot the backup container starts before Postgres (Docker's restart ignores `depends_on`), the dump fails and it sleeps 24 h. Fix: wait for `pg_isready`, retry a failed dump in 5 min | fixed, to deploy |

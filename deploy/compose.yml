@@ -96,15 +96,19 @@ services:
     command:
       - |
         set -u
+        # After a reboot Docker restarts this container without waiting for postgres (depends_on only applies
+        # to `compose up`): wait for it, and retry a failed dump in 5 minutes rather than the next day.
         while true; do
+          until pg_isready -q -h postgres -U postgres -d thelife; do sleep 5; done
           f="/backups/thelife-$$(date +%Y%m%d-%H%M).dump"
           if pg_dump -h postgres -U postgres -d thelife -Fc -f "$$f.part"; then
             mv "$$f.part" "$$f" && echo "backup: $$f"
+            find /backups -name 'thelife-*.dump' -mtime +$$KEEP_DAYS -delete
+            sleep 86400
           else
-            rm -f "$$f.part"; echo "backup: FAILED" >&2
+            rm -f "$$f.part"; echo "backup: FAILED, retrying in 5 minutes" >&2
+            sleep 300
           fi
-          find /backups -name 'thelife-*.dump' -mtime +$$KEEP_DAYS -delete
-          sleep 86400
         done
 
 volumes:

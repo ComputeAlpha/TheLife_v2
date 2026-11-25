@@ -205,10 +205,12 @@ LlmResponse Gateway::attempt(Slot& s, const LlmRequest& req, StreamSink* sink, i
   int transient = 0, invalid = 0, limited = 0;
   std::mt19937_64 rng(std::random_device{}());
   std::uniform_real_distribution<double> uni(0.0, 1.0);
+  // The retry after a reply that ran out of tokens while reasoning asks for less reasoning (same budget).
+  std::optional<LlmRequest> lighter;
   for (;;) {
     ++attempts;
     try {
-      return s.provider->complete(req, sink);
+      return s.provider->complete(lighter ? *lighter : req, sink);
     } catch (const LlmError& e) {
       if (sink) sink->reset();
       if (e.cls == ErrorClass::Transient && transient < cfg_.transientRetries) {
@@ -229,8 +231,15 @@ LlmResponse Gateway::attempt(Slot& s, const LlmRequest& req, StreamSink* sink, i
       }
       if (e.cls == ErrorClass::InvalidOutput && invalid < 1) {
         ++invalid;
+        LOG_WARN << "llm " << req.purpose << ": " << e.detail << "; retrying"
+                 << (e.outOfTokens ? " with reasoning_effort=low" : "");
+        if (e.outOfTokens) {
+          lighter = req;
+          lighter->reasoningEffort = "low";
+        }
         continue;
       }
+      LOG_WARN << "llm " << req.purpose << " failed: " << e.what();
       if (e.cls == ErrorClass::Unclassified) captureFixture(e);
       throw;
     }
