@@ -203,6 +203,12 @@ std::optional<LlmError> checkCompletion(const LlmResponse& r) {
     return LlmError(ErrorClass::InvalidOutput, "finish_reason '" + r.finishReason.substr(0, 32) + "'", 200);
   }
   if (r.content.empty() && r.toolCalls.empty()) {
+    if (r.finishReason == "length") {
+      // A reasoning model can spend the whole max_tokens budget thinking. Retrying the same request does the same.
+      LlmError e(ErrorClass::InvalidOutput, "max_tokens reached while reasoning (no content, no tool calls)", 200);
+      e.outOfTokens = true;
+      return e;
+    }
     return LlmError(ErrorClass::InvalidOutput, "empty content and no tool calls", 200);
   }
   return std::nullopt;

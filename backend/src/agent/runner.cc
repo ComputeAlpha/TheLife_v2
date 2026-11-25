@@ -292,7 +292,8 @@ drogon::Task<llm::LlmRequest> buildRequest(const TurnRequest& r, TurnState& st) 
   req.conversationId = st.conversationId;
   req.promptId = prompt.id;
   req.promptVersion = prompt.version + "+" + prompt.hash;
-  req.maxTokens = 2048;
+  // Reasoning counts against max_tokens: a long, many-part message can take 7k tokens of thinking (2026-11-25).
+  req.maxTokens = 8192;
   req.messages.push_back(llm::Message::system(
       prompt.render({{"user_name", now.userName}, {"timezone", now.timezone}, {"groups", groupsIndex()}})));
 

@@ -115,6 +115,7 @@ class LlmError : public std::runtime_error {
   std::string quotaScope;                    // hourly | session | daily | weekly | unknown (QuotaExhausted)
   std::optional<Clock::time_point> resetsAt; // QuotaExhausted, ProviderUnavailable while exhausted
   std::string rawBody;  // Unclassified only, bounded: for fixture-capture mode, never logged
+  bool outOfTokens = false;  // InvalidOutput: max_tokens reached while still reasoning (no text, no tool call)
 };
 
 struct Capabilities {
